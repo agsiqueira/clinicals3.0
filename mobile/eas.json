@@ -9,7 +9,7 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "https://clinicals-backend.onrender.com",
+        "EXPO_PUBLIC_API_BASE_URL": "https://clinicals3-backend.onrender.com",
         "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_dG91Y2hlZC1hbnQtOTEuY2xlcmsuYWNjb3VudHMuZGV2JA"
       }
     }
