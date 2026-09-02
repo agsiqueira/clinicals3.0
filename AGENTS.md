@@ -1,8 +1,8 @@
-# Clinicals 2.0 — Agent Instructions
+# Clinicals 3.0 — Agent Instructions
 
 ## Project Purpose
 
-Clinicals 2.0 is an AI-powered clinical communication training platform. It helps learners practice patient encounters, receive feedback, unlock roadmap progress, earn badges, and review performance.
+Clinicals 3.0 is an AI-powered clinical communication training platform that evolves from the preserved Clinicals 2.0 baseline. It helps learners practice patient encounters, receive feedback, unlock roadmap progress, earn badges, and review performance.
 
 The current priority is to preserve the working baseline while improving the platform carefully.
 
