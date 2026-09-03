@@ -16,12 +16,11 @@ test("broad questions reveal only one non-sensitive clinical fact", async () => 
     messages: [{ role: "user", content: "Tell me more." }],
   });
 
-  assert.equal(visibleCase.visible_facts.allowed_this_turn.length, 1);
-  assert.equal(visibleCase.visible_facts.allowed_this_turn[0].topic, "chief_complaint");
+  assert.equal(visibleCase.spoken_details.may_answer_now.length, 1);
   assert.ok(
-    !visibleCase.visible_facts.allowed_this_turn.some((fact) =>
+    !visibleCase.spoken_details.may_answer_now.some((text) =>
       /blood|fever|flank|nausea|vomit|discharge|allerg|medication|medical history/i.test(
-        fact.text
+        text
       )
     )
   );
@@ -39,11 +38,10 @@ test("transcript replay advances broad disclosure to the next undisclosed fact",
   });
 
   assert.deepEqual(
-    visibleCase.visible_facts.already_disclosed.map((fact) => fact.topic),
-    ["chief_complaint"]
+    visibleCase.spoken_details.previously_shared,
+    [caseData.presenting_info.opening_statement]
   );
-  assert.equal(visibleCase.visible_facts.allowed_this_turn.length, 1);
-  assert.equal(visibleCase.visible_facts.allowed_this_turn[0].topic, "onset");
+  assert.equal(visibleCase.spoken_details.may_answer_now.length, 1);
 });
 
 test("broad questions do not expose negatives or red flags alongside the one allowed fact", async () => {
@@ -57,12 +55,12 @@ test("broad questions do not expose negatives or red flags alongside the one all
     ],
     messages: [{ role: "user", content: "Tell me more." }],
   });
-  const visibleFactsText = JSON.stringify(state.visibleCase.visible_facts);
+  const visibleFactsText = JSON.stringify(state.visibleCase.spoken_details);
 
-  assert.equal(state.visibleCase.visible_facts.allowed_this_turn.length, 1);
+  assert.equal(state.visibleCase.spoken_details.may_answer_now.length, 1);
   assert.deepEqual(state.allowedFactIds, ["history.old_carts.location"]);
   assert.match(
-    state.visibleCase.visible_facts.allowed_this_turn[0].text,
+    state.visibleCase.spoken_details.may_answer_now[0],
     /genital area/i
   );
   assert.doesNotMatch(
@@ -107,14 +105,10 @@ test("sensitive facts are available only when directly asked", async () => {
   });
 
   assert.ok(
-    !broadVisibleCase.visible_facts.allowed_this_turn.some(
-      (fact) => fact.topic === "blood_in_urine"
-    )
+    !broadVisibleCase.spoken_details.may_answer_now.some((text) => /blood/i.test(text))
   );
   assert.ok(
-    directVisibleCase.visible_facts.allowed_this_turn.some(
-      (fact) => fact.topic === "blood_in_urine"
-    )
+    directVisibleCase.spoken_details.may_answer_now.some((text) => /blood/i.test(text))
   );
 });
 
@@ -131,14 +125,9 @@ test("persisted disclosed fact IDs advance broad disclosure without transcript r
     "presenting_info.chief_complaint",
     "history.old_carts.onset",
   ]);
-  assert.deepEqual(
-    state.visibleCase.visible_facts.already_disclosed.map((fact) => fact.id),
-    ["presenting_info.chief_complaint"]
-  );
-  assert.deepEqual(
-    state.visibleCase.visible_facts.allowed_this_turn.map((fact) => fact.id),
-    ["history.old_carts.onset"]
-  );
+  assert.equal(state.visibleCase.spoken_details.previously_shared.length, 1);
+  assert.equal(state.visibleCase.spoken_details.may_answer_now.length, 1);
+  assert.doesNotMatch(JSON.stringify(state.visibleCase), /presenting_info|history\.old_carts/);
 });
 
 test("persisted disclosed fact IDs are the source of truth when provided", async () => {

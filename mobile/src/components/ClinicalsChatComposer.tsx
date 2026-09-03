@@ -23,6 +23,10 @@ type ClinicalsChatComposerProps = {
   transcribing?: boolean;
   isRecording?: boolean;
   containerStyle?: StyleProp<ViewStyle>;
+  inputAccessibilityLabel?: string;
+  microphoneAccessibilityLabel?: string;
+  showMicrophoneControl?: boolean;
+  compact?: boolean;
 };
 
 export function ClinicalsChatComposer({
@@ -40,21 +44,31 @@ export function ClinicalsChatComposer({
   transcribing = false,
   isRecording = false,
   containerStyle,
+  inputAccessibilityLabel = "Message text input",
+  microphoneAccessibilityLabel,
+  showMicrophoneControl = true,
+  compact = false,
 }: ClinicalsChatComposerProps) {
   const submit = onSubmit || onSend || (() => {});
 
   return (
-    <View style={[styles.container, containerStyle]}>
+    <View style={[styles.container, compact && styles.compactContainer, containerStyle]}>
       <TextInput
+        accessibilityLabel={inputAccessibilityLabel}
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
-        style={styles.input}
+        style={[styles.input, compact && styles.compactInput]}
         editable={editable}
         returnKeyType="send"
         onSubmitEditing={submit}
       />
-      <Pressable
+      {showMicrophoneControl ? <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={
+          microphoneAccessibilityLabel ||
+          (isRecording ? "Stop microphone recording" : "Start microphone recording")
+        }
         onPress={onMicPress}
         disabled={micDisabled}
         style={({ pressed }) => [
@@ -64,7 +78,7 @@ export function ClinicalsChatComposer({
         ]}
       >
         <Text style={styles.buttonText}>{transcribing ? "..." : isRecording ? "⏹️" : "🎤"}</Text>
-      </Pressable>
+      </Pressable> : null}
       <Pressable
         onPress={submit}
         disabled={sendDisabled}
@@ -142,5 +156,15 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.65,
+  },
+  compactContainer: {
+    marginHorizontal: 0,
+    marginTop: 0,
+    borderWidth: 0,
+    borderRadius: 14,
+    backgroundColor: "transparent",
+  },
+  compactInput: {
+    borderWidth: 0,
   },
 });

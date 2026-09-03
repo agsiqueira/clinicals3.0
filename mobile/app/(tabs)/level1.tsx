@@ -13,13 +13,14 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { Tabs, useLocalSearchParams, useRouter } from "expo-router";
 import { useAuth, useUser } from "@clerk/clerk-expo";
 import { Audio } from "expo-av";
 import * as FileSystem from "expo-file-system/legacy";
 import { caseStyles } from "../../assets/styles/case.styles";
 import { AnimatedPatientAvatar, AnimatedPatientAvatarState } from "../../src/components/AnimatedPatientAvatar";
 import { ClinicalsChatComposer } from "../../src/components/ClinicalsChatComposer";
+import { PatientCallScreen, type CallState } from "../../src/components/PatientCallScreen";
 import { MentorAvatar } from "../../src/components/MentorAvatar";
 import { useEnglishSpeechTranscription } from "../../src/hooks/useEnglishSpeechTranscription";
 import { useSpeechPlayback } from "../../src/hooks/useSpeechPlayback";
@@ -40,6 +41,36 @@ const TTS_REQUEST_TIMEOUT_MS = 90000;
 const SHOW_PATIENT_AVATAR_RUNTIME_DEBUG = __DEV__;
 const MENTOR_TTS_VOICE =
   process.env.EXPO_PUBLIC_NAVIGATOR_MENTOR_TTS_VOICE || "am_adam";
+const VOICE_ACTIVITY = {
+  meterIntervalMs: 100,
+  webSpeechRmsThreshold: 0.025,
+  nativeSpeechDbThreshold: -42,
+  speechConfirmationMs: 180,
+  silenceTimeoutMs: 1500,
+  maxRecordingMs: 30000,
+} as const;
+
+type NativeRecordingStopReason = "silence" | "max-duration" | "error" | "cleanup";
+type NativeVoiceDiagnostics = {
+  statusCallbackCount: number;
+  missingMeteringCount: number;
+  minus160Count: number;
+  minDb: number | null;
+  maxDb: number | null;
+  speechConfirmed: boolean;
+};
+
+function logNativeVoiceDiagnostic(event: string, details: Record<string, unknown> = {}) {
+  if (__DEV__ && Platform.OS !== "web") {
+    console.debug(`[Native Talk] ${event}`, details);
+  }
+}
+
+function logWebTalkDiagnostic(event: string, details: Record<string, unknown> = {}) {
+  if (__DEV__ && Platform.OS === "web") {
+    console.debug(`[Web Talk] ${event}`, details);
+  }
+}
 
 function getMimeTypeFromRecordingUri(uri: string) {
   const normalized = String(uri || "").toLowerCase();
@@ -132,6 +163,11 @@ type CaseData = {
   presenting_info?: {
     chief_complaint?: string;
     opening_statement?: string;
+  };
+  patient_profile?: {
+    first_name?: string;
+    last_name?: string;
+    preferred_name?: string;
   };
   osce_opening?: {
     student_intro?: string;
@@ -476,13 +512,6 @@ export default function Level1Screen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const isNarrowScreen = width < 720;
-  const encounterFooterStyle = useMemo(
-    () => [
-      caseStyles.encounterFooter,
-      isNarrowScreen ? caseStyles.encounterFooterCompact : caseStyles.encounterFooterDesktop,
-    ],
-    [isNarrowScreen]
-  );
   const hpiStageStyle = useMemo(
     () => [
       caseStyles.hpiStageContainer,
@@ -520,6 +549,18 @@ export default function Level1Screen() {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [pendingMessages, setPendingMessages] = useState<Msg[]>([]);
   const [creatingConversation, setCreatingConversation] = useState(false);
+  const conversationCreationRef = useRef(false);
+  const answerInProgressRef = useRef(false);
+  const hangUpInProgressRef = useRef(false);
+  const callEndedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const patientGreetingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const patientGreetingGenerationRef = useRef(0);
+  const greetedConversationIdsRef = useRef(new Set<string>());
+  const [callState, setCallState] = useState<CallState>("incoming");
+  const callStateRef = useRef<CallState>("incoming");
+  const [callStartedAt, setCallStartedAt] = useState<number | null>(null);
+  const [elapsedCallSeconds, setElapsedCallSeconds] = useState(0);
+  const [answeringCall, setAnsweringCall] = useState(false);
   const [stage, setStage] = useState<"chat" | "hpi" | "results">("chat");
   const [hpiText, setHpiText] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -560,182 +601,376 @@ export default function Level1Screen() {
   const recordingRef = useRef<Audio.Recording | null>(null);
   const webMediaRecorderRef = useRef<MediaRecorder | null>(null);
   const webAudioChunksRef = useRef<Blob[]>([]);
+  const webAudioContextRef = useRef<AudioContext | null>(null);
+  const webMeterIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const maxRecordingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const webTalkErrorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const speechCandidateStartedAtRef = useRef<number | null>(null);
+  const speechConfirmedRef = useRef(false);
+  const lastSpeechAtRef = useRef<number | null>(null);
+  const recordingStartInProgressRef = useRef(false);
+  const recordingStopInProgressRef = useRef(false);
+  const nativeRecordingCancelledRef = useRef(false);
+  const stopRecordingRef = useRef<(reason: NativeRecordingStopReason) => void>(() => {});
+  const sendTranscribedMessageRef = useRef<(text: string) => Promise<void>>(async () => {});
+  const nativeVoiceDiagnosticsRef = useRef<NativeVoiceDiagnostics>({
+    statusCallbackCount: 0,
+    missingMeteringCount: 0,
+    minus160Count: 0,
+    minDb: null,
+    maxDb: null,
+    speechConfirmed: false,
+  });
   const [isRecording, setIsRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
   const [recordingBusy, setRecordingBusy] = useState(false);
+  const [webTalkError, setWebTalkError] = useState<string | null>(null);
+
+  const showWebTalkError = useCallback((message: string) => {
+    if (webTalkErrorTimerRef.current) clearTimeout(webTalkErrorTimerRef.current);
+    setWebTalkError(message);
+    webTalkErrorTimerRef.current = setTimeout(() => {
+      webTalkErrorTimerRef.current = null;
+      setWebTalkError(null);
+    }, 5000);
+  }, []);
+
+  const clearVoiceActivityResources = useCallback(() => {
+    if (webMeterIntervalRef.current) {
+      clearInterval(webMeterIntervalRef.current);
+      webMeterIntervalRef.current = null;
+    }
+    if (maxRecordingTimerRef.current) {
+      clearTimeout(maxRecordingTimerRef.current);
+      maxRecordingTimerRef.current = null;
+    }
+    const audioContext = webAudioContextRef.current;
+    webAudioContextRef.current = null;
+    if (audioContext) void audioContext.close().catch(() => {});
+  }, []);
+
+  const resetVoiceActivity = useCallback(() => {
+    speechCandidateStartedAtRef.current = null;
+    speechConfirmedRef.current = false;
+    lastSpeechAtRef.current = null;
+    recordingStopInProgressRef.current = false;
+    nativeVoiceDiagnosticsRef.current = {
+      statusCallbackCount: 0,
+      missingMeteringCount: 0,
+      minus160Count: 0,
+      minDb: null,
+      maxDb: null,
+      speechConfirmed: false,
+    };
+  }, []);
+
+  const restoreAudioModeAfterRecording = useCallback(async () => {
+    await Audio.setAudioModeAsync({
+      allowsRecordingIOS: false,
+      playsInSilentModeIOS: true,
+    }).catch((error) => {
+      logNativeVoiceDiagnostic("audio-mode-restore-failed", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    });
+  }, []);
+
+  const observeVoiceLevel = useCallback((isSpeech: boolean) => {
+    if (recordingStopInProgressRef.current) return;
+    const now = Date.now();
+
+    if (isSpeech) {
+      if (speechCandidateStartedAtRef.current == null) {
+        speechCandidateStartedAtRef.current = now;
+      }
+      if (now - speechCandidateStartedAtRef.current >= VOICE_ACTIVITY.speechConfirmationMs) {
+        if (!speechConfirmedRef.current) {
+          nativeVoiceDiagnosticsRef.current.speechConfirmed = true;
+          logNativeVoiceDiagnostic("speech-confirmed", { thresholdDb: VOICE_ACTIVITY.nativeSpeechDbThreshold });
+        }
+        speechConfirmedRef.current = true;
+      }
+      lastSpeechAtRef.current = now;
+      return;
+    }
+
+    speechCandidateStartedAtRef.current = null;
+    if (
+      speechConfirmedRef.current &&
+      lastSpeechAtRef.current != null &&
+      now - lastSpeechAtRef.current >= VOICE_ACTIVITY.silenceTimeoutMs
+    ) {
+      stopRecordingRef.current("silence");
+    }
+  }, []);
 
   const startRecording = async () => {
-    if (recordingBusy || transcribing || isRecording) return;
-      if (Platform.OS === "web") {
+    if (recordingStartInProgressRef.current || recordingBusy || transcribing || isRecording) return;
+    recordingStartInProgressRef.current = true;
+    nativeRecordingCancelledRef.current = false;
+    resetVoiceActivity();
+    clearVoiceActivityResources();
     setRecordingBusy(true);
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream);
-      webAudioChunksRef.current = [];
 
-      recorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          webAudioChunksRef.current.push(event.data);
+    if (Platform.OS === "web") {
+      try {
+        setWebTalkError(null);
+        if (webTalkErrorTimerRef.current) {
+          clearTimeout(webTalkErrorTimerRef.current);
+          webTalkErrorTimerRef.current = null;
         }
-      };
+        const WebAudioContext =
+          window.AudioContext ??
+          (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+        const capabilities = {
+          origin: window.location.origin,
+          secureContext: window.isSecureContext,
+          mediaDevicesAvailable: Boolean(navigator.mediaDevices),
+          getUserMediaAvailable: typeof navigator.mediaDevices?.getUserMedia === "function",
+          mediaRecorderAvailable: typeof MediaRecorder !== "undefined",
+          audioContextAvailable: Boolean(WebAudioContext),
+        };
+        logWebTalkDiagnostic("capabilities", capabilities);
 
-      recorder.start();
-      webMediaRecorderRef.current = recorder;
-      setIsRecording(true);
-    } catch (err) {
-      console.warn("Failed to start web recording:", err);
-    } finally {
-      setRecordingBusy(false);
+        if (!capabilities.secureContext) {
+          showWebTalkError("Microphone access requires HTTPS or localhost.");
+          logWebTalkDiagnostic("startup-failed", { category: "insecure-origin" });
+          return;
+        }
+        if (
+          !capabilities.mediaDevicesAvailable ||
+          !capabilities.getUserMediaAvailable ||
+          !capabilities.mediaRecorderAvailable ||
+          !WebAudioContext
+        ) {
+          showWebTalkError("Microphone recording is unavailable in this browser.");
+          logWebTalkDiagnostic("startup-failed", { category: "unsupported" });
+          return;
+        }
+
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const recorder = new MediaRecorder(stream);
+        const audioContext = new WebAudioContext();
+        const analyser = audioContext.createAnalyser();
+        const source = audioContext.createMediaStreamSource(stream);
+        const samples = new Uint8Array(analyser.fftSize);
+        source.connect(analyser);
+        webAudioContextRef.current = audioContext;
+        webAudioChunksRef.current = [];
+
+        recorder.ondataavailable = (event) => {
+          if (event.data.size > 0) webAudioChunksRef.current.push(event.data);
+        };
+
+        recorder.start();
+        webMediaRecorderRef.current = recorder;
+        webMeterIntervalRef.current = setInterval(() => {
+          analyser.getByteTimeDomainData(samples);
+          let sumSquares = 0;
+          for (const sample of samples) {
+            const normalized = (sample - 128) / 128;
+            sumSquares += normalized * normalized;
+          }
+          observeVoiceLevel(Math.sqrt(sumSquares / samples.length) >= VOICE_ACTIVITY.webSpeechRmsThreshold);
+        }, VOICE_ACTIVITY.meterIntervalMs);
+        maxRecordingTimerRef.current = setTimeout(
+          () => stopRecordingRef.current("max-duration"),
+          VOICE_ACTIVITY.maxRecordingMs
+        );
+        setIsRecording(true);
+        logWebTalkDiagnostic("startup-succeeded");
+      } catch (err) {
+        console.warn("Failed to start web recording:", err);
+        const errorName = err instanceof DOMException ? err.name : "Error";
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        const permissionDenied = errorName === "NotAllowedError" || errorName === "SecurityError";
+        showWebTalkError(
+          permissionDenied
+            ? "Microphone permission was denied."
+            : "Microphone recording is unavailable in this browser."
+        );
+        logWebTalkDiagnostic("startup-failed", {
+          category: permissionDenied ? "permission-denied" : "unavailable",
+          errorName,
+          errorMessage,
+        });
+        clearVoiceActivityResources();
+        webMediaRecorderRef.current?.stream.getTracks().forEach((track) => track.stop());
+        webMediaRecorderRef.current = null;
+      } finally {
+        recordingStartInProgressRef.current = false;
+        setRecordingBusy(false);
+      }
+      return;
     }
-    return;
-  }
 
-    setRecordingBusy(true);
     try {
       const permission = await Audio.requestPermissionsAsync();
+      logNativeVoiceDiagnostic("permission", { granted: permission.granted });
       if (!permission.granted) {
         console.warn("Microphone permission not granted.");
         return;
       }
+      if (nativeRecordingCancelledRef.current) return;
 
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: true,
         playsInSilentModeIOS: true,
       });
+      if (nativeRecordingCancelledRef.current) {
+        await restoreAudioModeAfterRecording();
+        return;
+      }
 
-      const recording = new Audio.Recording();
-      await recording.prepareToRecordAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
-      await recording.startAsync();
+      const { recording } = await Audio.Recording.createAsync(
+        {
+          ...Audio.RecordingOptionsPresets.HIGH_QUALITY,
+          isMeteringEnabled: true,
+        },
+        (status) => {
+          if (!status.isRecording) return;
+          const diagnostics = nativeVoiceDiagnosticsRef.current;
+          diagnostics.statusCallbackCount += 1;
+          if (!Number.isFinite(status.metering)) {
+            diagnostics.missingMeteringCount += 1;
+            return;
+          }
 
+          const metering = status.metering as number;
+          if (metering === -160) diagnostics.minus160Count += 1;
+          diagnostics.minDb = diagnostics.minDb == null ? metering : Math.min(diagnostics.minDb, metering);
+          diagnostics.maxDb = diagnostics.maxDb == null ? metering : Math.max(diagnostics.maxDb, metering);
+          observeVoiceLevel(metering >= VOICE_ACTIVITY.nativeSpeechDbThreshold);
+        },
+        VOICE_ACTIVITY.meterIntervalMs
+      );
+      if (nativeRecordingCancelledRef.current) {
+        recording.setOnRecordingStatusUpdate(null);
+        await recording.stopAndUnloadAsync().catch(() => {});
+        await restoreAudioModeAfterRecording();
+        return;
+      }
       recordingRef.current = recording;
+      logNativeVoiceDiagnostic("recorder-created", {
+        meterIntervalMs: VOICE_ACTIVITY.meterIntervalMs,
+        thresholdDb: VOICE_ACTIVITY.nativeSpeechDbThreshold,
+      });
+      maxRecordingTimerRef.current = setTimeout(
+        () => stopRecordingRef.current("max-duration"),
+        VOICE_ACTIVITY.maxRecordingMs
+      );
       setIsRecording(true);
     } catch (err) {
       console.warn("Failed to start recording:", err);
+      logNativeVoiceDiagnostic("recorder-creation-failed", {
+        error: err instanceof Error ? err.message : String(err),
+        reason: "error",
+      });
+      clearVoiceActivityResources();
+      const recording = recordingRef.current;
       recordingRef.current = null;
+      if (recording) {
+        recording.setOnRecordingStatusUpdate(null);
+        await recording.stopAndUnloadAsync().catch(() => {});
+      }
+      await restoreAudioModeAfterRecording();
       setIsRecording(false);
     } finally {
+      recordingStartInProgressRef.current = false;
       setRecordingBusy(false);
     }
   };
 
-  const stopRecordingAndTranscribe = async () => {
-    if (recordingBusy) return;  if (Platform.OS === "web") {
-    const recorder = webMediaRecorderRef.current;
-    if (!recorder) return;
-
+  const stopRecordingAndTranscribe = async (stopReason: NativeRecordingStopReason = "cleanup") => {
+    if (recordingStopInProgressRef.current) return;
+    const hasRecording = Platform.OS === "web" ? Boolean(webMediaRecorderRef.current) : Boolean(recordingRef.current);
+    if (!hasRecording) return;
+    recordingStopInProgressRef.current = true;
+    if (Platform.OS !== "web") {
+      logNativeVoiceDiagnostic("recording-stop", {
+        reason: stopReason,
+        ...nativeVoiceDiagnosticsRef.current,
+      });
+    }
+    clearVoiceActivityResources();
     setRecordingBusy(true);
     setIsRecording(false);
     setTranscribing(true);
 
-    try {
-      const audioBlob: Blob = await new Promise((resolve) => {
-        recorder.onstop = () => {
-          resolve(new Blob(webAudioChunksRef.current, { type: "audio/webm" }));
-        };
-        recorder.stop();
-      });
-
-      recorder.stream.getTracks().forEach((track) => track.stop());
-      webMediaRecorderRef.current = null;
-
-      const arrayBuffer = await audioBlob.arrayBuffer();
-      const bytes = new Uint8Array(arrayBuffer);
-      let binary = "";
-      for (let i = 0; i < bytes.length; i++) {
-        binary += String.fromCharCode(bytes[i]);
+    if (Platform.OS === "web") {
+      const recorder = webMediaRecorderRef.current;
+      if (!recorder) {
+        setTranscribing(false);
+        setRecordingBusy(false);
+        recordingStopInProgressRef.current = false;
+        return;
       }
-      const audioBase64 = btoa(binary);
 
-      const data = await request("/voice/transcribe", {
-        method: "POST",
-        body: {
-          audio_base64: audioBase64,
-          mime_type: "audio/webm",
-          language: "en",
-        },
-      });
+      try {
+        const audioBlob: Blob = await new Promise((resolve) => {
+          recorder.onstop = () => {
+            resolve(new Blob(webAudioChunksRef.current, { type: "audio/webm" }));
+          };
+          recorder.stop();
+        });
 
-      if (data?.text) setInput(data.text);
-    } catch (err) {
-      console.warn("Web transcription failed:", err);
-    } finally {
-      setTranscribing(false);
-      setRecordingBusy(false);
-    }
+        recorder.stream.getTracks().forEach((track) => track.stop());
+        webMediaRecorderRef.current = null;
 
-    return;
-  }
-      if (Platform.OS === "web") {
-    const recorder = webMediaRecorderRef.current;
-    if (!recorder) return;
+        const arrayBuffer = await audioBlob.arrayBuffer();
+        const bytes = new Uint8Array(arrayBuffer);
+        let binary = "";
+        for (let i = 0; i < bytes.length; i++) {
+          binary += String.fromCharCode(bytes[i]);
+        }
+        const audioBase64 = btoa(binary);
 
-    setRecordingBusy(true);
-    setIsRecording(false);
-    setTranscribing(true);
+        const data = await request("/voice/transcribe", {
+          method: "POST",
+          body: {
+            audio_base64: audioBase64,
+            mime_type: "audio/webm",
+            language: "en",
+          },
+        });
 
-    try {
-      const audioBlob: Blob = await new Promise((resolve) => {
-        recorder.onstop = () => {
-          resolve(new Blob(webAudioChunksRef.current, { type: "audio/webm" }));
-        };
-        recorder.stop();
-      });
-
-      recorder.stream.getTracks().forEach((track) => track.stop());
-      webMediaRecorderRef.current = null;
-
-      const arrayBuffer = await audioBlob.arrayBuffer();
-      const bytes = new Uint8Array(arrayBuffer);
-      let binary = "";
-      for (let i = 0; i < bytes.length; i++) {
-        binary += String.fromCharCode(bytes[i]);
+        const transcript = String(data?.text || "").trim();
+        if (transcript) await sendTranscribedMessageRef.current(transcript);
+      } catch (err) {
+        console.warn("Web transcription failed:", err);
+      } finally {
+        recorder.stream.getTracks().forEach((track) => track.stop());
+        webMediaRecorderRef.current = null;
+        setTranscribing(false);
+        setRecordingBusy(false);
+        recordingStopInProgressRef.current = false;
       }
-      const audioBase64 = btoa(binary);
 
-      const data = await request("/voice/transcribe", {
-        method: "POST",
-        body: {
-          audio_base64: audioBase64,
-          mime_type: "audio/webm",
-          language: "en",
-        },
-      });
-
-      if (data?.text) setInput(data.text);
-    } catch (err) {
-      console.warn("Web transcription failed:", err);
-    } finally {
-      setTranscribing(false);
-      setRecordingBusy(false);
+      return;
     }
-
-    return;
-  }
 
 
 
     const recording = recordingRef.current;
     if (!recording) return;
 
-    setRecordingBusy(true);
-    setIsRecording(false);
     recordingRef.current = null;
 
     let uri: string | null = null;
     try {
+      recording.setOnRecordingStatusUpdate(null);
       await recording.stopAndUnloadAsync();
       uri = recording.getURI();
     } catch (err) {
       console.warn("Failed to stop recording:", err);
     } finally {
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: false,
-        playsInSilentModeIOS: true,
-      }).catch(() => {});
+      await restoreAudioModeAfterRecording();
     }
 
     if (!uri) {
+      setTranscribing(false);
       setRecordingBusy(false);
+      recordingStopInProgressRef.current = false;
       return;
     }
 
@@ -743,6 +978,7 @@ export default function Level1Screen() {
     setTranscribing(true);
 
     try {
+      logNativeVoiceDiagnostic("transcription-started");
       const audioBase64 = await FileSystem.readAsStringAsync(uri, {
         encoding: FileSystem.EncodingType.Base64,
       });
@@ -757,13 +993,23 @@ export default function Level1Screen() {
         },
       });
 
-      if (data?.text) setInput(data.text);
+      const transcript = String(data?.text || "").trim();
+      logNativeVoiceDiagnostic("transcription-completed", { empty: !transcript });
+      if (transcript) await sendTranscribedMessageRef.current(transcript);
     } catch (err) {
       console.warn("Transcription failed:", err);
+      logNativeVoiceDiagnostic("transcription-failed", {
+        error: err instanceof Error ? err.message : String(err),
+      });
     } finally {
       setTranscribing(false);
       setRecordingBusy(false);
+      recordingStopInProgressRef.current = false;
     }
+  };
+
+  stopRecordingRef.current = (reason) => {
+    void stopRecordingAndTranscribe(reason);
   };
 
   const { userId: authUserId } = useAuth();
@@ -1102,10 +1348,10 @@ export default function Level1Screen() {
   }, []);
 
   const persistMessage = useCallback(
-    async (msg: Msg) => {
-      if (!conversationId) return;
+    async (msg: Msg, targetConversationId = conversationId) => {
+      if (!targetConversationId) return;
       try {
-        await request(`/conversations/${conversationId}/messages`, {
+        await request(`/conversations/${targetConversationId}/messages`, {
           method: "POST",
           headers: userHeaders,
           body: {
@@ -1123,8 +1369,9 @@ export default function Level1Screen() {
   const ensureConversation = useCallback(async (): Promise<string | null> => {
     if (!userHeaders["x-clerk-user-id"]) return null;
     if (conversationId) return conversationId;
-    if (creatingConversation) return null;
+    if (conversationCreationRef.current) return null;
 
+    conversationCreationRef.current = true;
     setCreatingConversation(true);
     try {
       const data = await request("/conversations", {
@@ -1140,13 +1387,20 @@ export default function Level1Screen() {
       console.warn("Failed to create conversation:", err);
       return null;
     } finally {
+      conversationCreationRef.current = false;
       setCreatingConversation(false);
     }
-  }, [caseId, conversationId, creatingConversation, patientSessionSlug, userHeaders]);
+  }, [caseId, conversationId, patientSessionSlug, userHeaders]);
 
   useEffect(() => {
     setConversationId(null);
     setPendingMessages([]);
+    setCallState("incoming");
+    setCallStartedAt(null);
+    setElapsedCallSeconds(0);
+    setAnsweringCall(false);
+    answerInProgressRef.current = false;
+    hangUpInProgressRef.current = false;
     setStage("chat");
     setHpiText("");
     setSubmissionResult(null);
@@ -1243,6 +1497,10 @@ export default function Level1Screen() {
     voiceEnabledRef.current = voiceEnabled;
   }, [voiceEnabled]);
 
+  useEffect(() => {
+    callStateRef.current = callState;
+  }, [callState]);
+
   const patientAvatarState: AnimatedPatientAvatarState =
     patientVisualSpeaking && voiceEnabled && stage === "chat"
       ? "talking"
@@ -1295,22 +1553,83 @@ export default function Level1Screen() {
   }, [stopSpeechPlayback, voiceEnabled]);
 
   useEffect(() => {
+    if (callState === "active") return;
+    patientGreetingGenerationRef.current += 1;
+    if (patientGreetingTimerRef.current) {
+      clearTimeout(patientGreetingTimerRef.current);
+      patientGreetingTimerRef.current = null;
+    }
+    nativeRecordingCancelledRef.current = true;
+    clearVoiceActivityResources();
+    recordingStartInProgressRef.current = false;
+    recordingStopInProgressRef.current = false;
+
+    const webRecorder = webMediaRecorderRef.current;
+    webMediaRecorderRef.current = null;
+    if (webRecorder) {
+      if (webRecorder.state !== "inactive") webRecorder.stop();
+      webRecorder.stream.getTracks().forEach((track) => track.stop());
+    }
+
+    const recording = recordingRef.current;
+    recordingRef.current = null;
+    if (recording) {
+      logNativeVoiceDiagnostic("recording-stop", {
+        reason: "cleanup",
+        ...nativeVoiceDiagnosticsRef.current,
+      });
+      recording.setOnRecordingStatusUpdate(null);
+      void recording.stopAndUnloadAsync().catch(() => {}).finally(restoreAudioModeAfterRecording);
+    }
+    setIsRecording(false);
+  }, [callState, clearVoiceActivityResources, restoreAudioModeAfterRecording]);
+
+  useEffect(() => {
     return () => {
+      nativeRecordingCancelledRef.current = true;
+      if (callEndedTimerRef.current) clearTimeout(callEndedTimerRef.current);
+      if (webTalkErrorTimerRef.current) clearTimeout(webTalkErrorTimerRef.current);
+      patientGreetingGenerationRef.current += 1;
+      if (patientGreetingTimerRef.current) clearTimeout(patientGreetingTimerRef.current);
+      patientGreetingTimerRef.current = null;
+      clearVoiceActivityResources();
+      const webRecorder = webMediaRecorderRef.current;
+      webMediaRecorderRef.current = null;
+      if (webRecorder) {
+        if (webRecorder.state !== "inactive") webRecorder.stop();
+        webRecorder.stream.getTracks().forEach((track) => track.stop());
+      }
       const recording = recordingRef.current;
       recordingRef.current = null;
       if (recording) {
-        recording.stopAndUnloadAsync().catch(() => {});
+        logNativeVoiceDiagnostic("recording-stop", {
+          reason: "cleanup",
+          ...nativeVoiceDiagnosticsRef.current,
+        });
+        recording.setOnRecordingStatusUpdate(null);
+        void recording.stopAndUnloadAsync().catch(() => {}).finally(restoreAudioModeAfterRecording);
       }
       void stopSpeechPlayback();
     };
-  }, [stopSpeechPlayback]);
+  }, [clearVoiceActivityResources, restoreAudioModeAfterRecording, stopSpeechPlayback]);
 
   useEffect(() => {
     if (!resumeCheckComplete) return;
     if (showResumePrompt) return;
     if (savedConversationId && !conversationId) return;
+    if (callState !== "active") return;
     ensureConversation();
-  }, [conversationId, ensureConversation, resumeCheckComplete, savedConversationId, showResumePrompt]);
+  }, [callState, conversationId, ensureConversation, resumeCheckComplete, savedConversationId, showResumePrompt]);
+
+  useEffect(() => {
+    if (callState !== "active" || callStartedAt == null) return;
+    const updateElapsed = () => {
+      setElapsedCallSeconds(Math.max(0, Math.floor((Date.now() - callStartedAt) / 1000)));
+    };
+    updateElapsed();
+    const interval = setInterval(updateElapsed, 1000);
+    return () => clearInterval(interval);
+  }, [callStartedAt, callState]);
 
   useEffect(() => {
     if (!conversationId || pendingMessages.length === 0) return;
@@ -1355,10 +1674,10 @@ export default function Level1Screen() {
     };
   }, [caseId]);
 
-  const send = async () => {
-    if (stage !== "chat") return;
+  const send = async (textOverride?: string) => {
+    if (stage !== "chat" || callState !== "active" || hangUpInProgressRef.current) return;
 
-    const text = input.trim();
+    const text = (textOverride ?? input).trim();
     if (!text || sending) return;
 
     const userMsg: Msg = {
@@ -1420,6 +1739,10 @@ export default function Level1Screen() {
       setSending(false);
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 50);
     }
+  };
+
+  sendTranscribedMessageRef.current = async (text) => {
+    await send(text);
   };
 
   const submitForFinalGrade = useCallback(async () => {
@@ -1511,11 +1834,12 @@ export default function Level1Screen() {
     userHeaders,
   ]);
 
+  const hasLearnerMessage = messages.some((message) => message.role === "user");
   const submitDisabled =
     submitting || creatingConversation || !conversationId || (requiresHpi && !hpiText.trim());
 
   const beginHpiStep = useCallback(() => {
-    if (messages.length === 0) {
+    if (!hasLearnerMessage) {
       setSubmitError("Complete at least one chat turn before finishing.");
       return;
     }
@@ -1525,7 +1849,92 @@ export default function Level1Screen() {
       return;
     }
     setStage("hpi");
-  }, [messages.length, requiresHpi, submitForFinalGrade]);
+  }, [hasLearnerMessage, requiresHpi, submitForFinalGrade]);
+
+  const answerCall = useCallback(async () => {
+    if (answerInProgressRef.current || callState !== "incoming") return;
+    answerInProgressRef.current = true;
+    setAnsweringCall(true);
+    const startedAt = Date.now();
+    setCallStartedAt(startedAt);
+    setElapsedCallSeconds(0);
+    setCallState("active");
+    try {
+      let activeConversationId = conversationId;
+      let createdNewConversation = false;
+      if (!conversationId) {
+        activeConversationId = await ensureConversation();
+        createdNewConversation = Boolean(activeConversationId);
+      }
+      if (
+        createdNewConversation &&
+        activeConversationId &&
+        !greetedConversationIdsRef.current.has(activeConversationId)
+      ) {
+        greetedConversationIdsRef.current.add(activeConversationId);
+        const greetingGeneration = patientGreetingGenerationRef.current;
+        patientGreetingTimerRef.current = setTimeout(() => {
+          patientGreetingTimerRef.current = null;
+          if (
+            patientGreetingGenerationRef.current !== greetingGeneration ||
+            callStateRef.current !== "active" ||
+            hangUpInProgressRef.current
+          ) {
+            return;
+          }
+          const greetingMessage: Msg = {
+            id: `a-greeting-${Date.now()}`,
+            role: "assistant",
+            content: "Hello.",
+          };
+          setMessages((current) => [...current, greetingMessage]);
+          void persistMessage(greetingMessage, activeConversationId);
+          void speakAssistantReply(greetingMessage.content);
+        }, 150);
+      }
+    } finally {
+      answerInProgressRef.current = false;
+      setAnsweringCall(false);
+    }
+  }, [callState, conversationId, ensureConversation, persistMessage, speakAssistantReply]);
+
+  const hangUpCall = useCallback(async () => {
+    const blocked =
+      hangUpInProgressRef.current ||
+      sending ||
+      creatingConversation ||
+      !conversationId ||
+      !hasLearnerMessage ||
+      isRecording ||
+      transcribing ||
+      recordingBusy;
+    if (blocked) return;
+
+    hangUpInProgressRef.current = true;
+    await stopSpeechPlayback();
+    setCallState("ended");
+    callEndedTimerRef.current = setTimeout(() => {
+      callEndedTimerRef.current = null;
+      beginHpiStep();
+    }, 850);
+  }, [
+    beginHpiStep,
+    conversationId,
+    creatingConversation,
+    isRecording,
+    hasLearnerMessage,
+    recordingBusy,
+    sending,
+    stopSpeechPlayback,
+    transcribing,
+  ]);
+
+  const returnToActiveCall = useCallback(() => {
+    hangUpInProgressRef.current = false;
+    setCallStartedAt(Date.now() - elapsedCallSeconds * 1000);
+    setCallState("active");
+    setStage("chat");
+  }, [elapsedCallSeconds]);
 
   const visibleDebrief = useMemo(() => {
     if (!submissionResult) return null;
@@ -1613,6 +2022,10 @@ export default function Level1Screen() {
     sessionDisplayTitle({ slug: patientSessionSlug || undefined, title: caseData?.display_title || undefined }) ||
     caseData?.display_title ||
     "this session";
+  const patientCallName =
+    [caseData?.patient_profile?.first_name, caseData?.patient_profile?.last_name]
+      .filter(Boolean)
+      .join(" ") || resumeSessionTitle;
 
   const sendDebriefMessage = useCallback(
     async (messageOverride?: string) => {
@@ -1672,21 +2085,81 @@ export default function Level1Screen() {
     ]
   );
 
-  const continueLearning = useCallback(() => {
-    setAchievementUnlockVisible(false);
-    setDebriefVisible(false);
-    setSubmissionResult(null);
+  const resetForNewAttempt = useCallback(async () => {
+    if (callEndedTimerRef.current) {
+      clearTimeout(callEndedTimerRef.current);
+      callEndedTimerRef.current = null;
+    }
+    patientGreetingGenerationRef.current += 1;
+    if (patientGreetingTimerRef.current) {
+      clearTimeout(patientGreetingTimerRef.current);
+      patientGreetingTimerRef.current = null;
+    }
+    if (webTalkErrorTimerRef.current) {
+      clearTimeout(webTalkErrorTimerRef.current);
+      webTalkErrorTimerRef.current = null;
+    }
+
+    nativeRecordingCancelledRef.current = true;
+    clearVoiceActivityResources();
+    recordingStartInProgressRef.current = false;
+    recordingStopInProgressRef.current = false;
+
+    const webRecorder = webMediaRecorderRef.current;
+    webMediaRecorderRef.current = null;
+    if (webRecorder) {
+      if (webRecorder.state !== "inactive") webRecorder.stop();
+      webRecorder.stream.getTracks().forEach((track) => track.stop());
+    }
+
+    const recording = recordingRef.current;
+    recordingRef.current = null;
+    if (recording) {
+      recording.setOnRecordingStatusUpdate(null);
+      await recording.stopAndUnloadAsync().catch(() => {});
+      await restoreAudioModeAfterRecording();
+    }
+    await stopSpeechPlayback();
+
+    setSending(false);
+    setCreatingConversation(false);
+    conversationCreationRef.current = false;
+    setConversationId(null);
+    setPendingMessages([]);
+    setMessages([]);
+    setInput("");
+    setCallState("incoming");
+    setCallStartedAt(null);
+    setElapsedCallSeconds(0);
+    setAnsweringCall(false);
+    answerInProgressRef.current = false;
+    hangUpInProgressRef.current = false;
+    setIsRecording(false);
+    setTranscribing(false);
+    setRecordingBusy(false);
+    setWebTalkError(null);
     setStage("chat");
     setHpiText("");
+    setSubmitting(false);
     setSubmitError(null);
+    setSubmissionResult(null);
+    setAchievementUnlockVisible(false);
+    setDebriefVisible(false);
     setDebriefMessages([]);
     setDebriefInput("");
     setDebriefSending(false);
     setDebriefError(null);
     setOpenLearningDetail(null);
     setShowDetailedRubric(false);
+    setSavedConversationId(null);
+    setShowResumePrompt(false);
+    setResumeLoading(false);
+  }, [clearVoiceActivityResources, restoreAudioModeAfterRecording, stopSpeechPlayback]);
+
+  const continueLearning = useCallback(async () => {
+    await resetForNewAttempt();
     router.push("/(tabs)");
-  }, [router]);
+  }, [resetForNewAttempt, router]);
 
   const resumeConversation = useCallback(async () => {
     if (!savedConversationId) return;
@@ -1715,33 +2188,13 @@ export default function Level1Screen() {
 
   const startFresh = useCallback(async () => {
     await deleteItemAsync(conversationStorageKey).catch(() => {});
-    setSavedConversationId(null);
-    setShowResumePrompt(false);
-  }, [conversationStorageKey]);
+    await resetForNewAttempt();
+  }, [conversationStorageKey, resetForNewAttempt]);
 
   const retryCase = useCallback(async () => {
-    await stopSpeechPlayback();
     await deleteItemAsync(conversationStorageKey).catch(() => {});
-
-    setSavedConversationId(null);
-    setShowResumePrompt(false);
-    setConversationId(null);
-    setPendingMessages([]);
-    setMessages([]);
-    setInput("");
-    setStage("chat");
-    setHpiText("");
-    setSubmitError(null);
-    setSubmissionResult(null);
-    setAchievementUnlockVisible(false);
-    setDebriefVisible(false);
-    setDebriefMessages([]);
-    setDebriefInput("");
-    setDebriefSending(false);
-    setDebriefError(null);
-    setOpenLearningDetail(null);
-    setShowDetailedRubric(false);
-  }, [conversationStorageKey, stopSpeechPlayback]);
+    await resetForNewAttempt();
+  }, [conversationStorageKey, resetForNewAttempt]);
 
   if (loadingCase) {
     return (
@@ -1762,6 +2215,7 @@ export default function Level1Screen() {
 
   return (
     <SafeAreaView style={caseStyles.container}>
+      <Tabs.Screen options={{ tabBarStyle: stage === "chat" ? { display: "none" } : undefined }} />
       {showResumePrompt && (
         <View style={caseStyles.resumeOverlay}>
           <View style={caseStyles.resumeCard}>
@@ -2117,7 +2571,7 @@ export default function Level1Screen() {
         keyboardVerticalOffset={8}
       >
         {/* Header */}
-        <View style={caseStyles.header}>
+        {stage !== "chat" ? <View style={caseStyles.header}>
           <View style={caseStyles.avatarWrapper}>
             <View style={caseStyles.avatarClip}>
               <AnimatedPatientAvatar
@@ -2167,7 +2621,7 @@ export default function Level1Screen() {
               </Text>
             )}
           </View>
-        </View>
+        </View> : null}
 
         {stage === "results" && submissionResult ? (
           <FlatList
@@ -2385,6 +2839,62 @@ export default function Level1Screen() {
               </View>
             )}
           />
+        ) : stage === "chat" ? (
+          <PatientCallScreen
+            callState={callState}
+            patientName={patientCallName}
+            patientSessionSlug={patientSessionSlug}
+            caseId={caseId}
+            avatarState={patientAvatarState}
+            elapsedSeconds={elapsedCallSeconds}
+            messages={messages}
+            voiceEnabled={voiceEnabled}
+            onToggleVoice={async () => {
+              if (voiceEnabled) await stopSpeechPlayback();
+              setVoiceEnabled((current) => !current);
+            }}
+            onAnswer={() => void answerCall()}
+            onMicrophonePress={startRecording}
+            microphoneDisabled={sending || transcribing || recordingBusy || callState !== "active"}
+            microphoneActive={isRecording}
+            microphoneProcessing={transcribing || (recordingBusy && !isRecording)}
+            microphoneError={webTalkError}
+            answering={answeringCall}
+            onHangUp={() => void hangUpCall()}
+            hangUpDisabled={
+              sending ||
+              creatingConversation ||
+              !conversationId ||
+              !hasLearnerMessage ||
+              isRecording ||
+              transcribing ||
+              recordingBusy ||
+              callState !== "active"
+            }
+            composer={
+              <ClinicalsChatComposer
+                value={input}
+                onChangeText={setInput}
+                placeholder="Type a question..."
+                inputAccessibilityLabel="Text question for patient"
+                microphoneAccessibilityLabel={
+                  isRecording ? "Stop recording patient question" : "Record patient question"
+                }
+                showMicrophoneControl={false}
+                compact
+                submitLabel="Ask"
+                editable={!sending && callState === "active"}
+                onMicPress={isRecording ? stopRecordingAndTranscribe : startRecording}
+                micDisabled={sending || transcribing || recordingBusy || callState !== "active"}
+                transcribing={transcribing}
+                isRecording={isRecording}
+                onSend={() => void send()}
+                sendDisabled={sending || !input.trim() || callState !== "active"}
+                sending={sending}
+                containerStyle={caseStyles.encounterComposer}
+              />
+            }
+          />
         ) : (
           <View style={caseStyles.encounterBody}>
             {/* Chat */}
@@ -2423,42 +2933,7 @@ export default function Level1Screen() {
               </View>
             )}
 
-            {stage === "chat" ? (
-              <View style={encounterFooterStyle}>
-                <ClinicalsChatComposer
-                  value={input}
-                  onChangeText={setInput}
-                  placeholder="Ask the patient a question..."
-                  submitLabel="Ask"
-                  editable={!sending}
-                  onMicPress={isRecording ? stopRecordingAndTranscribe : startRecording}
-                  micDisabled={sending || transcribing || recordingBusy}
-                  transcribing={transcribing}
-                  isRecording={isRecording}
-                  onSend={send}
-                  sendDisabled={sending || !input.trim()}
-                  sending={sending}
-                  containerStyle={caseStyles.encounterComposer}
-                />
-
-                <View style={caseStyles.doneButtonContainer}>
-                  <Pressable
-                    onPress={beginHpiStep}
-                    disabled={sending || creatingConversation || messages.length === 0}
-                    style={({ pressed }) => ({
-                      ...caseStyles.outlineButton,
-                      flex: undefined,
-                      opacity: sending || creatingConversation || messages.length === 0 ? 0.5 : pressed ? 0.7 : 1,
-                    })}
-                  >
-                    <Text style={caseStyles.outlineButtonText}>
-                      {creatingConversation ? "Preparing..." : "Done Interview"}
-                    </Text>
-                  </Pressable>
-                </View>
-              </View>
-            ) : (
-              <View style={hpiStageStyle}>
+            <View style={hpiStageStyle}>
                 <View style={caseStyles.hpiCard}>
                   <Text style={caseStyles.hpiTitle}>Final HPI (4-5 sentences)</Text>
                   <Text style={caseStyles.hpiSubText}>
@@ -2487,7 +2962,7 @@ export default function Level1Screen() {
 
                 <View style={caseStyles.hpiButtonRow}>
                   <Pressable
-                    onPress={() => setStage("chat")}
+                    onPress={returnToActiveCall}
                     disabled={submitting}
                     style={({ pressed }) => ({
                       ...caseStyles.outlineButton,
@@ -2510,7 +2985,6 @@ export default function Level1Screen() {
                   </Pressable>
                 </View>
               </View>
-            )}
           </View>
         )}
       </KeyboardAvoidingView>

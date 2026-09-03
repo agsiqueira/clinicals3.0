@@ -1,5 +1,5 @@
-import { useEffect } from "react";
-import { Image, StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Animated, Easing, Image, Platform, StyleSheet, Text, View } from "react-native";
 import { VideoView, useVideoPlayer } from "expo-video";
 import {
   AnimatedPatientAvatarState,
@@ -11,6 +11,7 @@ import {
 
 const SHOW_AVATAR_DEBUG = __DEV__;
 const SHOW_AVATAR_DEBUG_LABEL = __DEV__ && false;
+const VIDEO_REVEAL_DURATION_MS = 100;
 
 type AnimatedPatientAvatarProps = {
   patientName?: string | null;
@@ -42,7 +43,51 @@ export function AnimatedPatientAvatar({
   const player = useVideoPlayer(talkingVideoSource || null, (videoPlayer) => {
     videoPlayer.loop = true;
     videoPlayer.muted = true;
+    videoPlayer.timeUpdateEventInterval = 0.05;
   });
+  const [hasUsableVideoFrame, setHasUsableVideoFrame] = useState(false);
+  const videoOpacity = useRef(new Animated.Value(0)).current;
+  const videoRevealAnimationRef = useRef<Animated.CompositeAnimation | null>(null);
+
+  const hideVideo = useCallback(() => {
+    videoRevealAnimationRef.current?.stop();
+    videoRevealAnimationRef.current = null;
+    videoOpacity.setValue(0);
+  }, [videoOpacity]);
+
+  useEffect(() => {
+    if (!shouldShowVideo) {
+      hideVideo();
+      setHasUsableVideoFrame(false);
+      return;
+    }
+
+    const subscription = player.addListener("timeUpdate", ({ currentTime }) => {
+      if (currentTime > 0) setHasUsableVideoFrame(true);
+    });
+    return () => subscription.remove();
+  }, [hideVideo, player, shouldShowVideo]);
+
+  useEffect(() => {
+    if (!shouldShowVideo || !hasUsableVideoFrame) {
+      hideVideo();
+      return;
+    }
+
+    const animation = Animated.timing(videoOpacity, {
+      toValue: 1,
+      duration: VIDEO_REVEAL_DURATION_MS,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: Platform.OS !== "web",
+    });
+    videoRevealAnimationRef.current = animation;
+    animation.start(({ finished }) => {
+      if (finished && videoRevealAnimationRef.current === animation) {
+        videoRevealAnimationRef.current = null;
+      }
+    });
+    return hideVideo;
+  }, [hasUsableVideoFrame, hideVideo, shouldShowVideo, videoOpacity]);
 
   useEffect(() => {
     if (SHOW_AVATAR_DEBUG) {
@@ -60,13 +105,19 @@ export function AnimatedPatientAvatar({
 
     try {
       if (shouldShowVideo) {
+        hideVideo();
+        setHasUsableVideoFrame(false);
         player.play();
         return;
       }
 
+      hideVideo();
+      setHasUsableVideoFrame(false);
       player.pause();
       player.currentTime = 0;
     } catch {
+      hideVideo();
+      setHasUsableVideoFrame(false);
       // The native player may already be disposed during fast refresh or route changes.
     }
   }, [
@@ -79,7 +130,10 @@ export function AnimatedPatientAvatar({
     idleSource,
     talkingStillSource,
     talkingVideoSource,
+    hideVideo,
   ]);
+
+  useEffect(() => hideVideo, [hideVideo]);
 
   const resolvedBorderRadius = borderRadius ?? size / 2;
   const frameStyle = fill
@@ -97,22 +151,29 @@ export function AnimatedPatientAvatar({
   return (
     <View style={[styles.frame, frameStyle]}>
       {hasFallbackImage ? (
-        <Image source={imageSource} style={styles.mediaFill} resizeMode="cover" />
+        <Image
+          source={imageSource}
+          style={styles.mediaFill}
+          resizeMode="cover"
+        />
       ) : (
         <View style={[styles.initialsFrame, styles.mediaFill]}>
           <Text style={styles.initials}>{initials}</Text>
         </View>
       )}
 
-      {shouldShowVideo ? (
-        <VideoView
-          key={`talking-${String(talkingVideoSource)}`}
-          player={player}
-          style={[styles.mediaFill, styles.videoFill]}
-          contentFit="cover"
-          nativeControls={false}
-          allowsPictureInPicture={false}
-        />
+      {talkingVideoSource ? (
+        <Animated.View pointerEvents="none" style={[styles.mediaFill, styles.videoFill, { opacity: videoOpacity }]}>
+          <VideoView
+            key={`talking-${String(talkingVideoSource)}`}
+            player={player}
+            style={styles.mediaFill}
+            contentFit="cover"
+            surfaceType={Platform.OS === "android" ? "textureView" : undefined}
+            nativeControls={false}
+            allowsPictureInPicture={false}
+          />
+        </Animated.View>
       ) : null}
 
       {SHOW_AVATAR_DEBUG_LABEL ? (

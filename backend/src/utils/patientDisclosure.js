@@ -390,19 +390,15 @@ function buildDisclosureState({ caseData, messages = [], disclosedFactIds }) {
   );
 
   const visibleCase = {
-    case_id: caseData?.case_id,
-    display_title: caseData?.display_title,
-    setting: caseData?.setting,
-    frame: caseData?.frame,
-    patient_profile: {
+    identity_and_manner: {
       first_name: patientProfile.first_name,
       last_name: patientProfile.last_name,
       preferred_name: patientProfile.preferred_name,
       communication_style: patientProfile.communication_style,
     },
-    visible_facts: {
-      already_disclosed: alreadyDisclosedFacts.map(publicFact),
-      allowed_this_turn: allowedFacts.map(publicFact),
+    spoken_details: {
+      previously_shared: alreadyDisclosedFacts.map((fact) => fact.text),
+      may_answer_now: allowedFacts.map((fact) => fact.text),
     },
   };
 
@@ -415,14 +411,6 @@ function buildDisclosureState({ caseData, messages = [], disclosedFactIds }) {
 
 function buildVisibleCase({ caseData, messages = [], disclosedFactIds }) {
   return buildDisclosureState({ caseData, messages, disclosedFactIds }).visibleCase;
-}
-
-function publicFact(fact) {
-  return {
-    id: fact.id,
-    topic: fact.topic,
-    text: fact.text,
-  };
 }
 
 module.exports = {

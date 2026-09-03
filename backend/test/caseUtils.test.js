@@ -6,6 +6,7 @@ const { listCases, loadCase, loadGrading } = require("../src/utils/caseLoader");
 const casesRouter = require("../src/routes/cases");
 const { sanitizeCase } = require("../src/utils/safeCase");
 const { buildPatientSystemPrompt } = require("../src/utils/patientPrompt");
+const { buildDisclosureState } = require("../src/utils/patientDisclosure");
 const { expandCriteriaWithCommon } = require("../src/utils/rubricCommon");
 
 test("caseLoader lists and loads the active UTI case and rubric", async () => {
@@ -64,7 +65,11 @@ test("cases route returns Seasonal Allergies case even without generated patient
 test("sanitizeCase removes hidden answer material before prompt building", async () => {
   const caseData = await loadCase("uti_level1");
   const safeCase = sanitizeCase(caseData);
-  const prompt = buildPatientSystemPrompt(safeCase);
+  const { visibleCase } = buildDisclosureState({
+    caseData: safeCase,
+    messages: [{ role: "user", content: "What is your name?" }],
+  });
+  const prompt = buildPatientSystemPrompt(visibleCase);
 
   assert.ok(!("hidden_truth" in safeCase));
   assert.equal(safeCase.presenting_info.chief_complaint, "Burning when urinating");

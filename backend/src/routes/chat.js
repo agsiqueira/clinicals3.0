@@ -5,15 +5,9 @@ const { sanitizeCase } = require("../utils/safeCase");
 const { buildPatientSystemPrompt } = require("../utils/patientPrompt");
 const { buildDisclosureState } = require("../utils/patientDisclosure");
 const { createPatientReply } = require("../llm/navigatorClient");
+const { createSafePatientReply } = require("../utils/patientReplySafety");
 
 const router = express.Router();
-
-// prevent transcript aka data dump
-function cleanPatientReply(raw) {
-  return String(raw || "")
-    .split(/\n\s*(user|assistant)\b[:]?/i)[0]
-    .trim();
-}
 
 function getClerkUserId(req) {
   return req.header("x-clerk-user-id");
@@ -101,12 +95,11 @@ router.post("/", async (req, res, next) => {
     const { visibleCase, nextDisclosedFactIds } = disclosureState;
     const systemPrompt = buildPatientSystemPrompt(visibleCase);
 
-    const replyRaw = await createPatientReply({
+    const reply = await createSafePatientReply({
       systemPrompt,
-      messages: sanitizedMessages
+      messages: sanitizedMessages,
+      generateReply: createPatientReply,
     });
-
-    const reply = cleanPatientReply(replyRaw);
 
     if (conversation) {
       await prisma.conversation.update({
