@@ -2156,10 +2156,10 @@ export default function Level1Screen() {
     setResumeLoading(false);
   }, [clearVoiceActivityResources, restoreAudioModeAfterRecording, stopSpeechPlayback]);
 
-  const continueLearning = useCallback(async () => {
-    await resetForNewAttempt();
+  const continueLearning = useCallback(() => {
+    setDebriefVisible(false);
     router.push("/(tabs)");
-  }, [resetForNewAttempt, router]);
+  }, [router]);
 
   const resumeConversation = useCallback(async () => {
     if (!savedConversationId) return;
@@ -2842,6 +2842,7 @@ export default function Level1Screen() {
         ) : stage === "chat" ? (
           <PatientCallScreen
             callState={callState}
+            incomingEffectsEnabled={stage === "chat" && callState === "incoming"}
             patientName={patientCallName}
             patientSessionSlug={patientSessionSlug}
             caseId={caseId}

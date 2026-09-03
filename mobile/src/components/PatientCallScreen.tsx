@@ -348,7 +348,7 @@ function safeProjectedPose(rawPose: HandheldPose, width: number, height: number,
 }
 
 type PatientCallScreenProps = {
-  callState: CallState; patientName: string; patientSessionSlug?: string | null; caseId: string;
+  callState: CallState; incomingEffectsEnabled: boolean; patientName: string; patientSessionSlug?: string | null; caseId: string;
   avatarState: AnimatedPatientAvatarState; elapsedSeconds: number; messages: CallMessage[];
   voiceEnabled: boolean; onToggleVoice: () => void;
   onMicrophonePress: () => void; microphoneDisabled: boolean; microphoneActive: boolean; microphoneProcessing: boolean;
@@ -378,7 +378,7 @@ function CallControl({ icon, label, accessibilityLabel, onPress, disabled = fals
 }
 
 export function PatientCallScreen({
-  callState, patientName, patientSessionSlug, caseId, avatarState, elapsedSeconds, messages,
+  callState, incomingEffectsEnabled, patientName, patientSessionSlug, caseId, avatarState, elapsedSeconds, messages,
   voiceEnabled, onToggleVoice, onMicrophonePress, microphoneDisabled, microphoneActive, microphoneProcessing, microphoneError,
   onAnswer, answering, onHangUp, hangUpDisabled, composer,
   mediaFocalPoint = { horizontal: 0, vertical: 0, scale: 1.08 },
@@ -424,21 +424,21 @@ export function PatientCallScreen({
   }, []);
 
   const attemptIncomingRingtone = useCallback(() => {
-    if (callState !== "incoming" || webRingtoneStartedRef.current) return;
+    if (!incomingEffectsEnabled || callState !== "incoming" || webRingtoneStartedRef.current) return;
     webRingtoneStartedRef.current = true;
     const generation = incomingEffectsGenerationRef.current;
     void playIncomingCallAudio().then(() => {
-      if (incomingEffectsGenerationRef.current !== generation || callState !== "incoming") {
+      if (incomingEffectsGenerationRef.current !== generation || !incomingEffectsEnabled || callState !== "incoming") {
         void stopIncomingCallAudio().catch(() => {});
         return;
       }
       setShowWebUnmute(false);
     }).catch(() => {
-      if (incomingEffectsGenerationRef.current !== generation || callState !== "incoming") return;
+      if (incomingEffectsGenerationRef.current !== generation || !incomingEffectsEnabled || callState !== "incoming") return;
       webRingtoneStartedRef.current = false;
       if (Platform.OS === "web") setShowWebUnmute(true);
     });
-  }, [callState]);
+  }, [callState, incomingEffectsEnabled]);
 
   const resetHandheldMotion = useCallback(() => {
     handheldGenerationRef.current += 1;
@@ -472,7 +472,7 @@ export function PatientCallScreen({
 
   useEffect(() => {
     stopIncomingEffects();
-    if (callState !== "incoming") return;
+    if (!incomingEffectsEnabled || callState !== "incoming") return;
 
     const generation = incomingEffectsGenerationRef.current;
     const playPulse = () => {
@@ -499,7 +499,7 @@ export function PatientCallScreen({
     playPulse();
     incomingPulseIntervalRef.current = setInterval(playPulse, reduceMotionEnabled ? 3200 : 2400);
     return stopIncomingEffects;
-  }, [attemptIncomingRingtone, callState, reduceMotionEnabled, stopIncomingEffects]);
+  }, [attemptIncomingRingtone, callState, incomingEffectsEnabled, reduceMotionEnabled, stopIncomingEffects]);
 
   useEffect(() => () => {
     void unloadIncomingCallAudio();
