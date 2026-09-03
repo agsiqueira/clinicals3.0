@@ -12,9 +12,15 @@ import {
   type LayoutChangeEvent,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 import { patientCallStyles as styles } from "../../assets/styles/patient-call.styles";
 import { AnimatedPatientAvatar, type AnimatedPatientAvatarState } from "./AnimatedPatientAvatar";
 import { getPatientInitials, getPatientStateImageSource } from "../utils/patientAssets";
+import {
+  playIncomingCallAudio,
+  stopIncomingCallAudio,
+  unloadIncomingCallAudio,
+} from "../utils/incomingCallAudio";
 
 type CallState = "incoming" | "active" | "ended";
 type CallMessage = { id: string; role: "user" | "assistant"; content: string };
@@ -380,6 +386,7 @@ export function PatientCallScreen({
   const [composerVisible, setComposerVisible] = useState(false);
   const [optionsVisible, setOptionsVisible] = useState(false);
   const [captionsEnabled, setCaptionsEnabled] = useState(false);
+  const [showWebUnmute, setShowWebUnmute] = useState(false);
   const [mediaViewport, setMediaViewport] = useState({ width: 0, height: 0 });
   const [reduceMotionEnabled, setReduceMotionEnabled] = useState(true);
   const handheldX = useRef(new Animated.Value(0)).current;
@@ -393,6 +400,45 @@ export function PatientCallScreen({
   const repositionAnimationRef = useRef<Animated.CompositeAnimation | null>(null);
   const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const handheldGenerationRef = useRef(0);
+  const incomingPulseIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const incomingSecondPulseRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const incomingEffectsGenerationRef = useRef(0);
+  const webRingtoneStartedRef = useRef(false);
+
+  const stopIncomingEffects = useCallback(() => {
+    incomingEffectsGenerationRef.current += 1;
+    webRingtoneStartedRef.current = false;
+    setShowWebUnmute(false);
+    if (incomingPulseIntervalRef.current) {
+      clearInterval(incomingPulseIntervalRef.current);
+      incomingPulseIntervalRef.current = null;
+    }
+    if (incomingSecondPulseRef.current) {
+      clearTimeout(incomingSecondPulseRef.current);
+      incomingSecondPulseRef.current = null;
+    }
+    if (Platform.OS === "web" && typeof navigator !== "undefined" && "vibrate" in navigator) {
+      navigator.vibrate(0);
+    }
+    void stopIncomingCallAudio().catch(() => {});
+  }, []);
+
+  const attemptIncomingRingtone = useCallback(() => {
+    if (callState !== "incoming" || webRingtoneStartedRef.current) return;
+    webRingtoneStartedRef.current = true;
+    const generation = incomingEffectsGenerationRef.current;
+    void playIncomingCallAudio().then(() => {
+      if (incomingEffectsGenerationRef.current !== generation || callState !== "incoming") {
+        void stopIncomingCallAudio().catch(() => {});
+        return;
+      }
+      setShowWebUnmute(false);
+    }).catch(() => {
+      if (incomingEffectsGenerationRef.current !== generation || callState !== "incoming") return;
+      webRingtoneStartedRef.current = false;
+      if (Platform.OS === "web") setShowWebUnmute(true);
+    });
+  }, [callState]);
 
   const resetHandheldMotion = useCallback(() => {
     handheldGenerationRef.current += 1;
@@ -422,6 +468,41 @@ export function PatientCallScreen({
       mounted = false;
       subscription.remove();
     };
+  }, []);
+
+  useEffect(() => {
+    stopIncomingEffects();
+    if (callState !== "incoming") return;
+
+    const generation = incomingEffectsGenerationRef.current;
+    const playPulse = () => {
+      if (incomingEffectsGenerationRef.current !== generation) return;
+      if (Platform.OS === "web") {
+        if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+          navigator.vibrate(reduceMotionEnabled ? 100 : [120, 120, 120]);
+        }
+        return;
+      }
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+      if (!reduceMotionEnabled) {
+        incomingSecondPulseRef.current = setTimeout(() => {
+          incomingSecondPulseRef.current = null;
+          if (incomingEffectsGenerationRef.current === generation) {
+            void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+          }
+        }, 240);
+      }
+    };
+
+    attemptIncomingRingtone();
+
+    playPulse();
+    incomingPulseIntervalRef.current = setInterval(playPulse, reduceMotionEnabled ? 3200 : 2400);
+    return stopIncomingEffects;
+  }, [attemptIncomingRingtone, callState, reduceMotionEnabled, stopIncomingEffects]);
+
+  useEffect(() => () => {
+    void unloadIncomingCallAudio();
   }, []);
 
   const scale = mediaFocalPoint.scale ?? 1.08;
@@ -583,6 +664,11 @@ export function PatientCallScreen({
     );
   }, []);
 
+  const handleAnswer = useCallback(() => {
+    stopIncomingEffects();
+    onAnswer();
+  }, [onAnswer, stopIncomingEffects]);
+
   if (callState === "ended") {
     return <View style={styles.screen} accessibilityLiveRegion="polite"><View style={[styles.viewport, styles.endedViewport]}>
       <Text style={styles.endedIcon}>☎</Text><Text style={styles.endedText}>Call ended</Text>
@@ -618,18 +704,26 @@ export function PatientCallScreen({
     <View style={styles.header} accessibilityLiveRegion="polite">
       {callState === "incoming" ? <Text style={styles.incomingLabel}>Incoming patient call</Text> : null}
       <Text style={styles.name}>{patientName}</Text>
+      {callState === "incoming" && showWebUnmute ? <Pressable
+        accessibilityRole="button" accessibilityLabel="Unmute incoming call"
+        onPress={attemptIncomingRingtone} hitSlop={8}
+        style={({ pressed }) => [styles.unmuteButton, pressed && styles.unmuteButtonPressed]}
+      >
+        <MaterialCommunityIcons name="volume-mute" size={17} color="#fff" />
+        <Text style={styles.unmuteText}>Unmute</Text>
+      </Pressable> : null}
       {callState === "active" ? <Text style={styles.duration}>{durationLabel(elapsedSeconds)}</Text> : null}
     </View>
     {callState === "incoming" ? <>
-      <View style={styles.incomingPortraitFrame}>
+      <View pointerEvents="none" style={styles.incomingPortraitFrame}>
         {incomingPortraitSource ? <Image source={incomingPortraitSource} style={styles.incomingPortrait} resizeMode="cover" /> :
           <Text style={styles.incomingPortraitInitials}>{patientInitials}</Text>}
       </View>
-      <View style={styles.incomingAction}>
+      <View pointerEvents="box-none" style={styles.incomingAction}>
       <Pressable accessibilityRole="button" accessibilityLabel={`Answer patient call from ${patientName}`}
-        onPress={onAnswer} disabled={answering} style={[styles.circle, styles.answerCircle, answering && styles.disabled]}>
+        onPress={handleAnswer} disabled={answering} style={[styles.circle, styles.answerCircle, answering && styles.disabled]}>
         <Text style={styles.phoneIcon}>☎</Text>
-      </Pressable><Text style={styles.incomingActionLabel}>{answering ? "Answering…" : "Answer"}</Text>
+      </Pressable><Text pointerEvents="none" style={styles.incomingActionLabel}>{answering ? "Answering…" : "Answer"}</Text>
       </View>
     </> : <>
       <Pressable accessibilityRole="button" accessibilityLabel="Call Options"
