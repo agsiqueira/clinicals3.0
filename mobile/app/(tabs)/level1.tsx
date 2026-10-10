@@ -541,6 +541,7 @@ export default function Level1Screen() {
   );
 
   const recoveredDraft = readEncounterDraft(conversationStorageKey);
+  const skipCheckpointRef = useRef(true);
   const [loadingCase, setLoadingCase] = useState(true);
   const [sending, setSending] = useState(false);
   const [caseData, setCaseData] = useState<CaseData | null>(null);
@@ -553,6 +554,8 @@ export default function Level1Screen() {
   const [pendingMessages, setPendingMessages] = useState<Msg[]>(recoveredDraft?.pendingMessages || []);
   const [creatingConversation, setCreatingConversation] = useState(false);
   const conversationCreationRef = useRef(false);
+  const messageWritesRef = useRef(new Set<Promise<boolean>>());
+  const uncertainMessageWriteRef = useRef(false);
   const answerInProgressRef = useRef(false);
   const hangUpInProgressRef = useRef(false);
   const callEndedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1338,25 +1341,30 @@ export default function Level1Screen() {
   }, []);
 
   const persistMessage = useCallback(
-    async (msg: Msg, targetConversationId = conversationId) => {
-      if (!targetConversationId) return;
-      try {
-        await request(`/conversations/${targetConversationId}/messages`, {
-          method: "POST",
-          headers: userHeaders,
-          body: {
-            role: msg.role,
-            content: msg.content,
-          },
-        });
-      } catch (err) {
-        if ((err as any)?.status === 401) {
-          setPendingMessages(prev => prev.some(item => item.id === msg.id) ? prev : [...prev, msg]);
+    (msg: Msg, targetConversationId = conversationId): Promise<boolean> => {
+      if (!targetConversationId) return Promise.resolve(false);
+      const write = (async () => {
+        try {
+          await request(`/conversations/${targetConversationId}/messages`, {
+            method: "POST", headers: userHeaders,
+            body: { role: msg.role, content: msg.content },
+          });
+          setPendingMessages(prev => prev.filter(item => item.id !== msg.id));
+          return true;
+        } catch (err: any) {
+          if (err?.status === 401) {
+            setPendingMessages(prev => prev.some(item => item.id === msg.id) ? prev : [...prev, msg]);
+          } else {
+            uncertainMessageWriteRef.current = true;
+          }
+          setError("A message could not be saved. Restore your session before submitting; your local encounter remains available.");
+          return false;
         }
-        setError("A message could not be saved. Sign in again before submitting; your local encounter remains available.");
-      }
-    },
-    [conversationId, userHeaders]
+      })();
+      messageWritesRef.current.add(write);
+      void write.finally(() => messageWritesRef.current.delete(write));
+      return write;
+    }, [conversationId, userHeaders]
   );
 
   const ensureConversation = useCallback(async (): Promise<string | null> => {
@@ -1386,6 +1394,7 @@ export default function Level1Screen() {
   }, [caseId, conversationId, patientSessionSlug, userHeaders]);
 
   useEffect(() => {
+    skipCheckpointRef.current = true;
     const draft = readEncounterDraft(conversationStorageKey);
     setConversationId(draft?.conversationId || null);
     setPendingMessages(draft?.pendingMessages || []);
@@ -1413,6 +1422,7 @@ export default function Level1Screen() {
   }, [conversationStorageKey]);
 
   useEffect(() => {
+    if (skipCheckpointRef.current) { skipCheckpointRef.current = false; return; }
     saveEncounterDraft(conversationStorageKey, { messages, input, hpiText, stage, conversationId, pendingMessages });
   }, [conversationStorageKey, messages, input, hpiText, stage, conversationId, pendingMessages]);
 
@@ -1428,7 +1438,7 @@ export default function Level1Screen() {
 
     (async () => {
       try {
-        const saved = await getItemAsync(conversationStorageKey);
+        const saved = (await getItemAsync(conversationStorageKey)) || (await getItemAsync(`conv_${patientSessionSlug || caseId}`));
         if (cancelled) return;
 
         if (!saved) {
@@ -1471,6 +1481,7 @@ export default function Level1Screen() {
             return;
           }
 
+          await setItemAsync(conversationStorageKey, saved);
           setSavedConversationId(saved);
           setShowResumePrompt(true);
         } catch (err: any) {
@@ -1748,17 +1759,20 @@ export default function Level1Screen() {
     const hpi = hpiText.trim();
     if ((requiresHpi && !hpi) || submitting) return;
 
-    if (pendingMessages.length > 0) { setSubmitError("Some messages are unsaved. Restore your session before submitting."); return; }
     setSubmitError(null);
     setSubmitting(true);
     let convoId = conversationId;
 
     try {
-      if (!convoId) {
-        convoId = await ensureConversation();
+      const outstanding = await Promise.all(Array.from(messageWritesRef.current));
+      if (outstanding.some(saved => !saved) || uncertainMessageWriteRef.current) {
+        throw new Error("A message was not confirmed saved. Resume the saved transcript before grading.");
       }
-      if (!convoId) {
-        throw new Error("Conversation is still being created. Please try again.");
+      if (!convoId) convoId = await ensureConversation();
+      if (!convoId) throw new Error("Conversation is still being created. Please try again.");
+      if (pendingMessages.length > 0) {
+        const saved = await Promise.all(pendingMessages.map(msg => persistMessage(msg, convoId)));
+        if (saved.some(ok => !ok)) throw new Error("Some messages remain unsaved. Sign in again before grading.");
       }
 
       const data = await request(`/conversations/${convoId}/submit`, {
@@ -1831,6 +1845,8 @@ export default function Level1Screen() {
     patientSessionSlug,
     requiresHpi,
     submitting,
+    pendingMessages,
+    persistMessage,
     userHeaders,
   ]);
 
@@ -2173,7 +2189,8 @@ export default function Level1Screen() {
         role: m.role,
         content: m.content,
       }));
-      setMessages(msgs);
+      uncertainMessageWriteRef.current = false;
+    setMessages(msgs);
       setConversationId(savedConversationId);
       setShowResumePrompt(false);
     } catch (e: any) {

@@ -1,5 +1,4 @@
 import { authenticatedFetch } from "./sessionToken";
-import { deleteItemAsync, setItemAsync } from "../utils/storage";
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 const REQUEST_TIMEOUT_MS = 10000;
@@ -69,21 +68,6 @@ async function request(path, { method = "GET", body, headers } = {}) {
 export const api = {
   // ---- Test: health / ping
   health: () => request("/health"),
-
-  // ---- Auth (edit paths + fields to match your backend)
-  login: async (email, password) => {
-    const data = await request("/auth/login", {
-      method: "POST",
-      body: { email, password },
-    });
-    // Expecting { token: "..." } from backend
-    if (data?.token) await setItemAsync("token", data.token);
-    return data;
-  },
-
-  logout: async () => {
-    await deleteItemAsync("token");
-  },
 
   // to view previous attempts for a case
   getAttemptsByCase: (caseId, headers) => request(`/conversations/by-case/${caseId}`, { headers }),

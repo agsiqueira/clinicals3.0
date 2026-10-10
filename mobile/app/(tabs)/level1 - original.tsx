@@ -1,3 +1,4 @@
+import { readEncounterDraft, saveEncounterDraft } from "../../src/api/encounterDraft";
 import { authenticatedFetch } from "../../src/api/sessionToken";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -230,6 +231,7 @@ function normalizeSubmissionPayload(payload: any): SubmissionResult {
 }
 
 export default function Level1Screen() {
+  const { user } = useUser();
   const params = useLocalSearchParams();
   const caseId = useMemo(() => {
     const raw = params.caseId;
@@ -243,19 +245,24 @@ export default function Level1Screen() {
     player.muted = true;
   });
 
+  const draftKey = `legacy_${user?.id}_${caseId}`;
+  const recoveredDraft = readEncounterDraft(draftKey);
+  const skipCheckpointRef = useRef(true);
+  const messageWritesRef = useRef(new Set<Promise<boolean>>());
+  const uncertainMessageWriteRef = useRef(false);
   const [loadingCase, setLoadingCase] = useState(true);
   const [sending, setSending] = useState(false);
   const [caseData, setCaseData] = useState<CaseData | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const [input, setInput] = useState("");
-  const [messages, setMessages] = useState<Msg[]>([]);
+  const [input, setInput] = useState(recoveredDraft?.input || "");
+  const [messages, setMessages] = useState<Msg[]>(recoveredDraft?.messages || []);
   const listRef = useRef<FlatList<Msg>>(null);
-  const [conversationId, setConversationId] = useState<string | null>(null);
-  const [pendingMessages, setPendingMessages] = useState<Msg[]>([]);
+  const [conversationId, setConversationId] = useState<string | null>(recoveredDraft?.conversationId || null);
+  const [pendingMessages, setPendingMessages] = useState<Msg[]>(recoveredDraft?.pendingMessages || []);
   const [creatingConversation, setCreatingConversation] = useState(false);
-  const [stage, setStage] = useState<"chat" | "hpi" | "results">("chat");
-  const [hpiText, setHpiText] = useState("");
+  const [stage, setStage] = useState<"chat" | "hpi" | "results">(recoveredDraft?.stage || "chat");
+  const [hpiText, setHpiText] = useState(recoveredDraft?.hpiText || "");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submissionResult, setSubmissionResult] = useState<SubmissionResult | null>(null);
@@ -358,7 +365,6 @@ export default function Level1Screen() {
     }
   };
 
-  const { user } = useUser();
 
   const userHeaders = useMemo<Record<string, string>>(() => ({}), [user?.id]);
 
@@ -456,22 +462,30 @@ export default function Level1Screen() {
   }, []);
 
   const persistMessage = useCallback(
-    async (msg: Msg) => {
-      if (!conversationId) return;
-      try {
-        await request(`/conversations/${conversationId}/messages`, {
-          method: "POST",
-          headers: userHeaders,
-          body: {
-            role: msg.role,
-            content: msg.content,
-          },
-        });
-      } catch (err) {
-        console.warn("Failed to persist message:", err);
-      }
-    },
-    [conversationId, userHeaders]
+    (msg: Msg, targetConversationId = conversationId): Promise<boolean> => {
+      if (!targetConversationId) return Promise.resolve(false);
+      const write = (async () => {
+        try {
+          await request(`/conversations/${targetConversationId}/messages`, {
+            method: "POST", headers: userHeaders,
+            body: { role: msg.role, content: msg.content },
+          });
+          setPendingMessages(prev => prev.filter(item => item.id !== msg.id));
+          return true;
+        } catch (err: any) {
+          if (err?.status === 401) {
+            setPendingMessages(prev => prev.some(item => item.id === msg.id) ? prev : [...prev, msg]);
+          } else {
+            uncertainMessageWriteRef.current = true;
+          }
+          setError("A message could not be saved. Restore your session before submitting; your local encounter remains available.");
+          return false;
+        }
+      })();
+      messageWritesRef.current.add(write);
+      void write.finally(() => messageWritesRef.current.delete(write));
+      return write;
+    }, [conversationId, userHeaders]
   );
 
   const ensureConversation = useCallback(async (): Promise<string | null> => {
@@ -499,16 +513,23 @@ export default function Level1Screen() {
   }, [caseId, conversationId, creatingConversation, userHeaders]);
 
   useEffect(() => {
-    setConversationId(null);
-    setPendingMessages([]);
-    setStage("chat");
-    setHpiText("");
+    skipCheckpointRef.current = true;
+    const draft = readEncounterDraft(draftKey);
+    setConversationId(draft?.conversationId || null);
+    setPendingMessages(draft?.pendingMessages || []);
+    setStage(draft?.stage || "chat");
+    setHpiText(draft?.hpiText || "");
     setSubmissionResult(null);
     setSubmitError(null);
     setSavedConversationId(null);
     setShowResumePrompt(false);
     setResumeCheckComplete(false);
-  }, [caseId]);
+  }, [draftKey]);
+
+  useEffect(() => {
+    if (skipCheckpointRef.current) { skipCheckpointRef.current = false; return; }
+    saveEncounterDraft(draftKey, { messages, input, hpiText, stage, conversationId, pendingMessages });
+  }, [draftKey, messages, input, hpiText, stage, conversationId, pendingMessages]);
 
   // for resume chat button
   useEffect(() => {
@@ -626,7 +647,7 @@ export default function Level1Screen() {
     toPersist.forEach((msg) => {
       persistMessage(msg);
     });
-  }, [conversationId, pendingMessages, persistMessage]);
+  }, [conversationId, userHeaders]);
 
   useEffect(() => {
     let cancelled = false;
@@ -642,10 +663,11 @@ export default function Level1Screen() {
         setCaseData(data);
 
         // Start with an empty transcript so opening behavior is graded from user input.
-        setMessages([]);
-        setInput("");
-        setStage("chat");
-        setHpiText("");
+        const draft = readEncounterDraft(draftKey);
+        setMessages(draft?.messages || []);
+        setInput(draft?.input || "");
+        setStage(draft?.stage || "chat");
+        setHpiText(draft?.hpiText || "");
         setSubmissionResult(null);
         setSubmitError(null);
       } catch (e: any) {
@@ -745,6 +767,8 @@ export default function Level1Screen() {
     let convoId = conversationId;
 
     try {
+      const outstanding = await Promise.all(Array.from(messageWritesRef.current));
+      if (outstanding.some(saved => !saved) || uncertainMessageWriteRef.current) throw new Error("A message was not confirmed saved. Resume the saved transcript before grading.");
       if (!convoId) {
         convoId = await ensureConversation();
       }
@@ -752,6 +776,10 @@ export default function Level1Screen() {
         throw new Error("Conversation is still being created. Please try again.");
       }
 
+      if (pendingMessages.length > 0) {
+        const saved = await Promise.all(pendingMessages.map(msg => persistMessage(msg, convoId)));
+        if (saved.some(ok => !ok)) throw new Error("Some messages remain unsaved. Sign in again before grading.");
+      }
       const data = await request(`/conversations/${convoId}/submit`, {
         method: "POST",
         headers: userHeaders,
@@ -794,7 +822,7 @@ export default function Level1Screen() {
     } finally {
       setSubmitting(false);
     }
-  }, [caseId, conversationId, ensureConversation, hpiText, submitting, userHeaders]);
+  }, [caseId, conversationId, ensureConversation, hpiText, submitting, pendingMessages, persistMessage, userHeaders]);
 
   const resumeConversation = useCallback(async () => {
     if (!savedConversationId) return;
@@ -808,6 +836,7 @@ export default function Level1Screen() {
         role: m.role,
         content: m.content,
       }));
+      uncertainMessageWriteRef.current = false;
       setMessages(msgs);
       setConversationId(savedConversationId);
       setShowResumePrompt(false);
