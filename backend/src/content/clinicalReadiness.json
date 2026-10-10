@@ -1,0 +1,290 @@
+{
+  "moduleId": "clinical-readiness",
+  "version": 1,
+  "status": "draft-for-educational-review",
+  "title": "Module 0 — Clinical Readiness",
+  "personaSlug": "dr-martinez",
+  "estimatedMinutes": 23,
+  "sources": [
+    {
+      "id": "slides",
+      "fileName": "Mod 0.pptx",
+      "sha256": "e25883bad18586a0978f7a4b6a8ee6f3ca73d2c9d6265f67c7427816bbf3af47"
+    },
+    {
+      "id": "script",
+      "fileName": "Presentation Script.docx",
+      "sha256": "ac3f6a951dc4694fd5d2d992a51e9d755ff39dd828de65e6ed09567af9f66c8c"
+    }
+  ],
+  "interactionPolicy": {
+    "sequence": [
+      "teach",
+      "ask",
+      "evaluate",
+      "feedback",
+      "advance"
+    ],
+    "feedbackLabels": [
+      "Ready",
+      "Needs More Practice"
+    ],
+    "completionRequires": "Every required step has an accepted learner response and persisted formative feedback; no score threshold.",
+    "maxFeedbackWords": 80,
+    "maxClarificationWords": 100,
+    "optionalPracticeRequired": false
+  },
+  "sourceReviewNotes": [
+    "Slide 9 and script section 3 say 14 systems but list 13 grouped entries; do not test the count.",
+    "The source ECG wording overstates exclusion of acute coronary syndrome. Do not teach that one ECG rules it out or that respiratory findings justify delaying evaluation. Source clinical management examples require educator review."
+  ],
+  "activities": [
+    {
+      "id": "starting-the-encounter",
+      "title": "Starting the Encounter",
+      "estimatedMinutes": 5,
+      "steps": [
+        {
+          "id": "open-the-interview",
+          "teach": "Start with an open-ended question so the patient can describe the concern in their own words. “What brings you to the clinic today?” invites a narrative without suggesting a symptom.",
+          "question": "Write your opening question for a patient whose chief complaint you have not yet heard.",
+          "responseType": "short-text",
+          "evaluationCriteria": [
+            "Invites the patient’s narrative",
+            "Does not suggest an answer or symptom"
+          ],
+          "optionalPracticeQuestion": "Rewrite “Is your chest hurting?” as an open-ended question.",
+          "sourceRefs": {
+            "slides": [
+              3
+            ],
+            "scriptSections": [
+              2
+            ]
+          }
+        },
+        {
+          "id": "organize-old-carts",
+          "teach": "OLD CARTS organizes onset, location, duration, character, aggravating/alleviating factors, radiation, temporal factors, and severity. In the source example, “began yesterday morning” becomes an acute onset.",
+          "question": "A patient describes sharp anterior chest pain beginning yesterday morning, lasting 10–15 minutes, worse with deep inspiration, without radiation, intermittent and worse in the morning, rated 6/10, with nothing relieving it. Organize this description using OLD CARTS.",
+          "responseType": "short-text",
+          "evaluationCriteria": [
+            "Organizes the supplied details under OLD CARTS",
+            "Retains the reported timeline, severity, and pertinent negatives",
+            "Does not invent findings"
+          ],
+          "optionalPracticeQuestion": "Which OLD CARTS categories capture “worse with deep inspiration” and “does not go to my arm, neck, or jaw”?",
+          "sourceRefs": {
+            "slides": [
+              4
+            ],
+            "scriptSections": [
+              2
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "organizing-clinical-information",
+      "title": "Organizing Clinical Information",
+      "estimatedMinutes": 6,
+      "steps": [
+        {
+          "id": "soap-and-data-types",
+          "teach": "SOAP means Subjective, Objective, Assessment, and Plan. Patient-reported symptoms belong in Subjective. Observed or measured examination findings belong in Objective. Your clinical interpretation and proposed next steps belong in Assessment and Plan.",
+          "question": "Place each item in SOAP: the patient reports pain with inspiration; you hear crackles; you consider a pulmonary cause; you propose a chest X-ray. Explain the difference between the first two items.",
+          "responseType": "short-text",
+          "evaluationCriteria": [
+            "Maps the four supplied items to S/O/A/P",
+            "Distinguishes reported symptoms from observed findings"
+          ],
+          "optionalPracticeQuestion": "Is a patient’s report of shortness of breath subjective or objective? Explain.",
+          "sourceRefs": {
+            "slides": [
+              2,
+              8,
+              10,
+              18
+            ],
+            "scriptSections": [
+              1
+            ]
+          }
+        },
+        {
+          "id": "history-and-context",
+          "teach": "Beyond the complaint, gather medications, allergies, immunizations, past medical, surgical, family, and social history. Social context includes substance use, occupation, living situation, financial security, support, diet/activity, and cultural or spiritual considerations.",
+          "question": "Name the medical-history areas you would review, then choose two social-history areas and explain how they could inform a care plan.",
+          "responseType": "short-text",
+          "evaluationCriteria": [
+            "Includes medication, allergy, immunization, and relevant history domains",
+            "Connects social context to an individual care plan without assumptions"
+          ],
+          "optionalPracticeQuestion": "How could living situation or social support affect a proposed plan?",
+          "sourceRefs": {
+            "slides": [
+              5,
+              6,
+              7
+            ],
+            "scriptSections": [
+              2
+            ]
+          }
+        },
+        {
+          "id": "review-of-systems",
+          "teach": "The review of systems asks about patient-reported symptoms that may have been overlooked. It adds context to the history; it is not a physical examination or a diagnostic test.",
+          "question": "Explain the purpose of ROS and why hearing crackles during examination does not belong in ROS.",
+          "responseType": "short-text",
+          "evaluationCriteria": [
+            "Describes uncovering overlooked symptoms and adding context",
+            "Keeps examination findings separate from patient-reported ROS"
+          ],
+          "optionalPracticeQuestion": "Where would you document patient-reported cough versus crackles heard on examination?",
+          "sourceRefs": {
+            "slides": [
+              8,
+              9
+            ],
+            "scriptSections": [
+              3
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "clinical-reasoning",
+      "title": "Clinical Reasoning",
+      "estimatedMinutes": 5,
+      "steps": [
+        {
+          "id": "focused-examination",
+          "teach": "A focused examination collects targeted, observable, measurable findings that support or challenge possibilities raised by the history. The source example connects respiratory examination and vital signs to the chest-pain history.",
+          "question": "For the source patient with pain aggravated by inspiration, explain what focused examination information you would seek and how it would inform your reasoning.",
+          "responseType": "short-text",
+          "evaluationCriteria": [
+            "Connects examination to the history",
+            "Identifies observable findings rather than treating symptoms as examination results"
+          ],
+          "optionalPracticeQuestion": "How do patient-reported pain and measured vital signs contribute differently to reasoning?",
+          "sourceRefs": {
+            "slides": [
+              10,
+              17,
+              23
+            ],
+            "scriptSections": [
+              4
+            ]
+          }
+        },
+        {
+          "id": "evidence-and-differential",
+          "teach": "List your working diagnosis first, then prioritize alternatives. Compare subjective and objective evidence. In the source example, pain with inspiration and crackles support a pulmonary possibility, while age and hypertension keep a cardiac possibility under consideration.",
+          "question": "Mr. Jones is 65 with hypertension and mild COPD, pleuritic anterior chest pain, and crackles. Present a working possibility and an alternative, with evidence for each and one uncertainty to discuss with your preceptor.",
+          "responseType": "short-text",
+          "evaluationCriteria": [
+            "Prioritizes a working possibility and an alternative",
+            "Links possibilities to supplied evidence",
+            "Recognizes uncertainty rather than claiming a diagnosis is proven"
+          ],
+          "optionalPracticeQuestion": "Explain why evidence supporting a pulmonary cause does not remove every cardiac concern.",
+          "sourceRefs": {
+            "slides": [
+              11,
+              18,
+              24,
+              25,
+              26
+            ],
+            "scriptSections": [
+              4
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "presenting-to-the-preceptor",
+      "title": "Presenting to the Preceptor",
+      "estimatedMinutes": 7,
+      "steps": [
+        {
+          "id": "sbar",
+          "teach": "SBAR structures a concise presentation: Situation, Background, Assessment, Recommendation. Include your clinical judgment and proposed next steps instead of reciting facts and waiting for instructions.",
+          "question": "Give a brief SBAR for Mr. Jones using the supplied history and examination findings. Include a proposed next step and a question for the preceptor.",
+          "responseType": "short-text",
+          "evaluationCriteria": [
+            "Uses all four SBAR components",
+            "Connects assessment to supplied evidence",
+            "Offers a recommendation for preceptor discussion without overstating certainty"
+          ],
+          "optionalPracticeQuestion": "Turn a facts-only report into an Assessment and Recommendation.",
+          "sourceRefs": {
+            "slides": [
+              13,
+              14,
+              15,
+              17,
+              18,
+              20
+            ],
+            "scriptSections": [
+              5
+            ]
+          }
+        },
+        {
+          "id": "snapps",
+          "teach": "SNAPPS means Summarize, Narrow, Analyze, Probe, Plan, Select. Briefly summarize, narrow to two or three possibilities, compare evidence, ask about uncertainty, propose management, and select a case-related learning issue.",
+          "question": "Using the same source case, give a concise SNAPPS presentation. Make your uncertainty explicit and finish with a focused self-directed learning question.",
+          "responseType": "short-text",
+          "evaluationCriteria": [
+            "Includes all six SNAPPS actions",
+            "Compares evidence instead of listing diagnoses only",
+            "Communicates uncertainty and proposes a plan for discussion",
+            "Selects a focused case-related learning issue"
+          ],
+          "optionalPracticeQuestion": "Write only the Probe and Select parts: one uncertainty for your preceptor and one focused learning question.",
+          "sourceRefs": {
+            "slides": [
+              21,
+              22,
+              23,
+              24,
+              25,
+              26,
+              27,
+              28,
+              29
+            ],
+            "scriptSections": [
+              6
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "sharedScenario": {
+    "id": "source-mr-jones",
+    "purpose": "Instructional example only; not a diagnostic protocol.",
+    "text": "Mr. Jones is 65 with hypertension and mild COPD. Anterior chest pain began yesterday morning: sharp, pleuritic, intermittent, lasting 10–15 minutes, worse with inspiration and in the morning, with no relieving factor or radiation, rated 6/10. The source reports stable vital signs without numerical measurements, localized right lower lung crackles, and an otherwise normal cardiac examination.",
+    "sourceRefs": {
+      "slides": [
+        4,
+        17,
+        18,
+        23
+      ],
+      "scriptSections": [
+        2,
+        5,
+        6
+      ]
+    }
+  }
+}
