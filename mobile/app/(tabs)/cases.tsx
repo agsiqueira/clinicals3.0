@@ -230,21 +230,10 @@ export default function HomeScreen() {
   });
   const [autoOpenedSessionKey, setAutoOpenedSessionKey] = useState<string | null>(null);
 
-  const userHeaders = useMemo(() => {
-    const headers: Record<string, string> = {};
-    const email = user?.primaryEmailAddress?.emailAddress;
-    const fallbackEmail = email || user?.emailAddresses?.[0]?.emailAddress;
-    const resolvedUserId = user?.id || authUserId || (__DEV__ ? fallbackEmail || "dev-user" : undefined);
-
-    if (resolvedUserId) headers["x-clerk-user-id"] = resolvedUserId;
-    if (user?.fullName) headers["x-user-name"] = user.fullName;
-    if (email) headers["x-user-email"] = email;
-    if (user?.imageUrl) headers["x-user-image"] = user.imageUrl;
-    return headers;
-  }, [authUserId, user]);
+  const userHeaders = useMemo<Record<string, string>>(() => ({}), [user?.id]);
 
   const milestoneStorageKey = useMemo(() => {
-    const userKey = userHeaders["x-clerk-user-id"] || "anonymous";
+    const userKey = user?.id || "anonymous";
     return `${SEEN_MILESTONES_STORAGE_KEY_PREFIX}:${userKey}`;
   }, [userHeaders]);
 
@@ -266,7 +255,7 @@ export default function HomeScreen() {
       return;
     }
 
-    if (!userHeaders["x-clerk-user-id"]) {
+    if (!user?.id) {
       setLearningPaths([]);
       setJourneySummary(null);
       setLoadingRoadmap(false);

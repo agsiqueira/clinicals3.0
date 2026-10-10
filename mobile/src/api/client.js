@@ -1,9 +1,9 @@
-import { deleteItemAsync, getItemAsync, setItemAsync } from "../utils/storage";
+import { authenticatedFetch } from "./sessionToken";
+import { deleteItemAsync, setItemAsync } from "../utils/storage";
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 const REQUEST_TIMEOUT_MS = 10000;
 const TTS_REQUEST_TIMEOUT_MS = 90000;
-const TOKEN_READ_TIMEOUT_MS = 1500;
 
 if (!BASE_URL) {
   throw new Error("Missing EXPO_PUBLIC_API_BASE_URL in .env");
@@ -15,27 +15,7 @@ function apiUrl(path) {
   return `${BASE_URL}${API_PREFIX}${path}`;
 }
 
-function withTimeout(promise, ms, fallback) {
-  return Promise.race([
-    promise,
-    new Promise((resolve) => setTimeout(() => resolve(fallback), ms)),
-  ]);
-}
-
-async function getStoredToken() {
-  try {
-    return await withTimeout(
-      getItemAsync("token"),
-      TOKEN_READ_TIMEOUT_MS,
-      null
-    );
-  } catch {
-    return null;
-  }
-}
-
 async function request(path, { method = "GET", body, headers } = {}) {
-  const token = await getStoredToken();
   const controller = new AbortController();
   const timeoutMs =
     String(method).toUpperCase() === "POST" && path === "/voice/speak"
@@ -45,11 +25,10 @@ async function request(path, { method = "GET", body, headers } = {}) {
 
   let res;
   try {
-    res = await fetch(apiUrl(path), {
+    res = await authenticatedFetch(apiUrl(path), {
       method,
       headers: {
         "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(headers || {}),
       },
       body: body ? JSON.stringify(body) : undefined,

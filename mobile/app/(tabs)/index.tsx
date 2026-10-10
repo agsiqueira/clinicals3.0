@@ -139,18 +139,7 @@ export default function TodayScreen() {
   const [error, setError] = useState<string | null>(null);
   const [signingOut, setSigningOut] = useState(false);
 
-  const userHeaders = useMemo(() => {
-    const headers: Record<string, string> = {};
-    const email = user?.primaryEmailAddress?.emailAddress;
-    const fallbackEmail = email || user?.emailAddresses?.[0]?.emailAddress;
-    const resolvedUserId = user?.id || authUserId || (__DEV__ ? fallbackEmail || "dev-user" : undefined);
-
-    if (resolvedUserId) headers["x-clerk-user-id"] = resolvedUserId;
-    if (user?.fullName) headers["x-user-name"] = user.fullName;
-    if (email) headers["x-user-email"] = email;
-    if (user?.imageUrl) headers["x-user-image"] = user.imageUrl;
-    return headers;
-  }, [authUserId, user]);
+  const userHeaders = useMemo<Record<string, string>>(() => ({}), [user?.id]);
 
   const loadToday = useCallback(
     async ({ asRefresh = false } = {}) => {
@@ -159,7 +148,7 @@ export default function TodayScreen() {
         return;
       }
 
-      if (!userHeaders["x-clerk-user-id"]) {
+      if (!user?.id) {
         setToday(null);
         setLoading(false);
         setRefreshing(false);

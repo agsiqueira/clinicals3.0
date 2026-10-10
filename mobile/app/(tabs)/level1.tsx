@@ -1,3 +1,5 @@
+import { readEncounterDraft, saveEncounterDraft } from "../../src/api/encounterDraft";
+import { authenticatedFetch } from "../../src/api/sessionToken";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -108,7 +110,6 @@ async function request(
 ) {
   if (!BASE_URL) throw new Error("Missing EXPO_PUBLIC_API_BASE_URL in .env");
 
-  const token = await getItemAsync("token");
   const method = String(opts.method || "GET").toUpperCase();
   const timeoutMs = getRequestTimeoutMs(path, method);
 
@@ -117,11 +118,10 @@ async function request(
   let res: Response;
 
   try {
-    res = await fetch(`${BASE_URL}${API_PREFIX}${path}`, {
+    res = await authenticatedFetch(`${BASE_URL}${API_PREFIX}${path}`, {
       method,
       headers: {
         "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(opts.headers || {}),
       },
       body: opts.body ? JSON.stringify(opts.body) : undefined,
@@ -508,6 +508,8 @@ function summarizeCriteriaAchievement(
 }
 
 export default function Level1Screen() {
+  const { userId: authUserId } = useAuth();
+  const { user } = useUser();
   const params = useLocalSearchParams();
   const router = useRouter();
   const { width } = useWindowDimensions();
@@ -534,20 +536,21 @@ export default function Level1Screen() {
     return String(value).toLowerCase() === "true";
   }, [params.requiresHpi]);
   const conversationStorageKey = useMemo(
-    () => `conv_${patientSessionSlug || caseId}`,
-    [caseId, patientSessionSlug]
+    () => `conv_${authUserId}_${patientSessionSlug || caseId}`,
+    [authUserId, caseId, patientSessionSlug]
   );
 
+  const recoveredDraft = readEncounterDraft(conversationStorageKey);
   const [loadingCase, setLoadingCase] = useState(true);
   const [sending, setSending] = useState(false);
   const [caseData, setCaseData] = useState<CaseData | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const [input, setInput] = useState("");
-  const [messages, setMessages] = useState<Msg[]>([]);
+  const [input, setInput] = useState(recoveredDraft?.input || "");
+  const [messages, setMessages] = useState<Msg[]>(recoveredDraft?.messages || []);
   const listRef = useRef<FlatList<Msg>>(null);
-  const [conversationId, setConversationId] = useState<string | null>(null);
-  const [pendingMessages, setPendingMessages] = useState<Msg[]>([]);
+  const [conversationId, setConversationId] = useState<string | null>(recoveredDraft?.conversationId || null);
+  const [pendingMessages, setPendingMessages] = useState<Msg[]>(recoveredDraft?.pendingMessages || []);
   const [creatingConversation, setCreatingConversation] = useState(false);
   const conversationCreationRef = useRef(false);
   const answerInProgressRef = useRef(false);
@@ -561,8 +564,8 @@ export default function Level1Screen() {
   const [callStartedAt, setCallStartedAt] = useState<number | null>(null);
   const [elapsedCallSeconds, setElapsedCallSeconds] = useState(0);
   const [answeringCall, setAnsweringCall] = useState(false);
-  const [stage, setStage] = useState<"chat" | "hpi" | "results">("chat");
-  const [hpiText, setHpiText] = useState("");
+  const [stage, setStage] = useState<"chat" | "hpi" | "results">(recoveredDraft?.stage || "chat");
+  const [hpiText, setHpiText] = useState(recoveredDraft?.hpiText || "");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submissionResult, setSubmissionResult] = useState<SubmissionResult | null>(null);
@@ -1012,21 +1015,8 @@ export default function Level1Screen() {
     void stopRecordingAndTranscribe(reason);
   };
 
-  const { userId: authUserId } = useAuth();
-  const { user } = useUser();
 
-  const userHeaders = useMemo(() => {
-    const headers: Record<string, string> = {};
-    const email = user?.primaryEmailAddress?.emailAddress;
-    const fallbackEmail = email || user?.emailAddresses?.[0]?.emailAddress;
-    const resolvedUserId = user?.id || authUserId || (__DEV__ ? fallbackEmail || "dev-user" : undefined);
-
-    if (resolvedUserId) headers["x-clerk-user-id"] = resolvedUserId;
-    if (user?.fullName) headers["x-user-name"] = user.fullName;
-    if (email) headers["x-user-email"] = email;
-    if (user?.imageUrl) headers["x-user-image"] = user.imageUrl;
-    return headers;
-  }, [authUserId, user]);
+  const userHeaders = useMemo<Record<string, string>>(() => ({}), [user?.id]);
 
   const clearPatientVisualSpeakingTimer = useCallback(() => {
     const timer = patientVisualSpeakingTimerRef.current;
@@ -1360,14 +1350,17 @@ export default function Level1Screen() {
           },
         });
       } catch (err) {
-        console.warn("Failed to persist message:", err);
+        if ((err as any)?.status === 401) {
+          setPendingMessages(prev => prev.some(item => item.id === msg.id) ? prev : [...prev, msg]);
+        }
+        setError("A message could not be saved. Sign in again before submitting; your local encounter remains available.");
       }
     },
     [conversationId, userHeaders]
   );
 
   const ensureConversation = useCallback(async (): Promise<string | null> => {
-    if (!userHeaders["x-clerk-user-id"]) return null;
+    if (!user?.id) return null;
     if (conversationId) return conversationId;
     if (conversationCreationRef.current) return null;
 
@@ -1393,16 +1386,17 @@ export default function Level1Screen() {
   }, [caseId, conversationId, patientSessionSlug, userHeaders]);
 
   useEffect(() => {
-    setConversationId(null);
-    setPendingMessages([]);
+    const draft = readEncounterDraft(conversationStorageKey);
+    setConversationId(draft?.conversationId || null);
+    setPendingMessages(draft?.pendingMessages || []);
     setCallState("incoming");
     setCallStartedAt(null);
     setElapsedCallSeconds(0);
     setAnsweringCall(false);
     answerInProgressRef.current = false;
     hangUpInProgressRef.current = false;
-    setStage("chat");
-    setHpiText("");
+    setStage(draft?.stage || "chat");
+    setHpiText(draft?.hpiText || "");
     setSubmissionResult(null);
     setAchievementUnlockVisible(false);
     setDebriefVisible(false);
@@ -1417,6 +1411,10 @@ export default function Level1Screen() {
     setShowResumePrompt(false);
     setResumeCheckComplete(false);
   }, [conversationStorageKey]);
+
+  useEffect(() => {
+    saveEncounterDraft(conversationStorageKey, { messages, input, hpiText, stage, conversationId, pendingMessages });
+  }, [conversationStorageKey, messages, input, hpiText, stage, conversationId, pendingMessages]);
 
   // for resume chat button
   useEffect(() => {
@@ -1475,7 +1473,8 @@ export default function Level1Screen() {
 
           setSavedConversationId(saved);
           setShowResumePrompt(true);
-        } catch {
+        } catch (err: any) {
+          if (err?.status !== 404) { setError("Unable to resume yet. Your encounter reference has been retained; sign in and retry."); return; }
           await deleteItemAsync(conversationStorageKey).catch(() => {});
           if (cancelled) return;
           setSavedConversationId(null);
@@ -1638,7 +1637,7 @@ export default function Level1Screen() {
     toPersist.forEach((msg) => {
       persistMessage(msg);
     });
-  }, [conversationId, pendingMessages, persistMessage]);
+  }, [conversationId, userHeaders]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1653,11 +1652,11 @@ export default function Level1Screen() {
 
         setCaseData(data);
 
-        // Start with an empty transcript so opening behavior is graded from user input.
-        setMessages([]);
-        setInput("");
-        setStage("chat");
-        setHpiText("");
+        const draft = readEncounterDraft(conversationStorageKey);
+        setMessages(draft?.messages || []);
+        setInput(draft?.input || "");
+        setStage(draft?.stage || "chat");
+        setHpiText(draft?.hpiText || "");
         setSubmissionResult(null);
         setAchievementUnlockVisible(false);
         setSubmitError(null);
@@ -1749,6 +1748,7 @@ export default function Level1Screen() {
     const hpi = hpiText.trim();
     if ((requiresHpi && !hpi) || submitting) return;
 
+    if (pendingMessages.length > 0) { setSubmitError("Some messages are unsaved. Restore your session before submitting."); return; }
     setSubmitError(null);
     setSubmitting(true);
     let convoId = conversationId;

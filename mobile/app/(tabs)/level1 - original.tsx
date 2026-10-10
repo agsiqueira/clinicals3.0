@@ -1,3 +1,4 @@
+import { authenticatedFetch } from "../../src/api/sessionToken";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -60,7 +61,6 @@ async function request(
 ) {
   if (!BASE_URL) throw new Error("Missing EXPO_PUBLIC_API_BASE_URL in .env");
 
-  const token = await getItemAsync("token");
   const method = String(opts.method || "GET").toUpperCase();
   const timeoutMs = getRequestTimeoutMs(path, method);
 
@@ -69,11 +69,10 @@ async function request(
   let res: Response;
 
   try {
-    res = await fetch(`${BASE_URL}${API_PREFIX}${path}`, {
+    res = await authenticatedFetch(`${BASE_URL}${API_PREFIX}${path}`, {
       method,
       headers: {
         "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(opts.headers || {}),
       },
       body: opts.body ? JSON.stringify(opts.body) : undefined,
@@ -361,15 +360,7 @@ export default function Level1Screen() {
 
   const { user } = useUser();
 
-  const userHeaders = useMemo(() => {
-    const headers: Record<string, string> = {};
-    if (user?.id) headers["x-clerk-user-id"] = user.id;
-    if (user?.fullName) headers["x-user-name"] = user.fullName;
-    const email = user?.primaryEmailAddress?.emailAddress;
-    if (email) headers["x-user-email"] = email;
-    if (user?.imageUrl) headers["x-user-image"] = user.imageUrl;
-    return headers;
-  }, [user]);
+  const userHeaders = useMemo<Record<string, string>>(() => ({}), [user?.id]);
 
   const stopSpeechPlayback = useCallback(async () => {
     const currentSound = soundRef.current;
@@ -484,7 +475,7 @@ export default function Level1Screen() {
   );
 
   const ensureConversation = useCallback(async (): Promise<string | null> => {
-    if (!userHeaders["x-clerk-user-id"]) return null;
+    if (!user?.id) return null;
     if (conversationId) return conversationId;
     if (creatingConversation) return null;
 
@@ -522,7 +513,7 @@ export default function Level1Screen() {
   // for resume chat button
   useEffect(() => {
     if (!conversationId) return;
-    setItemAsync(`conv_${caseId}`, conversationId).catch(() => {});
+    setItemAsync(`conv_${user?.id}_${caseId}`, conversationId).catch(() => {});
   }, [conversationId, caseId]);
 
   // on mount, check if a previous conversation exists for this case
@@ -531,7 +522,7 @@ export default function Level1Screen() {
 
     (async () => {
       try {
-        const saved = await getItemAsync(`conv_${caseId}`);
+        const saved = await getItemAsync(`conv_${user?.id}_${caseId}`);
         if (cancelled) return;
 
         if (saved) {
@@ -768,7 +759,7 @@ export default function Level1Screen() {
       });
 
       setSubmissionResult(normalizeSubmissionPayload(data));
-      await deleteItemAsync(`conv_${caseId}`).catch(() => {});
+      await deleteItemAsync(`conv_${user?.id}_${caseId}`).catch(() => {});
       setStage("results");
     } catch (e: any) {
       const message = String(e?.message || "Failed to submit case.");
@@ -822,7 +813,7 @@ export default function Level1Screen() {
       setShowResumePrompt(false);
     } catch (e: any) {
       console.warn("Failed to resume conversation:", e.message);
-      await deleteItemAsync(`conv_${caseId}`).catch(() => {});
+      await deleteItemAsync(`conv_${user?.id}_${caseId}`).catch(() => {});
       setSavedConversationId(null);
       setShowResumePrompt(false);
     } finally {
@@ -831,14 +822,14 @@ export default function Level1Screen() {
   }, [caseId, savedConversationId, userHeaders]);
 
   const startFresh = useCallback(async () => {
-    await deleteItemAsync(`conv_${caseId}`).catch(() => {});
+    await deleteItemAsync(`conv_${user?.id}_${caseId}`).catch(() => {});
     setSavedConversationId(null);
     setShowResumePrompt(false);
   }, [caseId]);
 
   const retryCase = useCallback(async () => {
     await stopSpeechPlayback();
-    await deleteItemAsync(`conv_${caseId}`).catch(() => {});
+    await deleteItemAsync(`conv_${user?.id}_${caseId}`).catch(() => {});
 
     setSavedConversationId(null);
     setShowResumePrompt(false);
