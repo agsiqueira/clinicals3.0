@@ -36,6 +36,11 @@ export async function authenticatedFetch(url, options = {}) {
   options.signal?.addEventListener("abort", abort, { once: true });
   if (options.signal?.aborted) controller.abort();
   pending.add(controller);
+  let readingBody = false;
+  const cleanup = () => {
+    pending.delete(controller);
+    options.signal?.removeEventListener("abort", abort);
+  };
   try {
     let response;
     for (let attempt = 0; attempt < 2; attempt += 1) {
@@ -56,11 +61,15 @@ export async function authenticatedFetch(url, options = {}) {
     if (response.status === 401) throw sessionError();
     for (const method of ["text", "json", "arrayBuffer", "blob"]) {
       const read = response[method].bind(response);
-      response[method] = async () => { const value = await read(); assertCurrent(); return value; };
+      response[method] = async () => {
+        try { const value = await read(); assertCurrent(); return value; }
+        finally { cleanup(); }
+      };
     }
+    // Keep cancellation/account isolation active until the body is consumed.
+    readingBody = true;
     return response;
   } finally {
-    pending.delete(controller);
-    options.signal?.removeEventListener("abort", abort);
+    if (!readingBody) cleanup();
   }
 }

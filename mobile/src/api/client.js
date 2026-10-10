@@ -18,18 +18,19 @@ async function request(path, { method = "GET", body, headers, signal, timeoutMs:
   // Legacy optional argument now carries local session context; it is never an identity header.
   const { expectedUserId, ...transportHeaders } = headers || {};
   const controller = new AbortController();
-  const timeoutMs = timeoutOverride ||
+  const timeoutMs = timeoutOverride ?? (
     String(method).toUpperCase() === "POST" && ["/voice/speak", "/voice/patient-speak"].includes(path)
       ? TTS_REQUEST_TIMEOUT_MS
-      : REQUEST_TIMEOUT_MS;
+      : REQUEST_TIMEOUT_MS
+  );
   const abort = () => controller.abort();
   signal?.addEventListener("abort", abort, { once: true });
   if (signal?.aborted) controller.abort();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  let timedOut = false;
+  const timeoutId = setTimeout(() => { timedOut = true; controller.abort(); }, timeoutMs);
 
-  let res;
   try {
-    res = await authenticatedFetch(apiUrl(path), {
+    const res = await authenticatedFetch(apiUrl(path), {
       method,
       expectedUserId,
       headers: {
@@ -39,37 +40,32 @@ async function request(path, { method = "GET", body, headers, signal, timeoutMs:
       body: body ? JSON.stringify(body) : undefined,
       signal: controller.signal,
     });
+    const text = await res.text();
+    let data;
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch {
+      data = text;
+    }
+    if (!res.ok) {
+      const msg = (data && (data.error || data.message)) || `Request failed: ${res.status} ${res.statusText}`;
+      const error = new Error(msg);
+      error.status = res.status;
+      error.data = data;
+      throw error;
+    }
+    return data;
   } catch (err) {
-    if (err?.name === "AbortError") {
-      throw new Error(
-        `Request timed out. Verify EXPO_PUBLIC_API_BASE_URL (${BASE_URL}) and that the backend is reachable from this device.`
-      );
+    if (err?.name === "AbortError" && timedOut && !signal?.aborted) {
+      const error = new Error("Request timed out. Refresh saved progress before retrying a submitted answer.");
+      error.code = "REQUEST_TIMEOUT";
+      throw error;
     }
     throw err;
   } finally {
     clearTimeout(timeoutId);
     signal?.removeEventListener("abort", abort);
   }
-
-  const text = await res.text();
-  let data;
-  try {
-    data = text ? JSON.parse(text) : null;
-  } catch {
-    data = text; // if backend returns non-JSON
-  }
-
-  if (!res.ok) {
-    const msg =
-      (data && (data.error || data.message)) ||
-      `Request failed: ${res.status} ${res.statusText}`;
-    const err = new Error(msg);
-    err.status = res.status;
-    err.data = data;
-    throw err;
-  }
-
-  return data;
 }
 
 export const api = {
