@@ -7,12 +7,10 @@ function isDevelopment() {
   return process.env.NODE_ENV !== "production";
 }
 
-function debugLog(...args) {
-  if (isDevelopment()) console.log(...args);
+function debugLog(event) { require("../utils/safeDiagnostics").diagnostic(event);
 }
 
-function debugError(...args) {
-  if (isDevelopment()) console.error(...args);
+function debugError() { require("../utils/safeDiagnostics").diagnostic("Upstream operation failed");
 }
 
 function parseErrorBody(error) {
@@ -106,19 +104,6 @@ router.post("/speak", async (req, res, next) => {
           unavailableReason === "key_model_access_denied"
             ? "Configured key does not have access to the requested TTS model."
             : "Configured TTS model is unavailable for this key or endpoint."
-      });
-      return;
-    }
-
-    if (isDevelopment()) {
-      res.status(500).json({
-        error: err?.message || "Internal Server Error",
-        stack: err?.stack || null,
-        upstream: {
-          status: err?.status || null,
-          headers: err?.headers || null,
-          responseBody: err?.responseBody || null
-        }
       });
       return;
     }

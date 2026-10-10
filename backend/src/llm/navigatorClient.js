@@ -158,12 +158,10 @@ function isDevelopment() {
   return process.env.NODE_ENV !== "production";
 }
 
-function debugLog(...args) {
-  if (isDevelopment()) console.log(...args);
+function debugLog(event) { require("../utils/safeDiagnostics").diagnostic(event);
 }
 
-function debugError(...args) {
-  if (isDevelopment()) console.error(...args);
+function debugError() { require("../utils/safeDiagnostics").diagnostic("Upstream operation failed");
 }
 
 function sanitizeHeaders(headers) {

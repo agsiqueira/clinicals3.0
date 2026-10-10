@@ -1,28 +1,31 @@
 const prisma = require("../db/prisma");
-
-function buildUserUpdate(meta) {
-  const update = {};
-  if (meta.name) update.name = meta.name;
-  if (meta.email) update.email = meta.email;
-  if (meta.imageUrl) update.imageUrl = meta.imageUrl;
-  return update;
-}
+const { clerkClient } = require("@clerk/express");
 
 async function getOrCreateUser(clerkUserId, meta = {}) {
-  if (!clerkUserId) {
-    throw new Error("Missing clerk user id");
-  }
-  const update = buildUserUpdate(meta);
+  if (!clerkUserId) throw new Error("Missing verified Clerk identity");
+  const existing = await prisma.user.findUnique({ where: { clerkUserId } });
+  if (existing) return existing;
   return prisma.user.upsert({
     where: { clerkUserId },
-    create: {
-      clerkUserId,
-      name: meta.name || null,
-      email: meta.email || null,
-      imageUrl: meta.imageUrl || null
-    },
-    update
+    create: { clerkUserId, name: meta.name || null, email: meta.email || null, imageUrl: meta.imageUrl || null },
+    update: {},
   });
 }
 
-module.exports = { getOrCreateUser };
+async function resolveAuthenticatedUser(req) {
+  const clerkUserId = req.studentIdentity?.clerkUserId;
+  if (!clerkUserId) { const error = new Error("Authentication required"); error.status = 401; throw error; }
+  if (req.studentUser) return req.studentUser;
+  const existing = await prisma.user.findUnique({ where: { clerkUserId } });
+  if (existing) { req.studentUser = existing; return existing; }
+  // Only server-sourced profile metadata is used; existing learner IDs remain unchanged.
+  const profile = await clerkClient.users.getUser(clerkUserId);
+  const email = profile.emailAddresses.find((item) => item.id === profile.primaryEmailAddressId && item.verification?.status === "verified")?.emailAddress;
+  req.studentUser = await getOrCreateUser(clerkUserId, {
+    name: [profile.firstName, profile.lastName].filter(Boolean).join(" "),
+    email, imageUrl: profile.imageUrl,
+  });
+  return req.studentUser;
+}
+
+module.exports = { getOrCreateUser, resolveAuthenticatedUser };

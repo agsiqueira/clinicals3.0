@@ -219,7 +219,7 @@ async function loadEvaluationContext({ userId, sessionAttemptId, client }) {
     },
   });
 
-  if (!currentAttempt) return null;
+  if (!currentAttempt || currentAttempt.userId !== userId) return null;
 
   const scoredAttempts = await client.sessionAttempt.findMany({
     where: {

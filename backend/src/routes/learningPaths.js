@@ -11,26 +11,15 @@ const {
 
 const router = express.Router();
 
-function getClerkUserId(req) {
-  return req.header("x-clerk-user-id");
-}
-
 async function resolveUser(req) {
-  const clerkUserId = getClerkUserId(req);
-  if (!clerkUserId) {
-    return null;
-  }
-  const name = req.header("x-user-name") || undefined;
-  const email = req.header("x-user-email") || undefined;
-  const imageUrl = req.header("x-user-image") || undefined;
-  return getOrCreateUser(clerkUserId, { name, email, imageUrl });
+  return require("../utils/userResolver").resolveAuthenticatedUser(req);
 }
 
 router.get("/", async (req, res, next) => {
   try {
     const user = await resolveUser(req);
     if (!user) {
-      res.status(401).json({ error: "Missing x-clerk-user-id header" });
+      res.status(401).json({ error: "Authentication required" });
       return;
     }
 
@@ -69,7 +58,7 @@ router.post("/patient-sessions/:slug/preceptor-chat", async (req, res, next) => 
   try {
     const user = await resolveUser(req);
     if (!user) {
-      res.status(401).json({ error: "Missing x-clerk-user-id header" });
+      res.status(401).json({ error: "Authentication required" });
       return;
     }
 
@@ -130,7 +119,7 @@ router.get("/patient-sessions/:slug", async (req, res, next) => {
   try {
     const user = await resolveUser(req);
     if (!user) {
-      res.status(401).json({ error: "Missing x-clerk-user-id header" });
+      res.status(401).json({ error: "Authentication required" });
       return;
     }
 
