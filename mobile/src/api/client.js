@@ -19,7 +19,7 @@ async function request(path, { method = "GET", body, headers } = {}) {
   const { expectedUserId, ...transportHeaders } = headers || {};
   const controller = new AbortController();
   const timeoutMs =
-    String(method).toUpperCase() === "POST" && path === "/voice/speak"
+    String(method).toUpperCase() === "POST" && ["/voice/speak", "/voice/patient-speak"].includes(path)
       ? TTS_REQUEST_TIMEOUT_MS
       : REQUEST_TIMEOUT_MS;
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
@@ -91,6 +91,7 @@ export const api = {
       body: payload,
       headers,
     }),
+  speakPatientVoice: (payload, headers) => request("/voice/patient-speak", { method: "POST", body: payload, headers }),
   speakVoice: (payload, headers) =>
     request("/voice/speak", {
       method: "POST",
