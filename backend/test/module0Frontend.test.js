@@ -316,3 +316,31 @@ test("a completed activity has an obvious continue action and reopening does not
   h.setFocused(false);await h.settle();h.setFocused(true);await h.settle();assert.equal(h.input().props.editable,true);
   assert.equal((await h.service.getProgress("A")).completedCount,2);
 });
+
+test("known failed feedback stops GET polling but its local timer enables same-answer retry",async t=>{
+  const h=harness("app/module-0.tsx",{}, {fakeTimers:true});t.after(h.unmount);let reads=0;
+  h.setGet(async()=>{reads++;return h.service.getProgress("A");});
+  h.setEvaluate(()=>{throw new Error("synthetic evaluation failure");});h.render();await h.settle();
+  h.input().props.onChangeText("What brings you in today?");h.render();h.find("Submit").props.onPress();await h.settle();
+  const failed=await h.service.getProgress("A");assert.equal(failed.pending.status,"failed");
+  const before=reads;await h.advance(6000);await h.advance(12000);await h.advance(12000);
+  assert.equal(reads,before,"no indefinite failed-state GET polling");
+  assert.match(h.text(h.render()),/Automatic checks have stopped/);assert.equal(h.find("Retry feedback").props.disabled,false);
+  h.setEvaluate(({response})=>({label:"Ready",feedback:"You invited the patient's narrative.",evidence:[response]}));
+  h.find("Retry feedback").props.onPress();await h.settle();
+  const saved=await h.service.getProgress("A");assert.equal(saved.completedCount,1);
+  assert.equal(saved.activities[0].steps[0].saved.requestId,failed.pending.requestId);
+});
+
+test("expired evaluating lease stops automatic GET checks and exposes retry without resetting progress",async t=>{
+  const h=harness("app/module-0.tsx",{}, {fakeTimers:true});t.after(h.unmount);let reads=0,finish;
+  h.setGet(async()=>{reads++;return h.service.getProgress("A");});
+  h.setEvaluate(({response})=>new Promise(resolve=>{finish=()=>resolve({label:"Ready",feedback:"You attempted the exercise.",evidence:[response]});}));
+  const worker=h.service.submit("A",{activityId:catalog.activities[0].id,stepId:catalog.activities[0].steps[0].id,kind:"required",response:"What brings you in today?",requestId:"expired-worker-answer",expectedRevision:0});
+  await h.settle();h.render();await h.settle();assert.match(h.text(h.render()),/Saved progress refreshes automatically/);
+  await h.advance(120001);const before=reads;await h.advance(6000);await h.advance(6000);
+  assert.equal(reads,before);assert.match(h.text(h.render()),/Automatic checks have stopped/);
+  assert.equal(h.find("Retry feedback").props.disabled,false);
+  finish();await worker;
+  h.find("Refresh saved progress").props.onPress();await h.settle();assert.match(h.text(h.render()),/1 of 9/);
+});

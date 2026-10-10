@@ -48,6 +48,7 @@ function Module0Experience({ userId }: { userId: string }) {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<LessonResult | null>(null);
+  const [retryClock, setRetryClock] = useState(Date.now());
   const boundary = useRef(createModule0Boundary()).current;
   const { activity, step } = module0Selection(progress, activityId, stepId) as { activity?: LessonActivity; step?: LessonStep };
   const scope = `${userId}:${activity?.id || activityId}:${step?.id}:${kind}`;
@@ -141,10 +142,19 @@ function Module0Experience({ userId }: { userId: string }) {
     if (isFocused) void load(true, returning && !!progressRef.current);
   }, [isFocused, scope]); // Resume on focus; explicit activity/review choices remain intact.
   useEffect(() => {
-    if (!isFocused || (!progress?.pending && !sending)) return;
+    const pending = progress?.pending;
+    if (!isFocused || (!sending && (!pending || pending.status !== "evaluating" || Date.now() >= Date.parse(pending.retryAfter)))) return;
     const timer = setTimeout(() => { void load(true); }, 3000);
     return () => clearTimeout(timer);
-  }, [progress, scope, isFocused, sending]);
+  }, [progress, scope, isFocused, sending, retryClock]);
+  useEffect(() => {
+    if (!isFocused || !progress?.pending) return;
+    const delay = Date.parse(progress.pending.retryAfter) - Date.now();
+    if (delay <= 0) return;
+    // One local wake-up enables retry/stops expired-lease polling; it makes no API request.
+    const timer = setTimeout(() => setRetryClock(Date.now()), delay);
+    return () => clearTimeout(timer);
+  }, [progress?.pending?.requestId, progress?.pending?.retryAfter, isFocused]);
   useEffect(() => {
     if (!isFocused || !voiceEnabled || !step || !activity || transcription.isRecording) return;
     const latest = notice?.activityId === activity.id ? notice : null;
@@ -196,7 +206,7 @@ function Module0Experience({ userId }: { userId: string }) {
   };
   const relevantHistory = progress?.history.filter(r => r.activityId === activity?.id && r.stepId === step?.id) || [];
   const pending = progress?.pending;
-  const retryWait = pending ? Math.max(0, Math.ceil((Date.parse(pending.retryAfter) - Date.now()) / 1000)) : 0;
+  const retryWait = pending ? Math.max(0, Math.ceil((Date.parse(pending.retryAfter) - Math.max(Date.now(), retryClock)) / 1000)) : 0;
   return <SafeAreaView style={portfolioStyles.container}>
     <ScrollView contentContainerStyle={[portfolioStyles.scrollContent, styles.content]} keyboardShouldPersistTaps="handled">
       <View style={styles.row}>
@@ -236,9 +246,10 @@ function Module0Experience({ userId }: { userId: string }) {
           {sending && !pending && <View style={styles.panel}><ActivityIndicator /><Text accessibilityLiveRegion="polite" style={styles.body}>Submitting your answer and preparing feedback…</Text></View>}
           {pending && <View style={styles.panel}><Text style={styles.body}>Your answer is saved and awaiting feedback. You may leave and resume later.</Text>
           <Text selectable style={styles.muted}>{pending.response}</Text>
-          <Text style={styles.muted}>{pending.status === "failed" ? "Feedback could not be completed. Your answer is preserved." : "Dr. Martinez is preparing feedback. Saved progress refreshes automatically."} {retryWait > 0 ? `Retry is available in about ${retryWait} seconds while the previous request settles.` : "You can safely retry feedback now."}</Text>
+          <Text style={styles.muted}>{pending.status === "failed" ? "Feedback could not be completed. Your answer is preserved. Automatic checks have stopped." : retryWait === 0 ? "The earlier feedback request has not finished. Automatic checks have stopped." : "Dr. Martinez is preparing feedback. Saved progress refreshes automatically."} {retryWait > 0 ? `Retry is available in about ${retryWait} seconds while the previous request settles.` : "You can safely retry feedback now."}</Text>
           <View style={styles.row}><Pressable onPress={() => choose(pending.activityId, pending.stepId, pending.kind)}><Text style={styles.link}>Return to saved answer</Text></Pressable>
           <Pressable disabled={sending || retryWait > 0} onPress={() => void submit(true)}><Text style={styles.link}>{sending ? "Working…" : "Retry feedback"}</Text></Pressable></View>
+          <Pressable onPress={() => void load(true)}><Text style={styles.link}>Refresh saved progress</Text></Pressable>
         </View>}
 
           <View style={styles.rowWrap}>

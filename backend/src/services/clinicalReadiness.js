@@ -1,6 +1,7 @@
 const { randomUUID } = require("node:crypto");
 const defaultCatalog = require("../content/clinicalReadiness.json");
 const { evaluateLesson, validateEvaluation } = require("../utils/clinicalReadinessTeaching");
+const { diagnoseEvaluation } = require("../utils/lessonEvaluationErrors");
 const LEASE_MS = 120000;
 const RETRY_DELAY_MS = 5000;
 const OPTIONAL_LIMIT = 40; // Per kind, lifetime; bounded JSON and paid requests.
@@ -122,8 +123,9 @@ function createClinicalReadinessService({ client, catalog = defaultCatalog, eval
     row = await cas(row, state); // Durable answer before any paid call.
     let evaluation;
     try { evaluation = validateEvaluation(await evaluate({ catalog, step: data.step, response: data.response, kind: data.kind }), data); }
-    catch {
+    catch (error) {
       // Never log or forward upstream exceptions: they may contain learner text.
+      if (!error?.lessonEvaluationDiagnosed) diagnoseEvaluation(error);
       const current = await read(userId);
       const currentState = stateOf(current);
       if (currentState.pending?.reservation !== reservation) return { status: "superseded", progress: view(current) };
