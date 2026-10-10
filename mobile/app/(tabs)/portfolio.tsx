@@ -402,7 +402,7 @@ export default function ClinicalPortfolioScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const userHeaders = useMemo<Record<string, string>>(() => ({}), [user?.id]);
+  const userHeaders = useMemo<Record<string, string>>(() => ({ expectedUserId: user?.id || "" }), [user?.id]);
 
   const loadPortfolio = useCallback(
     async ({ asRefresh = false } = {}) => {

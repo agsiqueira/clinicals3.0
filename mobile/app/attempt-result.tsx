@@ -13,10 +13,12 @@ const API_PREFIX = "/api";
 
 async function request(path: string, headers: Record<string, string> = {}) {
   if (!BASE_URL) throw new Error("Missing EXPO_PUBLIC_API_BASE_URL in .env");
+  const { expectedUserId, ...transportHeaders } = headers;
   const res = await authenticatedFetch(`${BASE_URL}${API_PREFIX}${path}`, {
+    expectedUserId,
     headers: {
       "Content-Type": "application/json",
-      ...headers,
+      ...transportHeaders,
     },
   });
   const text = await res.text();
@@ -117,7 +119,7 @@ export default function AttemptResultScreen() {
   const [messages, setMessages] = useState<{ role: string; content: string }[]>([]);
   const [showTranscript, setShowTranscript] = useState(false);
 
-  const userHeaders = useMemo<Record<string, string>>(() => ({}), [user?.id]);
+  const userHeaders = useMemo<Record<string, string>>(() => ({ expectedUserId: user?.id || "" }), [user?.id]);
 
   const loadResult = useCallback(async () => {
     if (!conversationId) return;

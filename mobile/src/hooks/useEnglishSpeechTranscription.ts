@@ -1,4 +1,6 @@
-import { useCallback, useRef, useState } from "react";
+import { useAuth } from "@clerk/clerk-expo";
+import { captureSession } from "../api/sessionToken";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Platform } from "react-native";
 import { Audio } from "expo-av";
 import * as FileSystem from "expo-file-system/legacy";
@@ -33,6 +35,7 @@ export function useEnglishSpeechTranscription({
   onText,
   onError,
 }: UseEnglishSpeechTranscriptionOptions) {
+  const { userId } = useAuth();
   const recordingRef = useRef<Audio.Recording | null>(null);
   const webMediaRecorderRef = useRef<MediaRecorder | null>(null);
   const webAudioChunksRef = useRef<Blob[]>([]);
@@ -46,7 +49,9 @@ export function useEnglishSpeechTranscription({
     if (Platform.OS === "web") {
       setRecordingBusy(true);
       try {
+        const assertCurrent = captureSession(userId);
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        try { assertCurrent(); } catch (error) { stream.getTracks().forEach(track => track.stop()); throw error; }
         const recorder = new MediaRecorder(stream);
         webAudioChunksRef.current = [];
 
@@ -69,7 +74,9 @@ export function useEnglishSpeechTranscription({
 
     setRecordingBusy(true);
     try {
+      const assertCurrent = captureSession(userId);
       const permission = await Audio.requestPermissionsAsync();
+      assertCurrent();
       if (!permission.granted) return;
 
       await Audio.setAudioModeAsync({
@@ -77,10 +84,12 @@ export function useEnglishSpeechTranscription({
         playsInSilentModeIOS: true,
       });
 
+      assertCurrent();
       const recording = new Audio.Recording();
       await recording.prepareToRecordAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
       await recording.startAsync();
 
+      try { assertCurrent(); } catch (error) { await recording.stopAndUnloadAsync().catch(() => {}); throw error; }
       recordingRef.current = recording;
       setIsRecording(true);
     } catch (error) {
@@ -90,7 +99,7 @@ export function useEnglishSpeechTranscription({
     } finally {
       setRecordingBusy(false);
     }
-  }, [isRecording, onError, recordingBusy, transcribing]);
+  }, [isRecording, onError, recordingBusy, transcribing, userId]);
 
   const stopRecordingAndTranscribe = useCallback(async () => {
     if (recordingBusy) return;
@@ -104,6 +113,7 @@ export function useEnglishSpeechTranscription({
       setTranscribing(true);
 
       try {
+        const assertCurrent = captureSession(userId);
         const audioBlob: Blob = await new Promise((resolve) => {
           recorder.onstop = () => {
             resolve(new Blob(webAudioChunksRef.current, { type: "audio/webm" }));
@@ -115,12 +125,14 @@ export function useEnglishSpeechTranscription({
         webMediaRecorderRef.current = null;
 
         const audioBase64 = await blobToBase64(audioBlob);
+        assertCurrent();
         const data = await api.transcribeVoice({
           audio_base64: audioBase64,
           mime_type: "audio/webm",
           language: "en",
-        });
+        }, { expectedUserId: userId || "" });
 
+        assertCurrent();
         if (data?.text) onText(data.text);
       } catch (error) {
         onError?.(error);
@@ -140,6 +152,7 @@ export function useEnglishSpeechTranscription({
 
     let uri: string | null = null;
     try {
+      const assertCurrent = captureSession(userId);
       await recording.stopAndUnloadAsync();
       uri = recording.getURI();
       if (!uri) return;
@@ -150,12 +163,14 @@ export function useEnglishSpeechTranscription({
       });
       await FileSystem.deleteAsync(uri, { idempotent: true });
 
+      assertCurrent();
       const data = await api.transcribeVoice({
         audio_base64: audioBase64,
         mime_type: getMimeTypeFromRecordingUri(uri),
         language: "en",
-      });
+      }, { expectedUserId: userId || "" });
 
+      assertCurrent();
       if (data?.text) onText(data.text);
     } catch (error) {
       onError?.(error);
@@ -163,7 +178,22 @@ export function useEnglishSpeechTranscription({
       setTranscribing(false);
       setRecordingBusy(false);
     }
-  }, [onError, onText, recordingBusy]);
+  }, [onError, onText, recordingBusy, userId]);
+
+  useEffect(() => () => {
+    const recorder = webMediaRecorderRef.current;
+    if (recorder) {
+      if (recorder.state !== "inactive") recorder.stop();
+      recorder.stream.getTracks().forEach(track => track.stop());
+    }
+    webAudioChunksRef.current = [];
+    const recording = recordingRef.current;
+    recordingRef.current = null;
+    if (recording) void recording.stopAndUnloadAsync().then(async () => {
+      const uri = recording.getURI();
+      if (uri) await FileSystem.deleteAsync(uri, { idempotent: true });
+    }).catch(() => {});
+  }, []);
 
   const toggleRecording = useCallback(() => {
     if (isRecording) {

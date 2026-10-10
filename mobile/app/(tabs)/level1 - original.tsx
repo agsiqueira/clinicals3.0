@@ -1,5 +1,5 @@
 import { readEncounterDraft, saveEncounterDraft } from "../../src/api/encounterDraft";
-import { authenticatedFetch } from "../../src/api/sessionToken";
+import { authenticatedFetch, captureSession } from "../../src/api/sessionToken";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -56,9 +56,9 @@ function getRequestTimeoutMs(path: string, method: string) {
   return DEFAULT_REQUEST_TIMEOUT_MS;
 }
 
-async function request(
+async function sessionRequest(
   path: string,
-  opts: { method?: string; body?: any; headers?: Record<string, string> } = {}
+  opts: { method?: string; body?: any; headers?: Record<string, string>; expectedUserId?: string | null } = {}
 ) {
   if (!BASE_URL) throw new Error("Missing EXPO_PUBLIC_API_BASE_URL in .env");
 
@@ -72,6 +72,7 @@ async function request(
   try {
     res = await authenticatedFetch(`${BASE_URL}${API_PREFIX}${path}`, {
       method,
+      expectedUserId: opts.expectedUserId,
       headers: {
         "Content-Type": "application/json",
         ...(opts.headers || {}),
@@ -232,6 +233,10 @@ function normalizeSubmissionPayload(payload: any): SubmissionResult {
 
 export default function Level1Screen() {
   const { user } = useUser();
+  const request = useCallback((path: string, opts: { method?: string; body?: any; headers?: Record<string, string> } = {}) => {
+    const { expectedUserId: _context, ...headers } = opts.headers || {};
+    return sessionRequest(path, { ...opts, headers, expectedUserId: user?.id ?? null });
+  }, [user?.id]);
   const params = useLocalSearchParams();
   const caseId = useMemo(() => {
     const raw = params.caseId;
@@ -249,11 +254,12 @@ export default function Level1Screen() {
   const recoveredDraft = readEncounterDraft(draftKey);
   const skipCheckpointRef = useRef(true);
   const messageWritesRef = useRef(new Set<Promise<boolean>>());
-  const uncertainMessageWriteRef = useRef(false);
+  const uncertainMessageWriteRef = useRef(Boolean(recoveredDraft?.uncertainWrite));
   const [loadingCase, setLoadingCase] = useState(true);
   const [sending, setSending] = useState(false);
   const [caseData, setCaseData] = useState<CaseData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [persistenceError, setPersistenceError] = useState<string | null>(recoveredDraft?.persistenceError || null);
 
   const [input, setInput] = useState(recoveredDraft?.input || "");
   const [messages, setMessages] = useState<Msg[]>(recoveredDraft?.messages || []);
@@ -286,7 +292,9 @@ export default function Level1Screen() {
 
     setRecordingBusy(true);
     try {
+      const assertCurrent = captureSession(user?.id ?? null);
       const permission = await Audio.requestPermissionsAsync();
+      assertCurrent();
       if (!permission.granted) {
         console.warn("Microphone permission not granted.");
         return;
@@ -301,6 +309,7 @@ export default function Level1Screen() {
       await recording.prepareToRecordAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
       await recording.startAsync();
 
+      try { assertCurrent(); } catch (error) { await recording.stopAndUnloadAsync().catch(() => {}); throw error; }
       recordingRef.current = recording;
       setIsRecording(true);
     } catch (err) {
@@ -366,7 +375,7 @@ export default function Level1Screen() {
   };
 
 
-  const userHeaders = useMemo<Record<string, string>>(() => ({}), [user?.id]);
+  const userHeaders = useMemo<Record<string, string>>(() => ({ expectedUserId: user?.id || "" }), [user?.id]);
 
   const stopSpeechPlayback = useCallback(async () => {
     const currentSound = soundRef.current;
@@ -406,13 +415,16 @@ export default function Level1Screen() {
       if (!inputText) return;
 
       try {
+        const assertCurrent = captureSession(user?.id ?? null);
         await stopSpeechPlayback();
 
+        assertCurrent();
         const payload = await request("/voice/speak", {
           method: "POST",
           body: { text: inputText },
         });
 
+        assertCurrent();
         const audioBase64 = String(payload?.audio_base64 || "").trim();
         if (!audioBase64) return;
 
@@ -429,12 +441,15 @@ export default function Level1Screen() {
         });
 
         soundFilePathRef.current = filePath;
+        assertCurrent();
         const { sound } = await Audio.Sound.createAsync(
           { uri: filePath },
-          { shouldPlay: true }
+          { shouldPlay: false }
         );
 
         soundRef.current = sound;
+        assertCurrent();
+        await sound.playAsync();
         setIsSpeaking(true);
 
         sound.setOnPlaybackStatusUpdate((status) => {
@@ -454,7 +469,7 @@ export default function Level1Screen() {
         await stopSpeechPlayback();
       }
     },
-    [stopSpeechPlayback]
+    [stopSpeechPlayback, request, user?.id]
   );
 
   const queueMessage = useCallback((msg: Msg) => {
@@ -478,7 +493,7 @@ export default function Level1Screen() {
           } else {
             uncertainMessageWriteRef.current = true;
           }
-          setError("A message could not be saved. Restore your session before submitting; your local encounter remains available.");
+          setPersistenceError("A message could not be saved. Restore your session before submitting; your local encounter remains available.");
           return false;
         }
       })();
@@ -528,8 +543,8 @@ export default function Level1Screen() {
 
   useEffect(() => {
     if (skipCheckpointRef.current) { skipCheckpointRef.current = false; return; }
-    saveEncounterDraft(draftKey, { messages, input, hpiText, stage, conversationId, pendingMessages });
-  }, [draftKey, messages, input, hpiText, stage, conversationId, pendingMessages]);
+    saveEncounterDraft(draftKey, { messages, input, hpiText, stage, conversationId, pendingMessages, persistenceError, uncertainWrite: uncertainMessageWriteRef.current });
+  }, [draftKey, messages, input, hpiText, stage, conversationId, pendingMessages, persistenceError]);
 
   // for resume chat button
   useEffect(() => {
@@ -837,18 +852,20 @@ export default function Level1Screen() {
         content: m.content,
       }));
       uncertainMessageWriteRef.current = false;
-      setMessages(msgs);
+      setPersistenceError(null);
+      setMessages([...msgs, ...pendingMessages]);
       setConversationId(savedConversationId);
       setShowResumePrompt(false);
     } catch (e: any) {
-      console.warn("Failed to resume conversation:", e.message);
+      if (e?.status !== 404) { setPersistenceError("Unable to resume yet. Your encounter reference is retained; sign in and retry."); return; }
+      console.warn("Saved conversation is unavailable");
       await deleteItemAsync(`conv_${user?.id}_${caseId}`).catch(() => {});
       setSavedConversationId(null);
       setShowResumePrompt(false);
     } finally {
       setResumeLoading(false);
     }
-  }, [caseId, savedConversationId, userHeaders]);
+  }, [caseId, savedConversationId, pendingMessages, userHeaders]);
 
   const startFresh = useCallback(async () => {
     await deleteItemAsync(`conv_${user?.id}_${caseId}`).catch(() => {});
@@ -857,6 +874,8 @@ export default function Level1Screen() {
   }, [caseId]);
 
   const retryCase = useCallback(async () => {
+    uncertainMessageWriteRef.current = false;
+    setPersistenceError(null);
     await stopSpeechPlayback();
     await deleteItemAsync(`conv_${user?.id}_${caseId}`).catch(() => {});
 
@@ -891,6 +910,7 @@ export default function Level1Screen() {
 
   return (
     <SafeAreaView style={caseStyles.container}>
+      {persistenceError ? <Text style={caseStyles.errorText}>{persistenceError}</Text> : null}
       {showResumePrompt && (
         <View style={caseStyles.resumeOverlay}>
           <View style={caseStyles.resumeCard}>

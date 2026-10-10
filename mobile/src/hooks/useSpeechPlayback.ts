@@ -1,3 +1,5 @@
+import { useAuth } from "@clerk/clerk-expo";
+import { captureSession } from "../api/sessionToken";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Platform } from "react-native";
 import { Audio } from "expo-av";
@@ -21,6 +23,7 @@ type SpeechPlaybackOptions = {
 };
 
 export function useSpeechPlayback({ voice, speed, onError }: SpeechPlaybackOptions = {}) {
+  const { userId } = useAuth();
   const [isSpeaking, setIsSpeaking] = useState(false);
   const soundRef = useRef<Audio.Sound | null>(null);
   const soundFilePathRef = useRef<string | null>(null);
@@ -83,12 +86,15 @@ export function useSpeechPlayback({ voice, speed, onError }: SpeechPlaybackOptio
       if (!inputText) return;
 
       try {
+        const assertCurrent = captureSession(userId);
         await stop();
+        assertCurrent();
         const payload = await api.speakVoice({
           text: inputText,
           ...(voice ? { voice } : {}),
           ...(speed ? { speed } : {}),
-        });
+        }, { expectedUserId: userId || "" });
+        assertCurrent();
 
         const audioBase64 = String(payload?.audio_base64 || "").trim();
         const mimeType = String(payload?.mime_type || "audio/mpeg").toLowerCase();
@@ -115,6 +121,7 @@ export function useSpeechPlayback({ voice, speed, onError }: SpeechPlaybackOptio
           };
           setIsSpeaking(true);
           await audio.play();
+          assertCurrent();
           return;
         }
 
@@ -132,12 +139,14 @@ export function useSpeechPlayback({ voice, speed, onError }: SpeechPlaybackOptio
           encoding: FileSystem.EncodingType.Base64,
         });
         soundFilePathRef.current = filePath;
+        assertCurrent();
 
         const { sound } = await Audio.Sound.createAsync(
           { uri: filePath },
           { shouldPlay: false, volume: 1.0, isMuted: false }
         );
         soundRef.current = sound;
+        assertCurrent();
         setIsSpeaking(true);
         await sound.playAsync();
 
@@ -154,11 +163,12 @@ export function useSpeechPlayback({ voice, speed, onError }: SpeechPlaybackOptio
           }
         });
       } catch (error) {
+        await stop();
         setIsSpeaking(false);
         onError?.(error);
       }
     },
-    [onError, speed, stop, voice]
+    [onError, speed, stop, voice, userId]
   );
 
   useEffect(() => {

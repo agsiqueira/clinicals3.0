@@ -139,7 +139,7 @@ export default function TodayScreen() {
   const [error, setError] = useState<string | null>(null);
   const [signingOut, setSigningOut] = useState(false);
 
-  const userHeaders = useMemo<Record<string, string>>(() => ({}), [user?.id]);
+  const userHeaders = useMemo<Record<string, string>>(() => ({ expectedUserId: user?.id || "" }), [user?.id]);
 
   const loadToday = useCallback(
     async ({ asRefresh = false } = {}) => {

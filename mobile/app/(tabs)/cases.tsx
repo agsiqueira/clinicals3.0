@@ -230,7 +230,7 @@ export default function HomeScreen() {
   });
   const [autoOpenedSessionKey, setAutoOpenedSessionKey] = useState<string | null>(null);
 
-  const userHeaders = useMemo<Record<string, string>>(() => ({}), [user?.id]);
+  const userHeaders = useMemo<Record<string, string>>(() => ({ expectedUserId: user?.id || "" }), [user?.id]);
 
   const milestoneStorageKey = useMemo(() => {
     const userKey = user?.id || "anonymous";

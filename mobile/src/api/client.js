@@ -15,6 +15,8 @@ function apiUrl(path) {
 }
 
 async function request(path, { method = "GET", body, headers } = {}) {
+  // Legacy optional argument now carries local session context; it is never an identity header.
+  const { expectedUserId, ...transportHeaders } = headers || {};
   const controller = new AbortController();
   const timeoutMs =
     String(method).toUpperCase() === "POST" && path === "/voice/speak"
@@ -26,9 +28,10 @@ async function request(path, { method = "GET", body, headers } = {}) {
   try {
     res = await authenticatedFetch(apiUrl(path), {
       method,
+      expectedUserId,
       headers: {
         "Content-Type": "application/json",
-        ...(headers || {}),
+        ...transportHeaders,
       },
       body: body ? JSON.stringify(body) : undefined,
       signal: controller.signal,

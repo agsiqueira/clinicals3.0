@@ -14,13 +14,23 @@ export function bindSession(userId, sessionId, getToken) {
 function sessionError(message = "Your session expired. Sign in again to continue your encounter.") {
   const error = new Error(message); error.status = 401; return error;
 }
-export async function authenticatedFetch(url, options = {}) {
+export function captureSession(expectedUserId) {
   const snapshot = binding;
   const version = generation;
   const assertCurrent = () => {
-    if (!snapshot || generation !== version) throw sessionError("Session changed. This response has been discarded.");
+    if (!snapshot || generation !== version || (expectedUserId !== undefined && snapshot.userId !== expectedUserId)) {
+      throw sessionError("Session changed. This operation has been discarded.");
+    }
   };
+  assertCurrent();
+  return assertCurrent;
+}
+export async function authenticatedFetch(url, options = {}) {
+  const snapshot = binding;
   if (!snapshot) throw sessionError();
+  const { expectedUserId, ...fetchOptions } = options;
+  const assertCurrent = captureSession(expectedUserId);
+  assertCurrent();
   const controller = new AbortController();
   const abort = () => controller.abort();
   options.signal?.addEventListener("abort", abort, { once: true });
@@ -37,7 +47,7 @@ export async function authenticatedFetch(url, options = {}) {
         if (key === "x-clerk-user-id" || key.startsWith("x-user-")) headers.delete(key);
       }
       headers.set("Authorization", `Bearer ${token}`);
-      response = await fetch(url, { ...options, headers, signal: controller.signal });
+      response = await fetch(url, { ...fetchOptions, headers, signal: controller.signal });
       assertCurrent();
       if (response.status !== 401 || attempt === 1) break;
       await response.text();

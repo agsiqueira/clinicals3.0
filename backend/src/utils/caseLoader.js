@@ -28,7 +28,7 @@ async function listCases() {
 }
 
 async function loadCase(caseId) {
-  if (typeof caseId !== "string" || !/^[a-zA-Z0-9_-]+$/.test(caseId)) return null;
+  if (typeof caseId !== "string" || !/^[a-zA-Z0-9_-]+$/.test(caseId) || caseId.endsWith("_grading")) return null;
   const filePath = path.join(CASES_DIR, `${caseId}.json`);
   try {
     return await readJson(filePath);
@@ -41,7 +41,7 @@ async function loadCase(caseId) {
 }
 
 async function loadGrading(caseId) {
-  if (typeof caseId !== "string" || !/^[a-zA-Z0-9_-]+$/.test(caseId)) return null;
+  if (typeof caseId !== "string" || !/^[a-zA-Z0-9_-]+$/.test(caseId) || caseId.endsWith("_grading")) return null;
   const filePath = path.join(CASES_DIR, `${caseId}_grading.json`);
   try {
     return await readJson(filePath);

@@ -1,5 +1,5 @@
 import { readEncounterDraft, saveEncounterDraft } from "../../src/api/encounterDraft";
-import { authenticatedFetch } from "../../src/api/sessionToken";
+import { authenticatedFetch, captureSession } from "../../src/api/sessionToken";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -104,9 +104,9 @@ function createAudioBlobUrl(audioBase64: string, mimeType: string) {
   return URL.createObjectURL(blob);
 }
 
-async function request(
+async function sessionRequest(
   path: string,
-  opts: { method?: string; body?: any; headers?: Record<string, string> } = {}
+  opts: { method?: string; body?: any; headers?: Record<string, string>; expectedUserId?: string | null } = {}
 ) {
   if (!BASE_URL) throw new Error("Missing EXPO_PUBLIC_API_BASE_URL in .env");
 
@@ -120,6 +120,7 @@ async function request(
   try {
     res = await authenticatedFetch(`${BASE_URL}${API_PREFIX}${path}`, {
       method,
+      expectedUserId: opts.expectedUserId,
       headers: {
         "Content-Type": "application/json",
         ...(opts.headers || {}),
@@ -510,6 +511,10 @@ function summarizeCriteriaAchievement(
 export default function Level1Screen() {
   const { userId: authUserId } = useAuth();
   const { user } = useUser();
+  const request = useCallback((path: string, opts: { method?: string; body?: any; headers?: Record<string, string> } = {}) => {
+    const { expectedUserId: _context, ...headers } = opts.headers || {};
+    return sessionRequest(path, { ...opts, headers, expectedUserId: authUserId ?? null });
+  }, [authUserId]);
   const params = useLocalSearchParams();
   const router = useRouter();
   const { width } = useWindowDimensions();
@@ -546,6 +551,7 @@ export default function Level1Screen() {
   const [sending, setSending] = useState(false);
   const [caseData, setCaseData] = useState<CaseData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [persistenceError, setPersistenceError] = useState<string | null>(recoveredDraft?.persistenceError || null);
 
   const [input, setInput] = useState(recoveredDraft?.input || "");
   const [messages, setMessages] = useState<Msg[]>(recoveredDraft?.messages || []);
@@ -555,7 +561,7 @@ export default function Level1Screen() {
   const [creatingConversation, setCreatingConversation] = useState(false);
   const conversationCreationRef = useRef(false);
   const messageWritesRef = useRef(new Set<Promise<boolean>>());
-  const uncertainMessageWriteRef = useRef(false);
+  const uncertainMessageWriteRef = useRef(Boolean(recoveredDraft?.uncertainWrite));
   const answerInProgressRef = useRef(false);
   const hangUpInProgressRef = useRef(false);
   const callEndedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -720,6 +726,7 @@ export default function Level1Screen() {
 
     if (Platform.OS === "web") {
       try {
+        const assertCurrent = captureSession(authUserId);
         setWebTalkError(null);
         if (webTalkErrorTimerRef.current) {
           clearTimeout(webTalkErrorTimerRef.current);
@@ -755,6 +762,7 @@ export default function Level1Screen() {
         }
 
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        try { assertCurrent(); } catch (error) { stream.getTracks().forEach(track => track.stop()); throw error; }
         const recorder = new MediaRecorder(stream);
         const audioContext = new WebAudioContext();
         const analyser = audioContext.createAnalyser();
@@ -811,7 +819,9 @@ export default function Level1Screen() {
     }
 
     try {
+      const assertCurrent = captureSession(authUserId);
       const permission = await Audio.requestPermissionsAsync();
+      assertCurrent();
       logNativeVoiceDiagnostic("permission", { granted: permission.granted });
       if (!permission.granted) {
         console.warn("Microphone permission not granted.");
@@ -856,6 +866,7 @@ export default function Level1Screen() {
         await restoreAudioModeAfterRecording();
         return;
       }
+      try { assertCurrent(); } catch (error) { await recording.stopAndUnloadAsync().catch(() => {}); throw error; }
       recordingRef.current = recording;
       logNativeVoiceDiagnostic("recorder-created", {
         meterIntervalMs: VOICE_ACTIVITY.meterIntervalMs,
@@ -1019,7 +1030,7 @@ export default function Level1Screen() {
   };
 
 
-  const userHeaders = useMemo<Record<string, string>>(() => ({}), [user?.id]);
+  const userHeaders = useMemo<Record<string, string>>(() => ({ expectedUserId: user?.id || "" }), [user?.id]);
 
   const clearPatientVisualSpeakingTimer = useCallback(() => {
     const timer = patientVisualSpeakingTimerRef.current;
@@ -1115,6 +1126,7 @@ export default function Level1Screen() {
       if (!inputText) return;
 
       try {
+        const assertCurrent = captureSession(authUserId);
         await stopSpeechPlayback({ stopVisual: false });
 
         if (SHOW_PATIENT_AVATAR_RUNTIME_DEBUG) {
@@ -1124,11 +1136,13 @@ export default function Level1Screen() {
           });
         }
 
+        assertCurrent();
         const payload = await request("/voice/speak", {
           method: "POST",
           body: { text: inputText },
         });
 
+        assertCurrent();
         const audioBase64 = String(payload?.audio_base64 || "").trim();
         const mimeType = String(payload?.mime_type || "audio/mpeg").toLowerCase();
 
@@ -1208,6 +1222,7 @@ export default function Level1Screen() {
           startPatientVisualSpeaking();
           setIsSpeaking(true);
           await audio.play();
+          assertCurrent();
 
           if (SHOW_PATIENT_AVATAR_RUNTIME_DEBUG) {
             console.debug("[Level1 TTS] web playback started", {
@@ -1248,6 +1263,7 @@ export default function Level1Screen() {
         }
 
         soundFilePathRef.current = filePath;
+        assertCurrent();
         const { sound } = await Audio.Sound.createAsync(
           { uri: filePath },
           { shouldPlay: false, volume: 1.0, isMuted: false }
@@ -1261,6 +1277,7 @@ export default function Level1Screen() {
         }
 
         soundRef.current = sound;
+        assertCurrent();
         startPatientVisualSpeaking();
         setIsSpeaking(true);
         const playbackStatus = await sound.playAsync();
@@ -1328,6 +1345,8 @@ export default function Level1Screen() {
       }
     }, 
     [
+      authUserId,
+      request,
       caseId,
       patientSessionSlug,
       startPatientVisualSpeaking,
@@ -1357,7 +1376,7 @@ export default function Level1Screen() {
           } else {
             uncertainMessageWriteRef.current = true;
           }
-          setError("A message could not be saved. Restore your session before submitting; your local encounter remains available.");
+          setPersistenceError("A message could not be saved. Restore your session before submitting; your local encounter remains available.");
           return false;
         }
       })();
@@ -1423,8 +1442,8 @@ export default function Level1Screen() {
 
   useEffect(() => {
     if (skipCheckpointRef.current) { skipCheckpointRef.current = false; return; }
-    saveEncounterDraft(conversationStorageKey, { messages, input, hpiText, stage, conversationId, pendingMessages });
-  }, [conversationStorageKey, messages, input, hpiText, stage, conversationId, pendingMessages]);
+    saveEncounterDraft(conversationStorageKey, { messages, input, hpiText, stage, conversationId, pendingMessages, persistenceError, uncertainWrite: uncertainMessageWriteRef.current });
+  }, [conversationStorageKey, messages, input, hpiText, stage, conversationId, pendingMessages, persistenceError]);
 
   // for resume chat button
   useEffect(() => {
@@ -2102,6 +2121,8 @@ export default function Level1Screen() {
   );
 
   const resetForNewAttempt = useCallback(async () => {
+    uncertainMessageWriteRef.current = false;
+    setPersistenceError(null);
     if (callEndedTimerRef.current) {
       clearTimeout(callEndedTimerRef.current);
       callEndedTimerRef.current = null;
@@ -2190,18 +2211,20 @@ export default function Level1Screen() {
         content: m.content,
       }));
       uncertainMessageWriteRef.current = false;
-    setMessages(msgs);
+      setPersistenceError(null);
+      setMessages([...msgs, ...pendingMessages]);
       setConversationId(savedConversationId);
       setShowResumePrompt(false);
     } catch (e: any) {
-      console.warn("Failed to resume conversation:", e.message);
+      if (e?.status !== 404) { setPersistenceError("Unable to resume yet. Your encounter reference is retained; sign in and retry."); return; }
+      console.warn("Saved conversation is unavailable");
       await deleteItemAsync(conversationStorageKey).catch(() => {});
       setSavedConversationId(null);
       setShowResumePrompt(false);
     } finally {
       setResumeLoading(false);
     }
-  }, [conversationStorageKey, savedConversationId, userHeaders]);
+  }, [conversationStorageKey, savedConversationId, pendingMessages, userHeaders]);
 
   const startFresh = useCallback(async () => {
     await deleteItemAsync(conversationStorageKey).catch(() => {});
@@ -2209,6 +2232,8 @@ export default function Level1Screen() {
   }, [conversationStorageKey, resetForNewAttempt]);
 
   const retryCase = useCallback(async () => {
+    uncertainMessageWriteRef.current = false;
+    setPersistenceError(null);
     await deleteItemAsync(conversationStorageKey).catch(() => {});
     await resetForNewAttempt();
   }, [conversationStorageKey, resetForNewAttempt]);
@@ -2232,6 +2257,7 @@ export default function Level1Screen() {
 
   return (
     <SafeAreaView style={caseStyles.container}>
+      {persistenceError ? <Text style={caseStyles.errorText}>{persistenceError}</Text> : null}
       <Tabs.Screen options={{ tabBarStyle: stage === "chat" ? { display: "none" } : undefined }} />
       {showResumePrompt && (
         <View style={caseStyles.resumeOverlay}>
