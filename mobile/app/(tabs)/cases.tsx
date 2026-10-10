@@ -12,10 +12,13 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth, useUser } from "@clerk/clerk-expo";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useFocusEffect } from "@react-navigation/native";
+import { useFocusEffect, useIsFocused } from "@react-navigation/native";
 import { api } from "../../src/api/client";
 import { casesStyles } from "../../assets/styles/cases.styles";
 import { portfolioStyles } from "../../assets/styles/portfolio.styles";
+import { Module0Card } from "../../src/components/Module0Card";
+import type { Module0Summary } from "../../src/types/clinicalReadiness";
+import { captureSession } from "../../src/api/sessionToken";
 import { CompactJourneyCard } from "../../src/components/CompactJourneyCard";
 import { ClinicalsChatComposer } from "../../src/components/ClinicalsChatComposer";
 import { MentorAvatar } from "../../src/components/MentorAvatar";
@@ -47,6 +50,7 @@ type RoadmapSession = {
   objective?: string | null;
   description?: string | null;
   status: "locked" | "available" | "completed";
+  entryBlocked?: boolean;
   badgeTier?: "GOLD" | "SILVER" | "BRONZE" | "NONE" | null;
   bestSessionScore?: number | null;
   latestSessionScore?: number | null;
@@ -181,6 +185,12 @@ function badgeThresholdLabels(thresholds: SessionOverview["badgeThresholds"]) {
 }
 
 export default function HomeScreen() {
+  const { userId } = useAuth();
+  return <OwnedRoadmap key={userId || "signed-out"} />;
+}
+
+function OwnedRoadmap() {
+  const isFocused = useIsFocused();
   const { userId: authUserId } = useAuth();
   const { user, isLoaded: userLoaded } = useUser();
   const router = useRouter();
@@ -199,6 +209,8 @@ export default function HomeScreen() {
   const focusSessionToken = Array.isArray(rawFocusSessionToken)
     ? rawFocusSessionToken[0]
     : rawFocusSessionToken;
+  const [module0, setModule0] = useState<Module0Summary | null>(null);
+  const loadEpoch = useRef(0);
   const [loadingRoadmap, setLoadingRoadmap] = useState(true);
   const [roadmapError, setRoadmapError] = useState<string | null>(null);
   const [learningPaths, setLearningPaths] = useState<LearningPath[]>([]);
@@ -219,12 +231,14 @@ export default function HomeScreen() {
   const preceptorDialogueRef = useRef<ScrollView | null>(null);
   const milestoneAnimationRefs = useRef<Record<string, Animated.Value>>({});
   const preceptorTranscription = useEnglishSpeechTranscription({
+    enabled: isFocused && briefingVisible,
+    scopeKey: `${user?.id}:${selectedOverview?.slug}:${briefingVisible}`,
     onText: setPreceptorInput,
     onError: () => setPreceptorError("Could not transcribe audio. Please try again or type your question."),
   });
   const mentorSpeech = useSpeechPlayback({
     voice: MENTOR_TTS_VOICE,
-    enabled: mentorVoiceEnabled && briefingVisible,
+    enabled: isFocused && mentorVoiceEnabled && briefingVisible,
     scopeKey: `${user?.id}:${selectedOverview?.slug}:${briefingVisible}`,
     onError: () => {
       // Keep mentor chat usable when TTS is unavailable.
@@ -264,24 +278,35 @@ export default function HomeScreen() {
       return;
     }
 
+    const epoch = ++loadEpoch.current;
+    let assertSession: () => void;
+    try { assertSession = captureSession(user.id); }
+    catch { setLearningPaths([]); setModule0(null); setJourneySummary(null); setLoadingRoadmap(false); return; }
+    const current = () => { try { assertSession(); return epoch === loadEpoch.current; } catch { return false; } };
     try {
       setRoadmapError(null);
       setLoadingRoadmap(true);
       const data = await api.getLearningPaths(userHeaders);
       const parsed = normalizeLearningPathsResponse(data);
+      if (!current()) return;
       setLearningPaths(parsed);
       try {
         const todayData = await api.getToday(userHeaders);
+        if (!current()) return;
         setJourneySummary(todayData?.identity || null);
+        setModule0(todayData?.module0 || null);
       } catch {
+        if (!current()) return;
         setJourneySummary(null);
+        setModule0(null);
       }
     } catch (err: any) {
+      if (!current()) return;
       setRoadmapError(err?.message || "Failed to load learning roadmap.");
       setLearningPaths([]);
       setJourneySummary(null);
     } finally {
-      setLoadingRoadmap(false);
+      if (current()) setLoadingRoadmap(false);
     }
   }, [userHeaders, userLoaded]);
 
@@ -363,7 +388,7 @@ export default function HomeScreen() {
   }, [learningPaths, loadingRoadmap, milestoneStorageKey]);
 
   const openSessionOverview = useCallback(async (session: RoadmapSession) => {
-    if (session.status === "locked") return;
+    if (session.status === "locked" || session.entryBlocked) return;
 
     setOverviewVisible(true);
     setOverviewLoading(true);
@@ -392,7 +417,7 @@ export default function HomeScreen() {
       .flatMap((unit) => unit.sessions)
       .find((candidate) => candidate.slug === focusSessionSlug);
 
-    if (!session || session.status === "locked") return;
+    if (!session || session.status === "locked" || session.entryBlocked) return;
 
     setAutoOpenedSessionKey(focusKey);
     openSessionOverview(session);
@@ -529,6 +554,8 @@ export default function HomeScreen() {
             streakCount={journeySummary.streak?.currentCount}
           />
         )}
+
+        <Module0Card summary={module0} />
 
         {loadingRoadmap ? (
           <View style={casesStyles.loadingBlock}>

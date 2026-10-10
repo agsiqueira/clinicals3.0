@@ -12,6 +12,7 @@ export type RotationSession = {
   description?: string | null;
   status: "locked" | "available" | "completed" | string;
   badgeTier?: "GOLD" | "SILVER" | "BRONZE" | "NONE" | string | null;
+  entryBlocked?: boolean;
   bestSessionScore?: number | null;
   latestSessionScore?: number | null;
   badgeThresholds?: {
@@ -88,7 +89,7 @@ function rotationTheme(unit: RotationUnit) {
 }
 
 function encounterStatusLabel(session: RotationSession) {
-  if (session.status === "locked") return "Locked";
+  if ((session.status === "locked" || session.entryBlocked)) return "Locked";
   if (session.status !== "completed") return "Available";
   return null;
 }
@@ -135,7 +136,7 @@ export function RotationCard({
   const internalTrophyScale = useRef(new Animated.Value(1)).current;
   const theme = rotationTheme(unit);
   const isRotationComplete = rotationComplete(unit);
-  const hasOpenSession = unit.sessions.some((session) => session.status !== "locked");
+  const hasOpenSession = unit.sessions.some((session) => (session.status !== "locked" && !session.entryBlocked));
   const rotationMarker = hasOpenSession ? "✓" : "🔒";
   const milestone = milestoneProgress(unit);
   const milestoneStatusLabel = isRotationComplete ? "Achieved" : hasOpenSession ? "In Progress" : "Locked";
@@ -225,7 +226,7 @@ export function RotationCard({
             <Text style={casesStyles.patientRosterLabel}>Patient roster</Text>
             {unit.sessions.map((session, index) => {
               const display = sessionDisplayParts(session);
-              const isLocked = session.status === "locked";
+              const isLocked = (session.status === "locked" || session.entryBlocked);
               const isCompleted = session.status === "completed";
               const nextSessionLocked = unit.sessions[index + 1]?.status === "locked";
               const shouldRetry =

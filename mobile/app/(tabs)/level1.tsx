@@ -1,3 +1,4 @@
+import { useIsFocused } from "@react-navigation/native";
 import { readEncounterDraft, saveEncounterDraft } from "../../src/api/encounterDraft";
 import { authenticatedFetch, captureSession } from "../../src/api/sessionToken";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -499,6 +500,7 @@ function summarizeCriteriaAchievement(
 }
 
 export default function Level1Screen() {
+  const isFocused = useIsFocused();
   const { userId: authUserId } = useAuth();
   const { user } = useUser();
   const request = useCallback((path: string, opts: { method?: string; body?: any; headers?: Record<string, string> } = {}) => {
@@ -585,7 +587,7 @@ export default function Level1Screen() {
   });
   const debriefMentorSpeech = useSpeechPlayback({
     voice: MENTOR_TTS_VOICE,
-    enabled: debriefVisible && stage === "results",
+    enabled: isFocused && debriefVisible && stage === "results",
     scopeKey: `${authUserId}:${caseId}:${conversationId}:${stage}:${debriefVisible}`,
     onError: () => {
       // Keep debrief chat usable when mentor TTS is unavailable.
@@ -1058,8 +1060,8 @@ export default function Level1Screen() {
 
   const patientSpeech = useSpeechPlayback({
     channel: "patient",
-    exclusive: stage === "chat" && callState === "active",
-    enabled: voiceEnabled && stage === "chat" && callState === "active",
+    exclusive: isFocused && stage === "chat" && callState === "active",
+    enabled: isFocused && voiceEnabled && stage === "chat" && callState === "active",
     scopeKey: `${authUserId}:${caseId}:${conversationId}:${stage}:${callState}`,
     onStart: () => { setIsSpeaking(true); startPatientVisualSpeaking(); },
     onStop: () => { setIsSpeaking(false); stopPatientVisualSpeaking(); },

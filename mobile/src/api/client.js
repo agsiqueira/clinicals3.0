@@ -14,14 +14,17 @@ function apiUrl(path) {
   return `${BASE_URL}${API_PREFIX}${path}`;
 }
 
-async function request(path, { method = "GET", body, headers } = {}) {
+async function request(path, { method = "GET", body, headers, signal, timeoutMs: timeoutOverride } = {}) {
   // Legacy optional argument now carries local session context; it is never an identity header.
   const { expectedUserId, ...transportHeaders } = headers || {};
   const controller = new AbortController();
-  const timeoutMs =
+  const timeoutMs = timeoutOverride ||
     String(method).toUpperCase() === "POST" && ["/voice/speak", "/voice/patient-speak"].includes(path)
       ? TTS_REQUEST_TIMEOUT_MS
       : REQUEST_TIMEOUT_MS;
+  const abort = () => controller.abort();
+  signal?.addEventListener("abort", abort, { once: true });
+  if (signal?.aborted) controller.abort();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   let res;
@@ -45,6 +48,7 @@ async function request(path, { method = "GET", body, headers } = {}) {
     throw err;
   } finally {
     clearTimeout(timeoutId);
+    signal?.removeEventListener("abort", abort);
   }
 
   const text = await res.text();
@@ -74,6 +78,9 @@ export const api = {
 
   // to view previous attempts for a case
   getAttemptsByCase: (caseId, headers) => request(`/conversations/by-case/${caseId}`, { headers }),
+
+  getModule0Progress: (headers, signal) => request("/modules/clinical-readiness", { headers, signal }),
+  submitModule0Interaction: (payload, headers, signal) => request("/modules/clinical-readiness/interactions", { method: "POST", body: payload, headers, signal, timeoutMs: 45000 }),
 
   // ---- Clinicals 2.0 roadmap
   getLearningPaths: (headers) => request("/learning-paths", { headers }),

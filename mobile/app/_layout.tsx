@@ -44,6 +44,7 @@ export default function RootLayout() {
                 <Stack.Screen name="modal" options={{ presentation: "modal", title: "Modal" }} />
                 <Stack.Screen name="attempt-result" />
                 <Stack.Screen name="attempts" />
+                <Stack.Screen name="module-0" />
               </Stack>
             </SignedIn>
             <SignedOut>
