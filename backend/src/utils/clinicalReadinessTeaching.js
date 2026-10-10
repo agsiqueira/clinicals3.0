@@ -2,7 +2,7 @@ const { createLessonReply } = require("../llm/navigatorClient");
 const { lessonError, failureCode, diagnoseEvaluation } = require("./lessonEvaluationErrors");
 const FORMAT_FAILURES = new Set([
   "OUTPUT_TRUNCATED", "JSON_PARSE_FAILURE", "INVALID_OBJECT", "INVALID_LABEL",
-  "INVALID_FEEDBACK", "FEEDBACK_TOO_LONG", "UNSAFE_FEEDBACK", "MISSING_EVIDENCE",
+  "INVALID_FEEDBACK", "FEEDBACK_TOO_LONG", "UNSAFE_FEEDBACK",
   "INVALID_EVIDENCE", "UNGROUNDED_EVIDENCE",
 ]);
 
@@ -16,7 +16,9 @@ async function evaluateLesson({ catalog, step, response, kind }) {
     "Never claim a single ECG rules out ACS or that pulmonary findings justify delaying cardiac evaluation. Do not assess a ROS system count or assume adherence from social context.",
     kind === "clarify"
       ? 'Return {"reply":"focused explanation, at most 100 words"}. Answer only the current lesson topic, then return to its exercise.'
-      : 'Return keys label, feedback, evidence. label must be exactly "Ready" OR "Needs More Practice", never the combined phrase. feedback: at most 50 words of constructive feedback. evidence: an array containing one short exact substring (at most 120 characters) copied from learnerResponse, preserving its punctuation and capitalization. Labels are advisory, never a pass requirement.',
+      : 'Return a JSON object with two required keys: label and feedback. label must be exactly "Ready" OR "Needs More Practice", never the combined phrase. feedback: at most 50 words of constructive educational feedback based on the learner response and current exercise. Evaluate the answer; do not merely echo it. Labels are advisory, never a pass requirement.',
+    'The top-level JSON value must be an object, not null, an array, a quoted JSON string, a number, or a boolean. Do not wrap it in result, data, evaluation, choices, or another envelope.',
+    'Evidence quotations are optional and not necessary. Prefer omitting evidence. If you include evidence, it must be an array of short exact substrings copied from learnerResponse; never paraphrase or invent quotations.',
     "Use valid JSON with double-quoted keys and strings. Escape quotes correctly. No Markdown, headings, or text outside the JSON object.",
     kind === "practice" ? "Evaluate only the targeted practice question. Do not require unrelated parts of the full required exercise." : "Evaluate only the current exercise; do not demand unrelated clinical knowledge.",
     `Current teaching: ${step.teach}`,
@@ -29,7 +31,7 @@ async function evaluateLesson({ catalog, step, response, kind }) {
   for (let attempt = 1; attempt <= 2; attempt++) {
     try {
       const raw = await createLessonReply({
-        systemPrompt: attempt === 1 ? systemPrompt : `${systemPrompt}\nThe previous result failed validation. Return the exact JSON schema, permitted label and a verbatim learner quote.`,
+        systemPrompt: attempt === 1 ? systemPrompt : `${systemPrompt}\nThe previous result failed validation. Return only the top-level JSON object with a permitted label and constructive feedback. Evidence is optional; do not add an envelope or quote the whole JSON object as a string.`,
         messages: [{ role: "user", content: JSON.stringify({ learnerResponse: response }) }],
         timeoutMs: deadline - Date.now(),
       });
@@ -59,14 +61,20 @@ function validateEvaluation(raw, { response, kind }) {
     if (fenced) text = fenced[1].trim();
     try { data = JSON.parse(text); } catch { throw lessonError("JSON_PARSE_FAILURE"); }
   }
-  if (!data || Array.isArray(data) || typeof data !== "object") throw lessonError("INVALID_OBJECT");
+  const shape = data === null ? "null" : Array.isArray(data) ? "array" : typeof data;
+  if (shape !== "object") throw lessonError("INVALID_OBJECT", undefined, shape);
+  const expectedKeys = kind === "clarify" ? ["reply"] : ["label", "feedback"];
+  if (!expectedKeys.some(key => Object.prototype.hasOwnProperty.call(data, key)) &&
+      ["result", "data", "evaluation", "choices", "message", "content", "response"].some(key => Object.prototype.hasOwnProperty.call(data, key))) {
+    throw lessonError("INVALID_OBJECT", undefined, "unexpected_envelope");
+  }
   if (kind === "clarify") return { reply: plainText(data.reply, 100) };
   const label = typeof data.label === "string" ? data.label.trim() : data.label;
   if (!["Ready", "Needs More Practice"].includes(label)) throw lessonError("INVALID_LABEL");
   const feedback = plainText(data.feedback, 80);
-  if (!Array.isArray(data.evidence) || !data.evidence.length) throw lessonError("MISSING_EVIDENCE");
-  if (data.evidence.length > 3) throw lessonError("INVALID_EVIDENCE");
-  const evidence = data.evidence.map(quote => {
+  const suppliedEvidence = data.evidence ?? [];
+  if (!Array.isArray(suppliedEvidence) || suppliedEvidence.length > 3) throw lessonError("INVALID_EVIDENCE");
+  const evidence = suppliedEvidence.map(quote => {
     if (typeof quote !== "string" || !quote.trim() || quote.length > 240) throw lessonError("INVALID_EVIDENCE");
     if (!response.includes(quote)) throw lessonError("UNGROUNDED_EVIDENCE");
     return quote;

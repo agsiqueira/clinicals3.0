@@ -28,6 +28,21 @@ function input(activity = catalog.activities[0], index = 0, revision = 0, overri
   return { activityId: activity.id, stepId: activity.steps[index].id, kind: "required", response: "What brings you to the clinic today?", requestId: `request-${activity.id}-${index}`, expectedRevision: revision, ...overrides };
 }
 
+test("explicit feedback without evidence persists completion, ownership and idempotency", async () => {
+  for (const label of ["Ready", "Needs More Practice"]) {
+    const f = fixture(() => ({ label, feedback: "Your question invites the patient's account." }));
+    const req = input(undefined, 0, 0, { response: "What brings you in today?" });
+    const result = await f.service.submit("learner-A", req);
+    assert.equal(result.status, "saved");
+    assert.equal(result.progress.completedCount, 1);
+    assert.deepEqual(result.result.evaluation, { label, feedback: "Your question invites the patient's account.", evidence: [] });
+    assert.deepEqual(await f.service.submit("learner-A", req), result);
+    assert.equal(f.calls(), 1);
+    assert.equal((await f.service.getProgress("learner-B")).completedCount, 0);
+    assert.equal(JSON.stringify(await f.service.getProgress("learner-B")).includes(req.response), false);
+  }
+});
+
 test("catalog preserves nine source-referenced steps and a 14–18 minute target", () => {
   assert.equal(catalog.activities.length, 4); assert.equal(catalog.activities.flatMap(a => a.steps).length, 9);
   assert.deepEqual(catalog.estimatedMinutesRange, [14,18]); assert.equal(catalog.activities.reduce((sum,a)=>sum+a.estimatedMinutes,0),16);
