@@ -1,4 +1,5 @@
 const dotenv = require("dotenv");
+dotenv.config();
 const { createApp } = require("./app");
 
 const casesRouter = require("./routes/cases");
@@ -12,8 +13,6 @@ const clinicalPortfolioRouter = require("./routes/clinicalPortfolio");
 const todayRouter = require("./routes/today");
 const profileRouter = require("./routes/profile");
 const { syncAllCases } = require("./utils/caseSync");
-
-dotenv.config();
 
 const app = createApp({
   casesRouter,
