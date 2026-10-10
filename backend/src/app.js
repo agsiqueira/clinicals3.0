@@ -7,7 +7,7 @@ const { createStudentAuth } = require("./middleware/studentAuth");
 function createApp(routers, authOptions = {}) {
   const app = express();
   app.use((req, _res, next) => {
-    console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
+    console.log(`[${new Date().toISOString()}] ${req.method}`);
     next();
   });
 

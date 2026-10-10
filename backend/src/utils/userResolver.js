@@ -28,4 +28,13 @@ async function resolveAuthenticatedUser(req) {
   return req.studentUser;
 }
 
-module.exports = { getOrCreateUser, resolveAuthenticatedUser };
+async function getVerifiedContact(req) {
+  const clerkUserId = req.studentIdentity?.clerkUserId;
+  if (!clerkUserId) { const error = new Error("Authentication required"); error.status = 401; throw error; }
+  const profile = await clerkClient.users.getUser(clerkUserId);
+  return {
+    email: profile.emailAddresses.find(item => item.id === profile.primaryEmailAddressId && item.verification?.status === "verified")?.emailAddress,
+    name: [profile.firstName, profile.lastName].filter(Boolean).join(" "),
+  };
+}
+module.exports = { getOrCreateUser, resolveAuthenticatedUser, getVerifiedContact };

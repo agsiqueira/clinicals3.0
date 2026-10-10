@@ -413,14 +413,17 @@ router.post("/:id/submit", async (req, res, next) => {
     const progressSummary = await syncUserProgress(user.id);
 
     if (user.email) {
-
-      sendResultsEmail({
-        toEmail: user.email,
-        userName: user.name,
-        caseId,
-        result,
-        conversation: conversationPayload, 
-      }).catch((err) => console.warn("Failed to send results email"));
+      // Historical Neon profile fields were client-writable. Never use them as
+      // authority for the destination of a sensitive transcript email.
+      try {
+        const contact = await require("../utils/userResolver").getVerifiedContact(req);
+        if (contact.email) sendResultsEmail({
+          toEmail: contact.email, userName: contact.name, caseId,
+          result, conversation: conversationPayload,
+        }).catch(() => console.warn("Failed to send results email"));
+      } catch {
+        console.warn("Verified results-email destination unavailable");
+      }
     }
 
     res.json({

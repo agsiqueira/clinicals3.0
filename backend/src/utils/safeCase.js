@@ -23,7 +23,12 @@ function learnerCase(data) {
     frame: data.frame, primary_tasks: data.primary_tasks,
     patient_profile: Object.fromEntries(["first_name", "last_name", "preferred_name", "date_of_birth", "age", "sex"].map(key => [key, profile[key]])),
     presenting_info: { chief_complaint: data.presenting_info?.chief_complaint },
-    osce_opening: Object.fromEntries(["student_intro", "patient_name_permission", "student_prompt_variants", "patient_chief_complaint_reply"].map(key => [key, opening[key]])),
+    osce_opening: {
+      student_intro: opening.student_intro,
+      patient_name_permission: { yes: opening.patient_name_permission?.yes, no: opening.patient_name_permission?.no },
+      student_prompt_variants: Array.isArray(opening.student_prompt_variants) ? opening.student_prompt_variants.filter(value => typeof value === "string") : [],
+      patient_chief_complaint_reply: opening.patient_chief_complaint_reply,
+    },
   };
 }
 module.exports = { sanitizeCase, learnerCase };

@@ -44,7 +44,6 @@ function summarizeAchievement(achievement) {
     description: achievement.description,
     competencyArea: achievement.competencyArea,
     weightPercent: achievement.weightPercent,
-    rubricCriterionIds: achievement.rubricCriterionIds || [],
     requiredForCompletion: Boolean(achievement.requiredForCompletion),
   };
 }
