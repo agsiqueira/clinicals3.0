@@ -2,6 +2,8 @@ const express = require("express");
 const { loadCase, loadGrading } = require("../utils/caseLoader");
 const { gradeConversation } = require("../utils/grading");
 
+const prisma = require("../db/prisma");
+const { requireModule0 } = require("../services/module0Access");
 const router = express.Router();
 
 router.post("/", async (req, res, next) => {
@@ -16,6 +18,7 @@ router.post("/", async (req, res, next) => {
       return;
     }
 
+    await requireModule0(req, prisma);
     const [caseData, gradingData] = await Promise.all([
       loadCase(caseId),
       loadGrading(caseId)

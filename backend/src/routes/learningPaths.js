@@ -9,6 +9,7 @@ const {
   normalizePreceptorChatMessages,
 } = require("../utils/preceptorChat");
 
+const { requireModule0, getModule0Summary, applyModule0ToRoadmap } = require("../services/module0Access");
 const router = express.Router();
 
 async function resolveUser(req) {
@@ -48,7 +49,8 @@ router.get("/", async (req, res, next) => {
       orderBy: { sortOrder: "asc" },
     });
 
-    res.json(buildLearningPathRoadmap(paths));
+    const summary = await getModule0Summary({ userId: user.id, client: prisma });
+    res.json(applyModule0ToRoadmap(buildLearningPathRoadmap(paths), summary));
   } catch (err) {
     next(err);
   }
@@ -96,6 +98,7 @@ router.post("/patient-sessions/:slug/preceptor-chat", async (req, res, next) => 
       return;
     }
 
+    await requireModule0(req, prisma);
     const chatMessages = [
       ...normalizePreceptorChatMessages(messages),
       { role: "user", content: userMessage },

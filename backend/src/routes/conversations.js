@@ -24,6 +24,7 @@ const {
   normalizeDebriefChatMessages,
 } = require("../utils/debriefChat");
 
+const { requireModule0 } = require("../services/module0Access");
 const router = express.Router();
 
 async function resolveUser(req) {
@@ -39,6 +40,7 @@ router.post("/", async (req, res, next) => {
     }
 
     const user = await resolveUser(req);
+    await requireModule0(req, prisma);
     const caseRecord = await ensureCaseFromId(caseId);
     if (!caseRecord) {
       res.status(404).json({ error: "Case not found" });
@@ -125,6 +127,7 @@ router.post("/:id/messages", async (req, res, next) => {
       return;
     }
 
+    await requireModule0(req, prisma);
     const message = await prisma.message.create({
       data: {
         conversationId: conversation.id,
@@ -330,6 +333,7 @@ router.post("/:id/submit", async (req, res, next) => {
       return;
     }
 
+    await requireModule0(req, prisma);
     const sessionAttempt = await getOrCreateSessionAttemptForConversation(
       conversation,
       patientSessionSlug

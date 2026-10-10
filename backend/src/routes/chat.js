@@ -9,6 +9,7 @@ const { createSafePatientReply } = require("../utils/patientReplySafety");
 
 const { approvePatientSpeech } = require("../utils/patientSpeech");
 
+const { requireModule0 } = require("../services/module0Access");
 const router = express.Router();
 
 function getClerkUserId(req) {
@@ -57,6 +58,7 @@ router.post("/", async (req, res, next) => {
       caseId,
     });
 
+    await requireModule0(req, prisma);
     const caseData = await loadCase(caseId);
     if (!caseData) {
       res.status(404).json({ error: "Case not found" });

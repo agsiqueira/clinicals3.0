@@ -48,6 +48,7 @@ function getTtsUnavailableReason(error) {
 }
 
 const prisma = require("../db/prisma");
+const { requireModule0 } = require("../services/module0Access");
 const { approvePatientSpeech, verifyPatientSpeech, ownedActiveEncounter } = require("../utils/patientSpeech");
 
 router.post("/patient-greeting", async (req, res, next) => {
@@ -55,6 +56,7 @@ router.post("/patient-greeting", async (req, res, next) => {
     const { conversationId, caseId } = req.body || {};
     const clerkUserId = req.studentIdentity?.clerkUserId;
     await ownedActiveEncounter(prisma, clerkUserId, conversationId, caseId);
+    await requireModule0(req, prisma);
     const reply = "Hello.";
     const speech = approvePatientSpeech({ text: reply, clerkUserId, conversationId, caseId });
     res.json({ reply, speech });
@@ -70,6 +72,7 @@ router.post("/patient-speak", async (req, res, next) => {
     const clerkUserId = req.studentIdentity?.clerkUserId;
     const approved = verifyPatientSpeech({ authorization, clerkUserId, conversationId, caseId });
     await ownedActiveEncounter(prisma, clerkUserId, conversationId, caseId);
+    await requireModule0(req, prisma);
     const { audioBase64, mimeType } = await createSpeechAudio({ text: approved.text.slice(0, 1200), ...approved.settings });
     res.json({ audio_base64: audioBase64, mime_type: mimeType, turnId: approved.turnId });
   } catch (error) { next(error); }
