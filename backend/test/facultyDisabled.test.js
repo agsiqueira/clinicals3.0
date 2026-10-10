@@ -133,7 +133,7 @@ test("faculty denial precedes CORS preflight and parsing malformed or oversized 
   assert.equal(facultyCalls(), 0);
 });
 
-test("health, case catalog/detail, student mounts, and student CORS preflight remain available", async (t) => {
+test("public health/catalog and CORS remain available; student routes require authentication", async (t) => {
   const { base } = await startApp(t);
   const health = await fetch(`${base}/api/health`);
   assert.equal(health.status, 200);
@@ -143,10 +143,7 @@ test("health, case catalog/detail, student mounts, and student CORS preflight re
   assert.equal(catalog.status, 200);
   assert.deepEqual((await catalog.json()).map((item) => item.caseId).sort(), ["seasonal_allergies_level1", "uti_level1"]);
   const detail = await fetch(`${base}/api/cases/uti_level1`);
-  assert.equal(detail.status, 200);
-  const patient = await detail.json();
-  assert.equal(patient.case_id, "uti_level1");
-  assert.ok(!("hidden_truth" in patient));
+  assert.equal(detail.status, 401);
 
   const mounts = [
     ["chat", "/api/chat", "POST"], ["grade", "/api/grade", "POST"],
@@ -157,8 +154,7 @@ test("health, case catalog/detail, student mounts, and student CORS preflight re
   ];
   for (const [router, endpoint, method] of mounts) {
     const response = await fetch(`${base}${endpoint}`, { method });
-    assert.equal(response.status, 200, endpoint);
-    assert.equal((await response.json()).router, router);
+    assert.equal(response.status, 401, endpoint);
   }
   const preflight = await fetch(`${base}/api/conversations`, {
     method: "OPTIONS",

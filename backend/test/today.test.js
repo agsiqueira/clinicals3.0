@@ -317,8 +317,8 @@ test("today returns completion briefing when all encounters are complete", async
 });
 
 test("today route is mounted at /api/today", () => {
-  const source = fs.readFileSync(path.resolve(__dirname, "../src/index.js"), "utf8");
+  const source = fs.readFileSync(path.resolve(__dirname, "../src/app.js"), "utf8");
 
   assert.match(source, /todayRouter/);
-  assert.match(source, /app\.use\("\/api\/today", todayRouter\)/);
+  assert.match(source, /app\.use\("\/api\/today", routers\.todayRouter\)/);
 });

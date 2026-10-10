@@ -304,8 +304,8 @@ test("clinical portfolio returns empty professional qualities and mentor commend
 });
 
 test("clinical portfolio route is mounted at /api/clinical-portfolio", () => {
-  const source = fs.readFileSync(path.resolve(__dirname, "../src/index.js"), "utf8");
+  const source = fs.readFileSync(path.resolve(__dirname, "../src/app.js"), "utf8");
 
   assert.match(source, /clinicalPortfolioRouter/);
-  assert.match(source, /app\.use\("\/api\/clinical-portfolio", clinicalPortfolioRouter\)/);
+  assert.match(source, /app\.use\("\/api\/clinical-portfolio", routers\.clinicalPortfolioRouter\)/);
 });
