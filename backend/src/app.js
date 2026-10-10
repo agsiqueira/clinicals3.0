@@ -22,11 +22,12 @@ function createApp(routers, authOptions = {}) {
   app.use(express.json({ limit: "1mb" }));
 
   const authenticate = createStudentAuth(authOptions);
-  app.use("/api/cases", (req, res, next) => {
-    if ((req.method === "GET" || req.method === "HEAD") && req.path === "/") return next();
+  // Default deny: new API routes inherit authentication unless explicitly public.
+  app.use("/api", (req, res, next) => {
+    if ((req.method === "GET" || req.method === "HEAD") && /^\/(health|cases)\/?$/i.test(req.path)) return next();
     return authenticate(req, res, next);
-  }, routers.casesRouter);
-  app.use(["/api/chat", "/api/grade", "/api/conversations", "/api/voice", "/api/progress", "/api/learning-paths", "/api/clinical-portfolio", "/api/today", "/api/profile"], authenticate);
+  });
+  app.use("/api/cases", routers.casesRouter);
   app.use("/api/chat", routers.chatRouter);
   app.use("/api/grade", routers.gradeRouter);
   app.use("/api/conversations", routers.conversationsRouter);
