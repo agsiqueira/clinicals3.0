@@ -4,7 +4,7 @@
   "status": "draft-for-educational-review",
   "title": "Module 0 — Clinical Readiness",
   "personaSlug": "dr-martinez",
-  "estimatedMinutes": 23,
+  "estimatedMinutes": 16,
   "sources": [
     {
       "id": "slides",
@@ -42,7 +42,7 @@
     {
       "id": "starting-the-encounter",
       "title": "Starting the Encounter",
-      "estimatedMinutes": 5,
+      "estimatedMinutes": 3,
       "steps": [
         {
           "id": "open-the-interview",
@@ -61,12 +61,13 @@
             "scriptSections": [
               2
             ]
-          }
+          },
+          "answerHint": "A few focused sentences or labeled phrases are enough. Longer valid answers are welcome."
         },
         {
           "id": "organize-old-carts",
           "teach": "OLD CARTS organizes onset, location, duration, character, aggravating/alleviating factors, radiation, temporal factors, and severity. In the source example, “began yesterday morning” becomes an acute onset.",
-          "question": "A patient describes sharp anterior chest pain beginning yesterday morning, lasting 10–15 minutes, worse with deep inspiration, without radiation, intermittent and worse in the morning, rated 6/10, with nothing relieving it. Organize this description using OLD CARTS.",
+          "question": "Using the visible Mr. Jones facts, give one concise OLD CARTS summary. Include each category; short phrases are enough.",
           "responseType": "short-text",
           "evaluationCriteria": [
             "Organizes the supplied details under OLD CARTS",
@@ -81,14 +82,19 @@
             "scriptSections": [
               2
             ]
-          }
+          },
+          "answerHint": "A few focused sentences or labeled phrases are enough. Longer valid answers are welcome."
         }
+      ],
+      "estimatedMinutesRange": [
+        3,
+        4
       ]
     },
     {
       "id": "organizing-clinical-information",
       "title": "Organizing Clinical Information",
-      "estimatedMinutes": 6,
+      "estimatedMinutes": 4,
       "steps": [
         {
           "id": "soap-and-data-types",
@@ -110,7 +116,8 @@
             "scriptSections": [
               1
             ]
-          }
+          },
+          "answerHint": "A few focused sentences or labeled phrases are enough. Longer valid answers are welcome."
         },
         {
           "id": "history-and-context",
@@ -131,7 +138,8 @@
             "scriptSections": [
               2
             ]
-          }
+          },
+          "answerHint": "A few focused sentences or labeled phrases are enough. Longer valid answers are welcome."
         },
         {
           "id": "review-of-systems",
@@ -151,14 +159,19 @@
             "scriptSections": [
               3
             ]
-          }
+          },
+          "answerHint": "A few focused sentences or labeled phrases are enough. Longer valid answers are welcome."
         }
+      ],
+      "estimatedMinutesRange": [
+        4,
+        5
       ]
     },
     {
       "id": "clinical-reasoning",
       "title": "Clinical Reasoning",
-      "estimatedMinutes": 5,
+      "estimatedMinutes": 4,
       "steps": [
         {
           "id": "focused-examination",
@@ -179,7 +192,8 @@
             "scriptSections": [
               4
             ]
-          }
+          },
+          "answerHint": "A few focused sentences or labeled phrases are enough. Longer valid answers are welcome."
         },
         {
           "id": "evidence-and-differential",
@@ -203,14 +217,19 @@
             "scriptSections": [
               4
             ]
-          }
+          },
+          "answerHint": "A few focused sentences or labeled phrases are enough. Longer valid answers are welcome."
         }
+      ],
+      "estimatedMinutesRange": [
+        3,
+        4
       ]
     },
     {
       "id": "presenting-to-the-preceptor",
       "title": "Presenting to the Preceptor",
-      "estimatedMinutes": 7,
+      "estimatedMinutes": 5,
       "steps": [
         {
           "id": "sbar",
@@ -235,7 +254,8 @@
             "scriptSections": [
               5
             ]
-          }
+          },
+          "answerHint": "A few focused sentences or labeled phrases are enough. Longer valid answers are welcome."
         },
         {
           "id": "snapps",
@@ -264,8 +284,13 @@
             "scriptSections": [
               6
             ]
-          }
+          },
+          "answerHint": "A few focused sentences or labeled phrases are enough. Longer valid answers are welcome."
         }
+      ],
+      "estimatedMinutesRange": [
+        4,
+        5
       ]
     }
   ],
@@ -286,5 +311,9 @@
         6
       ]
     }
-  }
+  },
+  "estimatedMinutesRange": [
+    14,
+    18
+  ]
 }

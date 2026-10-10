@@ -9,7 +9,7 @@ const casesRouter = require("../src/routes/cases");
 
 const studentRouterModules = [
   "cases", "chat", "grade", "conversations", "voice", "progress",
-  "learningPaths", "clinicalPortfolio", "today", "profile",
+  "learningPaths", "clinicalPortfolio", "today", "profile", "clinicalReadiness",
 ];
 
 // Exercise the production entry point and app wiring while replacing database/AI

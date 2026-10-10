@@ -37,6 +37,7 @@ function createApp(routers, authOptions = {}) {
   app.use("/api/clinical-portfolio", routers.clinicalPortfolioRouter);
   app.use("/api/today", routers.todayRouter);
   app.use("/api/profile", routers.profileRouter);
+  if (routers.clinicalReadinessRouter) app.use("/api/modules/clinical-readiness", routers.clinicalReadinessRouter);
 
   app.get("/api/health", (_req, res) => {
     res.json({ status: "ok" });
@@ -45,6 +46,8 @@ function createApp(routers, authOptions = {}) {
   app.use((err, _req, res, _next) => {
     const status = Number.isInteger(err.status) && err.status >= 400 && err.status < 500 ? err.status : 500;
     console.error("Request failed", { status });
+    if (err.code === "MODULE0_REQUIRED") return res.status(403).json({ error: "MODULE0_REQUIRED" });
+    if (["MODULE_STORAGE_UNAVAILABLE", "MODULE0_CONFIGURATION_INVALID"].includes(err.code)) return res.status(503).json({ error: err.code });
     res.status(status).json({ error: status === 404 ? "Not found" : status === 403 ? "Forbidden" : status === 401 ? "Authentication required" : status === 400 ? "Invalid request" : "Internal server error" });
   });
 

@@ -57,6 +57,7 @@ model User {
   email             String?
   imageUrl          String?
   createdAt         DateTime                              @default(now())
+  moduleProgress    LearnerModuleProgress[]
   conversations     Conversation[]
   progress          UserProgress?
   sessionAttempts   SessionAttempt[]
@@ -460,4 +461,20 @@ model OptionalProfessionalReadinessResult {
 
   @@index([userId])
   @@index([sessionAttemptId])
+}
+
+model LearnerModuleProgress {
+  id             String   @id @default(uuid())
+  userId         String
+  moduleId       String
+  contentVersion Int
+  revision       Int      @default(0)
+  state          Json     @default("{}")
+  startedAt      DateTime @default(now())
+  completedAt    DateTime?
+  updatedAt      DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([userId, moduleId])
 }

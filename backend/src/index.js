@@ -12,6 +12,7 @@ const learningPathsRouter = require("./routes/learningPaths");
 const clinicalPortfolioRouter = require("./routes/clinicalPortfolio");
 const todayRouter = require("./routes/today");
 const profileRouter = require("./routes/profile");
+const clinicalReadinessRouter = require("./routes/clinicalReadiness");
 const { syncAllCases } = require("./utils/caseSync");
 
 const app = createApp({
@@ -25,6 +26,7 @@ const app = createApp({
   clinicalPortfolioRouter,
   todayRouter,
   profileRouter,
+  clinicalReadinessRouter,
 });
 
 const port = process.env.PORT || 3001;
