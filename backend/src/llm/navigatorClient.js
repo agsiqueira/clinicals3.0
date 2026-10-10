@@ -129,7 +129,7 @@ async function createRubricEval({ systemPrompt, userPrompt }) {
   });
 }
 
-function getTtsConfig(overrides = {}) {
+function getTtsConfig(overrides = {}, { allowMissingVoice = false } = {}) {
   // Note: the current development NaviGator key only has access to
   // granite-3.3-8b-instruct. Audio playback requires a key/model with TTS
   // access, configured via NAVIGATOR_TTS_MODEL and NAVIGATOR_TTS_VOICE.
@@ -142,7 +142,7 @@ function getTtsConfig(overrides = {}) {
     .toLowerCase();
   const voice = String(overrides.voice || process.env.NAVIGATOR_TTS_VOICE || "").trim();
 
-  if (!voice) {
+  if (!voice && !allowMissingVoice) {
     throw new Error("NAVIGATOR_TTS_VOICE is not set");
   }
 
@@ -325,4 +325,4 @@ async function transcribeAudio({
   };
 }
 
-module.exports = { createPatientReply, createRubricEval, createSpeechAudio, transcribeAudio };
+module.exports = { createPatientReply, createRubricEval, createSpeechAudio, transcribeAudio, getTtsConfig };

@@ -45,6 +45,7 @@ require.cache[require.resolve("../src/db/prisma")] = { exports: fixture };
 process.env.GRADING_LLM_DISABLED = "true";
 // Synthetic AI fixtures: paid operations never call a vendor or expose credentials.
 require.cache[require.resolve("../src/llm/navigatorClient")] = { exports: {
+  getTtsConfig: () => ({ model: "kokoro", voice: "af_heart", speed: 1 }),
   createPatientReply: async () => "I have burning when I urinate.",
   createSpeechAudio: async () => ({ audioBase64: "c3ludGhldGlj", mimeType: "audio/mpeg" }),
   transcribeAudio: async () => ({ text: "Synthetic transcription", language: "en" }),

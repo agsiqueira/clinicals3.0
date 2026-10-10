@@ -7,6 +7,8 @@ const { buildDisclosureState } = require("../utils/patientDisclosure");
 const { createPatientReply } = require("../llm/navigatorClient");
 const { createSafePatientReply } = require("../utils/patientReplySafety");
 
+const { approvePatientSpeech } = require("../utils/patientSpeech");
+
 const router = express.Router();
 
 function getClerkUserId(req) {
@@ -105,7 +107,10 @@ router.post("/", async (req, res, next) => {
       });
     }
 
-    res.json({ reply, osce_opening: osceOpening });
+    const speech = conversation && conversation.status === "IN_PROGRESS"
+      ? approvePatientSpeech({ text: reply, clerkUserId: getClerkUserId(req), conversationId: conversation.id, caseId })
+      : null;
+    res.json({ reply, speech, osce_opening: osceOpening });
   } catch (err) {
     next(err);
   }
