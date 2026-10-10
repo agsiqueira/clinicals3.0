@@ -13,8 +13,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth, useUser } from "@clerk/clerk-expo";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
-import { api } from "../../../../src/api/client";
-import { facultyStyles } from "../../../../assets/styles/faculty.styles";
+import { api } from "../../src/api/client";
+import { facultyStyles } from "../../assets/styles/faculty.styles";
 
 type StudentDetail = {
   student?: {
