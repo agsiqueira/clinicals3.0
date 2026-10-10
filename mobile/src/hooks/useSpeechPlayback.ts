@@ -19,6 +19,7 @@ type SpeechPlaybackOptions = {
   speed?: number;
   channel?: "patient" | "mentor";
   enabled?: boolean;
+  exclusive?: boolean;
   scopeKey?: string;
   onStart?: () => void;
   onStop?: () => void;
@@ -26,7 +27,7 @@ type SpeechPlaybackOptions = {
 };
 type PatientSpeech = { authorization: string; turnId: string; conversationId: string; caseId: string };
 
-export function useSpeechPlayback({ voice, speed, channel = "mentor", enabled = true, scopeKey = "", onStart, onStop, onError }: SpeechPlaybackOptions = {}) {
+export function useSpeechPlayback({ voice, speed, channel = "mentor", enabled = true, exclusive = enabled, scopeKey = "", onStart, onStop, onError }: SpeechPlaybackOptions = {}) {
   const { userId } = useAuth();
   const [isSpeaking, setIsSpeaking] = useState(false);
   const soundRef = useRef<Audio.Sound | null>(null);
@@ -126,9 +127,9 @@ export function useSpeechPlayback({ voice, speed, channel = "mentor", enabled = 
   useEffect(() => {
     const owner = ownerRef.current!;
     owner.stop();
-    if (channel === "patient") { owner.reserve(); if (!enabled) owner.release(); }
+    if (channel === "patient") { owner.reserve(); if (!exclusive) owner.release(); }
     return () => { owner.stop(); owner.release(); };
-  }, [userId, scopeKey, enabled, channel]);
+  }, [userId, scopeKey, enabled, exclusive, channel]);
   useEffect(() => {
     mountedRef.current = true;
     return () => { mountedRef.current = false; ownerRef.current?.stop(); ownerRef.current?.release(); };

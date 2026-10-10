@@ -1058,6 +1058,7 @@ export default function Level1Screen() {
 
   const patientSpeech = useSpeechPlayback({
     channel: "patient",
+    exclusive: stage === "chat" && callState === "active",
     enabled: voiceEnabled && stage === "chat" && callState === "active",
     scopeKey: `${authUserId}:${caseId}:${conversationId}:${stage}:${callState}`,
     onStart: () => { setIsSpeaking(true); startPatientVisualSpeaking(); },

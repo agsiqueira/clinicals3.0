@@ -126,3 +126,12 @@ test('replacement native playback waits until previous native audio stops', asyn
   await new Promise(resolve => setImmediate(resolve)); assert.equal(h.sounds.length, 1);
   release(); await second; assert.equal(h.sounds[1].plays, 1); await ui.stop();
 });
+test('a briefing response received after entering and leaving an encounter remains stale', async () => {
+  const h = harness(); const mentor = h.hook({ voice: 'configured-martinez' }).render();
+  const beforeEncounter = mentor.capture();
+  const patientHook = h.hook({ channel: 'patient', enabled: true, exclusive: true }); patientHook.render();
+  patientHook.update({ enabled: false, exclusive: true });
+  await mentor.speak('outdated briefing'); assert.equal(h.requests.length, 0);
+  patientHook.update({ enabled: false, exclusive: false });
+  await mentor.speak('late briefing', undefined, beforeEncounter); assert.equal(h.requests.length, 0);
+});

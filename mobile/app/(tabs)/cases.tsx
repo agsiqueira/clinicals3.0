@@ -224,6 +224,8 @@ export default function HomeScreen() {
   });
   const mentorSpeech = useSpeechPlayback({
     voice: MENTOR_TTS_VOICE,
+    enabled: mentorVoiceEnabled && briefingVisible,
+    scopeKey: `${user?.id}:${selectedOverview?.slug}:${briefingVisible}`,
     onError: () => {
       // Keep mentor chat usable when TTS is unavailable.
     },
@@ -437,9 +439,8 @@ export default function HomeScreen() {
     setPreceptorInput("");
     setPreceptorError(null);
     setPreceptorSending(true);
-    if (mentorSpeech.isSpeaking) {
-      void mentorSpeech.stop();
-    }
+    void mentorSpeech.stop();
+    const isSpeechCurrent = mentorSpeech.capture();
 
     try {
       const data = await api.sendPreceptorChatMessage(
@@ -462,7 +463,7 @@ export default function HomeScreen() {
         },
       ]);
       if (mentorVoiceEnabled) {
-        void mentorSpeech.speak(assistantReply);
+        void mentorSpeech.speak(assistantReply, undefined, isSpeechCurrent);
       }
     } catch (err: any) {
       setPreceptorError(err?.message || "Dr. Martinez could not respond right now.");
@@ -472,6 +473,7 @@ export default function HomeScreen() {
   };
 
   const meetPatient = () => {
+    void mentorSpeech.stop();
     const caseId = selectedOverview?.linkedCase?.caseId || "uti_level1";
     setBriefingVisible(false);
     router.push({

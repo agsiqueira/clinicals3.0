@@ -2,6 +2,7 @@
 // pending work synchronously, before asynchronous native cleanup finishes.
 let active = null;
 let reserved = null;
+let boundary = 0;
 let cleanupPending = Promise.resolve();
 function cancel(previous) {
   if (!previous) return;
@@ -30,6 +31,7 @@ export function createSpeechPlaybackOwner(onCancel) {
     return { ready: cleanupPending, isCurrent: () => active === lease, finish: () => { if (active === lease) stop(); } };
   }
   function reserve() {
+    if (reserved !== owner) boundary++;
     reserved = owner;
     if (active && active.owner !== owner) {
       const previous = active;
@@ -38,6 +40,6 @@ export function createSpeechPlaybackOwner(onCancel) {
     }
   }
   function release() { if (reserved === owner) reserved = null; }
-  function capture() { const expected = revision; return () => revision === expected; }
+  function capture() { const expected = revision; const expectedBoundary = boundary; return () => revision === expected && boundary === expectedBoundary; }
   return { begin, stop, reserve, release, capture };
 }
