@@ -1,13 +1,17 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
+  Keyboard,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
   TextInput,
   View,
+  useWindowDimensions,
 } from "react-native";
 import type { StyleProp, TextStyle, ViewStyle } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { module0Colors as c, module0Fonts as f } from "./module0/tokens";
 
 type ClinicalsChatComposerProps = {
   value: string;
@@ -33,6 +37,7 @@ type ClinicalsChatComposerProps = {
   inputStyle?: StyleProp<TextStyle>;
   showSendControl?: boolean;
   lesson?: boolean;
+  practice?: boolean;
 };
 
 export function ClinicalsChatComposer({
@@ -59,7 +64,11 @@ export function ClinicalsChatComposer({
   inputStyle,
   showSendControl = true,
   lesson = false,
+  practice = false,
 }: ClinicalsChatComposerProps) {
+  if (practice) return <PracticeComposer value={value} onChangeText={onChangeText} onSubmit={onSubmit || onSend} onMicPress={onMicPress}
+    editable={editable} sendDisabled={sendDisabled} micDisabled={micDisabled} sending={sending} transcribing={transcribing} isRecording={isRecording}
+    placeholder={placeholder} inputAccessibilityLabel={inputAccessibilityLabel} submitLabel={submitLabel} showSendControl={showSendControl} />;
   const submit = onSubmit || onSend || (() => {});
   const safelySubmit = () => { if (!sendDisabled && editable && !sending && !transcribing && !isRecording && value.trim()) submit(); };
 
@@ -115,6 +124,55 @@ export function ClinicalsChatComposer({
     {field}
   </View>;
 }
+
+/** Module 0 presentation variant; uses the same callbacks and one controlled text draft. */
+function PracticeComposer({ value, onChangeText, onSubmit, onMicPress, editable = true, sendDisabled, micDisabled, sending,
+  transcribing, isRecording, placeholder, inputAccessibilityLabel, submitLabel, showSendControl = true }: ClinicalsChatComposerProps) {
+  const { height } = useWindowDimensions();
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  useEffect(() => {
+    if (Platform.OS === "web") return;
+    const shown = Keyboard.addListener("keyboardDidShow", event => setKeyboardHeight(event.endCoordinates.height));
+    const hidden = Keyboard.addListener("keyboardDidHide", () => setKeyboardHeight(0));
+    return () => { shown.remove(); hidden.remove(); };
+  }, []);
+  const availableHeight = Math.max(200, height - keyboardHeight);
+  const [expansion, setExpansion] = useState<boolean | null>(null);
+  const expanded = expansion ?? (value.length > 160 || value.split("\n").length > 2);
+  // Leave a scrollable task/reference region above the dock even in a reduced viewport.
+  const fieldHeight = Math.max(48, Math.min(expanded ? 162 : 54, availableHeight * (availableHeight < 600 ? 0.16 : 0.24)));
+  const blocked = !editable || sendDisabled || sending || isRecording || transcribing || !value.trim();
+  return <View style={practiceStyles.composer}>
+    <TextInput multiline scrollEnabled textAlignVertical="top" accessibilityLabel={inputAccessibilityLabel}
+      value={value} onChangeText={onChangeText} placeholder={placeholder} placeholderTextColor={c.placeholder}
+      editable={editable} returnKeyType="default" submitBehavior="newline"
+      style={[practiceStyles.input, { height: fieldHeight }]} />
+    <View style={practiceStyles.actions}>
+      <Pressable accessibilityRole="button" accessibilityLabel={isRecording ? "Stop microphone recording" : transcribing ? "Transcribing audio" : "Start microphone recording"}
+        accessibilityState={{ disabled: !!micDisabled, busy: !!transcribing, selected: !!isRecording }} disabled={micDisabled}
+        onPress={onMicPress} style={[practiceStyles.icon, micDisabled && styles.disabled]}>
+        <MaterialCommunityIcons name={isRecording ? "stop" : transcribing ? "progress-clock" : "microphone-outline"} size={24} color={c.primary} />
+      </Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel={expanded ? "Collapse response field" : "Expand response field"}
+        accessibilityState={{ expanded }} aria-expanded={expanded} onPress={() => setExpansion(!expanded)} style={practiceStyles.icon}>
+        <MaterialCommunityIcons name={expanded ? "arrow-collapse-vertical" : "arrow-expand-vertical"} size={22} color={c.body} />
+      </Pressable>
+    </View>
+    {showSendControl && <Pressable accessibilityRole="button" accessibilityLabel={submitLabel} accessibilityState={{ disabled: !!blocked, busy: !!sending }} disabled={blocked}
+      onPress={() => { if (!blocked) onSubmit?.(); }} style={({ pressed }) => [practiceStyles.submit, blocked && styles.disabled, pressed && styles.pressed]}>
+      <Text style={practiceStyles.submitText}>{sending ? "Preparing feedback…" : submitLabel}</Text>
+    </Pressable>}
+  </View>;
+}
+
+const practiceStyles = StyleSheet.create({
+  composer: { gap: 8 }, input: { fontFamily: f.regular, fontSize: 14, lineHeight: 22, color: c.ink, backgroundColor: c.reply,
+    borderWidth: 1, borderColor: c.border, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 12, width: "100%" },
+  actions: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: -6 },
+  icon: { width: 44, height: 44, alignItems: "center", justifyContent: "center", borderRadius: 12 },
+  submit: { minHeight: 54, borderRadius: 14, backgroundColor: c.primary, padding: 14, alignItems: "center", justifyContent: "center" },
+  submitText: { fontFamily: f.semibold, fontSize: 15, lineHeight: 21, color: c.background },
+});
 
 const styles = StyleSheet.create({
   lessonWrapper:{width:"100%",paddingTop:4},
