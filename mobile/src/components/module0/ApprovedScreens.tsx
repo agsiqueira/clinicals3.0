@@ -1,5 +1,5 @@
 import React from "react";
-import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
+import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useFonts } from "expo-font";
@@ -126,7 +126,6 @@ function MentorAudio(p: Props) {
   {!!p.narration && <View style={s.narrationRow}>
    <View style={s.narrationControls}>
     <IconControl label={p.isSpeaking ? "Pause narration" : "Play narration"} icon={p.isSpeaking ? "pause" : "play"} onPress={p.isSpeaking ? p.onPause : p.onPlay || p.onListen} active={p.isSpeaking || p.isPaused} disabled={unavailable || (!p.isSpeaking && responseTooLong)}/>
-    <IconControl label="Replay narration" icon="replay" onPress={p.onListen} disabled={unavailable || responseTooLong}/>
     <IconControl label={p.muted ? "Unmute narration" : "Mute narration"} icon={p.muted ? "volume-off" : "volume-high"} onPress={p.onToggleMute} active={p.muted}/>
     <IconControl label={p.captions ? "Hide captions" : "Show captions"} icon="closed-caption" onPress={p.onToggleCaptions} active={p.captions}/>
    </View>
@@ -141,13 +140,16 @@ function Checklist({ labels, module }: { labels: string[]; module?: boolean }) {
 function SavedFeedback({ result }: { result: LessonResult }) {
   return <View style={s.lessonCard}><Text style={s.lessonHeading}>{result.evaluation.label || "Dr. Martinez · Clarification"}</Text><Text style={s.lessonText}>{result.evaluation.feedback || result.evaluation.reply}</Text>{result.evaluation.evidence?.map((e,i) => <Text key={i} selectable style={s.lessonHint}>Your response: “{e}”</Text>)}</View>;
 }
-function Shell({children,footer,referenceChrome,contentKey}:{children:React.ReactNode;footer:React.ReactNode;referenceChrome?:boolean;contentKey:string}) {
+function Shell({children,header,footer,referenceChrome,contentKey}:{children:React.ReactNode;header:React.ReactNode;footer:React.ReactNode;referenceChrome?:boolean;contentKey:string}) {
  const insets=useSafeAreaInsets();
- return <View style={s.root}><View style={[s.frame,Platform.OS === "web" && s.webFrame]}>
-  <ScrollView key={contentKey} style={{flex:1}} keyboardShouldPersistTaps="handled" contentContainerStyle={s.scroll}><View style={[s.shell,{paddingTop:Math.max(44,insets.top),paddingBottom:20}]}>
-   {referenceChrome && <View pointerEvents="none" style={s.status}><Text style={s.statusText}>9:41</Text><Text style={s.statusText}>●　 ▰</Text></View>}{children}
-  </View></ScrollView>
-  <View style={[s.dock,{paddingBottom:Math.max(16,insets.bottom)}]}>{footer}</View>
+ return <View style={s.root}><View style={s.frame}>
+  <View style={[s.fixedHeader,{paddingTop:Math.max(referenceChrome ? 44 : 0,insets.top)}]}>
+   {referenceChrome && <View pointerEvents="none" style={s.status}><Text style={s.statusText}>9:41</Text><Text style={s.statusText}>●　 ▰</Text></View>}{header}
+  </View>
+  <KeyboardAvoidingView style={s.body} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+   <ScrollView key={contentKey} style={s.body} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={s.scroll}><View style={[s.shell,{paddingBottom:20}]}>{children}</View></ScrollView>
+   <View style={[s.dock,{paddingBottom:Math.max(16,insets.bottom)}]}>{footer}</View>
+  </KeyboardAvoidingView>
  </View></View>;
 }
 export function ApprovedScreens(props: Props) {
@@ -189,9 +191,12 @@ export function ApprovedScreens(props: Props) {
       micDisabled={p.micDisabled || p.busy || !!p.progress?.pending} isRecording={p.isRecording} transcribing={p.transcribing}
       compact lesson={oldCarts} submitLabel="Submit" showSendControl={oldCarts} containerStyle={s.responseComposer} inputStyle={s.responseInput} />
   </>;
+  const hasHeader = !["welcome","resume","module-complete"].includes(p.screen);
+  const header = hasHeader && <>
+    <View style={s.navigationBar}><IconControl label="Back" icon="arrow-left" onPress={p.onBack} disabled={p.busy || p.disabled || !!p.progress?.pending}/><Text numberOfLines={2} style={s.lessonIdentifier}>{p.screen === "review" ? "Review & Practice" : p.screen === "introduction" || p.screen === "activity-complete" ? p.activity.title : conceptTitle(p.step,p.activity)}</Text><IconControl label="Close lesson" icon="close" onPress={p.onLeave}/></View>
+    <View style={s.lessonProgress}><View accessibilityRole="progressbar" accessibilityLabel={conceptScreen ? "Teaching panel progress" : "Saved exercise progress"} accessibilityValue={conceptScreen ? {min:1,max:panels.length,now:lessonPanel+1} : {min:0,max:position.exerciseTotal,now:position.completedCount}} style={[s.track,{marginTop:0}]}><View style={[s.fill,{width:((conceptScreen ? (lessonPanel+1)/panels.length : position.exerciseTotal ? Math.min(1,position.completedCount/position.exerciseTotal) : 0)*100 + "%") as `${number}%`}]} /></View><Text style={s.panelCount}>{conceptScreen ? lessonPanel+1 : position.exerciseNumber}/{conceptScreen ? panels.length : position.exerciseTotal}</Text></View>
+  </>;
   const content=<>
-    {!["welcome","resume","module-complete"].includes(p.screen) && <View style={s.navigationBar}><IconControl label="Back" icon="arrow-left" onPress={p.onBack} disabled={p.busy || p.disabled || !!p.progress?.pending}/>{(conceptScreen || oldCarts && ["practice","feedback","clarify"].includes(p.screen)) && <Text style={s.lessonIdentifier}>{conceptTitle(p.step,p.activity)}</Text>}<IconControl label="Close lesson" icon="close" onPress={p.onLeave}/></View>}
-    {conceptScreen && panels.length > 1 && <View style={s.lessonProgress}><View accessibilityRole="progressbar" accessibilityLabel="Teaching panel progress" accessibilityValue={{min:1,max:panels.length,now:lessonPanel+1}} style={s.track}><View style={[s.fill,{width:`${(lessonPanel+1)/panels.length*100}%`}]} /></View><Text style={s.panelCount}>{lessonPanel+1}/{panels.length}</Text></View>}
     {p.screen === "review" && p.progress && <View style={s.response}>
       <Text accessibilityRole="header" style={s.responseTitle}>Review &amp; Practice</Text>
       <Text style={s.lessonText}>Review the teaching, saved answer, and feedback. Practice Again uses the existing targeted practice question; your original answer and completion stay saved.</Text>
@@ -211,7 +216,6 @@ export function ApprovedScreens(props: Props) {
     {!oldCarts && !conceptScreen && ["practice","feedback","exercise-transition"].includes(p.screen) && <View style={s.lessonHierarchy}>
      <Text style={s.activityLabel}>Activity {position.activityNumber} of {position.activityTotal} — {p.activity.title}</Text>
      <Text style={s.exerciseHierarchy}>Exercise {position.exerciseNumber} of {position.exerciseTotal} — {exerciseTitle(p.step,p.activity)}</Text>
-     <View accessibilityRole="progressbar" accessibilityLabel="Saved exercise progress" accessibilityValue={{min:0,max:position.exerciseTotal,now:position.completedCount}} style={s.track}><View style={[s.fill,{width:`${position.exerciseTotal ? Math.min(100,position.completedCount/position.exerciseTotal*100) : 0}%`}]} /></View>
     </View>}
     {p.screen === "exercise-transition" && <><View style={s.teach}><Art source={artwork.check} width={72} height={72}/><Text style={s.teachTitle}>Exercise {position.exerciseNumber} complete!</Text><Text style={s.teachBody}>You’ve practiced opening the interview.</Text><View style={[s.lessonCard,{marginTop:24}]}><Text style={s.activityLabel}>NEXT: EXERCISE {position.exerciseNumber+1} OF {position.exerciseTotal}</Text><Text style={s.responseTitle}>Organize OLD CARTS</Text><Text style={s.lessonText}>Learn the framework, then organize Mr. Jones’s symptoms.</Text></View></View>{footer("Learn OLD CARTS →")}</>}
     {conceptScreen && panel && <>
@@ -384,7 +388,7 @@ export function ApprovedScreens(props: Props) {
       {footer("Continue to Rotation 1")}
     </>}
   </>;
-  return <Shell referenceChrome={p.referenceChrome} contentKey={`${p.screen}:${p.step.id}:${lessonPanel}`} footer={bottom}>{content}</Shell>;
+  return <Shell header={header} referenceChrome={p.referenceChrome} contentKey={`${p.screen}:${p.step.id}:${lessonPanel}`} footer={bottom}>{content}</Shell>;
 }
 const s = StyleSheet.create({
   caseFactsHeader:{minHeight:44,flexDirection:"row",alignItems:"center",justifyContent:"space-between",gap:12},caseFactsBody:{gap:12},caseFactsFocus:{outlineWidth:2,outlineStyle:"solid",outlineColor:c.primary,outlineOffset:3},
@@ -399,8 +403,8 @@ const s = StyleSheet.create({
   lessonText: { fontFamily: "Module0Inter", fontSize: 16, lineHeight: 21.6, color: c.body }, lessonHint: { fontFamily: "Module0Inter", fontSize: 13, lineHeight: 20.25, color: c.body },
   responseComposer: { marginHorizontal: 0, paddingHorizontal: 12, borderWidth: 1, borderColor: c.track, borderRadius: 16, backgroundColor: c.background },
   responseInput: { fontFamily: "Module0Inter", fontWeight: "normal", fontSize: 16, lineHeight: 21.6, color: c.ink, minHeight: 64 },
-  root: { flex: 1, backgroundColor: c.background, alignItems:"center" }, frame:{flex:1,width:"100%",maxWidth:480,backgroundColor:c.background}, dock:{paddingTop:8,backgroundColor:c.background}, scroll: { flexGrow: 1, alignItems: "center" },
-  shell: { width: "100%", flexGrow:1, backgroundColor: c.background }, webFrame: { borderWidth: 2, borderColor: c.border, borderRadius: 38, overflow: "hidden" },
+  root: { flex: 1, backgroundColor: c.background, alignItems:"center" }, frame:{flex:1,minHeight:0,width:"100%",maxWidth:480,backgroundColor:c.background,overflow:"hidden"}, body:{flex:1,minHeight:0}, fixedHeader:{flexShrink:0,paddingBottom:8,backgroundColor:c.background,zIndex:1}, dock:{paddingTop:8,backgroundColor:c.background}, scroll: { flexGrow: 1, alignItems: "center" },
+  shell: { width: "100%", flexGrow:1, backgroundColor: c.background },
   loading: { flex: 1, alignItems: "center", justifyContent: "center" },
   status: { position: "absolute", zIndex: 2, top: 15, left: 25, right: 22, flexDirection: "row", justifyContent: "space-between" },
   statusText: { fontFamily: "Module0InterSemiBold", fontSize: 12,  color: c.ink },

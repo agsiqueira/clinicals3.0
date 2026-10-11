@@ -256,10 +256,10 @@ function Module0Experience({ userId }: { userId: string }) {
   const currentResult = notice && notice.activityId === activity?.id && notice.stepId === step?.id ? notice : null;
   const narration = narrationFor(screen || "practice", step, currentResult, teachingPanel, activity, kind);
   const responseAudioBlocked = responseAudioTooLong(screen || "practice", narration);
-  const playNarration = (replay = false) => {
+  const playNarration = () => {
     if (!narration || responseAudioBlocked || progress?.pending || sending) return;
     setAudioError(null);
-    if (!replay && mentorSpeech.isPaused) void mentorSpeech.resume();
+    if (mentorSpeech.isPaused) void mentorSpeech.resume();
     else { const valid = boundary.capture(); void mentorSpeech.speak(module0SpeechText(narration), undefined, valid); }
   };
   useEffect(() => {
@@ -411,7 +411,7 @@ function Module0Experience({ userId }: { userId: string }) {
       onMicPress={() => { void mentorSpeech.stop(); void transcription.toggleRecording(); }} isRecording={transcription.isRecording}
       onFreeText={() => present(null)}
       onClarify={openClarification}
-      onListen={() => playNarration(true)}
+      onListen={playNarration}
       onStopAudio={() => void mentorSpeech.stop()} />;
   }
   return <SafeAreaView style={portfolioStyles.container}>
