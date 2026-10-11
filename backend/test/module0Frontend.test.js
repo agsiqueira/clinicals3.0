@@ -606,7 +606,7 @@ test("manual corrections preserve transition, captions, mute, Back draft and pen
  h.find("Let's start").props.onPress();h.render();await h.settle();assert.match(h.speeches.at(-1).text,/Welcome to Starting the Encounter/);
  const count=h.speeches.length;h.find("Show captions").props.onPress();h.render();await h.settle();assert.match(h.text(h.render()),/Welcome to Starting the Encounter/);
  h.find("Mute").props.onPress();h.render();await h.settle();assert.equal(h.speeches.length,count);h.find("Unmute").props.onPress();h.render();await h.settle();assert.equal(h.speeches.length,count);
- h.find("Replay").props.onPress();assert.equal(h.speeches.length,count+1);assert.equal(h.speeches.at(-1).text,h.speeches.at(-2).text);
+ assert.equal(h.find("Replay"),undefined);assert.ok(h.find("Play narration"));assert.equal(h.speeches.length,count);
  h.find("Begin").props.onPress();h.render();await h.settle();h.find("Got it").props.onPress();h.render();await h.settle();
  selectChoice(h,"What brings you in today?");h.render();h.find("Check answer").props.onPress();await h.settle();
  h.find("Continue →").props.onPress();h.render();await h.settle();assert.match(h.text(h.render()),/Exercise\s+1\s+complete!/);assert.doesNotMatch(h.text(h.render()),/Activity complete!/);
@@ -629,7 +629,7 @@ test("Close returns to resume and completed review remains in overview without p
 });
 test("Close during a saved pending evaluation preserves recovery and disables audio controls",async t=>{
  const h=harness("app/module-0.tsx",{}, {approvedUI:true,fakeTimers:true});t.after(h.unmount);h.setEvaluate(()=>{throw new Error("isolated failed evaluation")});await openingPractice(h);selectChoice(h,"What brings you in today?");h.render();h.find("Check answer").props.onPress();await h.settle();
- const before=await h.service.getProgress("A");assert.ok(before.pending);assert.equal(h.find("Replay narration").props.disabled,true);assert.equal(h.find("Back").props.disabled,true);h.find("Close lesson").props.onPress();h.render();await h.settle();assert.equal(h.render().props.screen,"resume");h.find("Resume →").props.onPress();h.render();await h.settle();assert.equal(h.render().props.screen,"practice");assert.equal((await h.service.getProgress("A")).pending.requestId,before.pending.requestId);assert.equal((await h.service.getProgress("A")).revision,before.revision);
+ const before=await h.service.getProgress("A");assert.ok(before.pending);assert.equal(h.find("Replay narration"),undefined);assert.equal(h.find("Play narration").props.disabled,true);assert.equal(h.find("Back").props.disabled,true);h.find("Close lesson").props.onPress();h.render();await h.settle();assert.equal(h.render().props.screen,"resume");h.find("Resume →").props.onPress();h.render();await h.settle();assert.equal(h.render().props.screen,"practice");assert.equal((await h.service.getProgress("A")).pending.requestId,before.pending.requestId);assert.equal((await h.service.getProgress("A")).revision,before.revision);
 });
 test("exercise numbering follows curriculum order across activity boundaries",()=>{
  const activities=catalog.activities.map(a=>({...a,steps:a.steps}));const progress={activities,requiredCount:9,completedCount:2};const second=presentation.lessonPosition(progress,activities[0],activities[0].steps[1]);assert.deepEqual(JSON.parse(JSON.stringify(second)),{activityNumber:1,activityTotal:4,exerciseNumber:2,exerciseTotal:9,completedCount:2});
@@ -648,7 +648,7 @@ test("Close while submission is evaluating discards stale UI replies without rep
 });
 
 
-test("introduction omits duplicate mentor portrait; OLD CARTS uses only panel progress",async t=>{
+test("introduction omits duplicate mentor portrait; OLD CARTS switches from teaching to saved exercise progress",async t=>{
  const h=harness("app/module-0.tsx",{}, {approvedUI:true});t.after(h.unmount);h.render();await h.settle();h.find("Let's start").props.onPress();h.render();await h.settle();
  assert.equal(h.nodes().filter(n=>n.props.accessibilityLabel==="Dr. Martinez").length,0);assert.ok(h.find("Play narration"));assert.ok(h.find("Begin"));
  h.find("Begin").props.onPress();h.render();await h.settle();h.find("Got it").props.onPress();h.render();await h.settle();selectChoice(h,"What brings you in today?");h.render();h.find("Check answer").props.onPress();await h.settle();h.find("Continue →").props.onPress();h.render();await h.settle();h.find("Learn OLD CARTS").props.onPress();h.render();await h.settle();
@@ -656,7 +656,7 @@ test("introduction omits duplicate mentor portrait; OLD CARTS uses only panel pr
  const illustration=h.nodes().find(n=>n.type==="Image"&&n.props.style?.width>200);assert.ok(illustration);
  h.find("Continue →").props.onPress();h.render();await h.settle();bars=h.nodes().filter(n=>n.props.accessibilityRole==="progressbar");assert.equal(bars[0].props.accessibilityValue.now,2);assert.equal((await h.service.getProgress("A")).revision,before.revision);
  await finishTeaching(h);const root=h.render();assert.equal(root.props.step.question,catalog.activities[0].steps[1].question);assert.match(h.text(root),/Practice OLD CARTS/);assert.doesNotMatch(h.text(root),/Using the visible Mr. Jones facts/);
- const card=h.nodes().find(n=>n.type==="View"&&h.text(n).startsWith("Mr. Jones · Case facts"));assert.ok(card);const renderedFacts=card.props.children[1].props.children[0].map(n=>h.text(n)).join(" ");assert.equal(renderedFacts,root.props.progress.scenario.text);assert.ok(h.input());assert.ok(h.find("Start microphone recording"));assert.equal(h.nodes().filter(n=>n.props.accessibilityRole==="progressbar").length,0);
+ const card=h.nodes().find(n=>n.type==="View"&&h.text(n).startsWith("Mr. Jones · Case facts"));assert.ok(card);const renderedFacts=card.props.children[1].props.children[0].map(n=>h.text(n)).join(" ");assert.equal(renderedFacts,root.props.progress.scenario.text);assert.ok(h.input());assert.ok(h.find("Start microphone recording"));bars=h.nodes().filter(n=>n.props.accessibilityRole==="progressbar");assert.equal(bars.length,1);assert.equal(bars[0].props.accessibilityLabel,"Saved exercise progress");assert.deepEqual(JSON.parse(JSON.stringify(bars[0].props.accessibilityValue)),{min:0,max:root.props.progress.requiredCount,now:root.props.progress.completedCount});assert.equal((await h.service.getProgress("A")).revision,before.revision);
 });
 
 
@@ -823,8 +823,8 @@ test("returned Feedback and Clarify are manual-only, retain controls, captions, 
   h.find("Show captions").props.onPress();h.render();assert.equal(h.text(h.nodes().find(n=>n.props.accessibilityLabel==="Narration captions")),returned);
   h.find("Play narration").props.onPress();assert.equal(h.speeches.length,count+1);assert.equal(h.speeches.at(-1).text,teaching.module0SpeechText(returned));
   h.setSpeaking(true);h.find("Pause narration").props.onPress();h.render();assert.ok(h.find("Play narration"));h.find("Play narration").props.onPress();h.render();assert.ok(h.find("Pause narration"));assert.equal(h.speeches.length,count+1);
-  h.find("Replay narration").props.onPress();assert.equal(h.speeches.length,count+2);assert.equal(h.speeches.at(-1).text,teaching.module0SpeechText(returned));
-  h.find("Mute narration").props.onPress();h.render();h.find("Unmute narration").props.onPress();h.render();assert.equal(h.speeches.length,count+2);
+  assert.equal(h.find("Replay narration"),undefined);assert.equal(h.speeches.length,count+1);assert.equal(h.speeches.at(-1).text,teaching.module0SpeechText(returned));
+  h.find("Mute narration").props.onPress();h.render();h.find("Unmute narration").props.onPress();h.render();assert.equal(h.speeches.length,count+1);
   assert.equal(h.render().props.result.requestId,submission);assert.equal(evaluations,1);
   const audio=h.speeches.at(-1);const stops=h.stops.length;
   h.find(outcome === "clarify" ? "Back" : "Close lesson").props.onPress();h.render();await h.settle();assert.equal(audio.valid(),false);assert.ok(h.stops.length>stops);
@@ -832,7 +832,7 @@ test("returned Feedback and Clarify are manual-only, retain controls, captions, 
   assert.deepEqual(await h.service.getProgress("A"),saved);
  }
 });
-test("oversized returned text remains complete with disabled Play/Replay and an accessible limit explanation",async t=>{
+test("oversized returned text remains complete with disabled Play and no Replay and an accessible limit explanation",async t=>{
  for(const outcome of ["Ready","clarify"])for(const oversized of [false,true]){
   const h=harness("app/module-0.tsx",{}, {approvedUI:true});t.after(h.unmount);await openingPractice(h);
   // Raw lengths are 1,199/1,200; pronunciation expands SBAR by one character.
@@ -844,7 +844,7 @@ test("oversized returned text remains complete with disabled Play/Replay and an 
   }else h.find("Check answer").props.onPress();
   await h.settle();assert.equal(h.speeches.length,count);assert.equal(h.render().props.narration,returned);assert.ok(h.text(h.render()).includes(returned));
   const saved=await h.service.getProgress("A");
-  for(const label of ["Play narration","Replay narration"]){const control=h.find(label);assert.equal(control.props.disabled,oversized);assert.equal(control.props.accessibilityState.disabled,oversized);}
+  assert.equal(h.find("Replay narration"),undefined);for(const label of ["Play narration"]){const control=h.find(label);assert.equal(control.props.disabled,oversized);assert.equal(control.props.accessibilityState.disabled,oversized);}
   const explanation=h.nodes().find(n=>n.type==="Text" && h.text(n)==="Audio playback is unavailable because this response is too long.");
   assert.equal(!!explanation,oversized);if(explanation){assert.equal(explanation.props.accessibilityRole,"alert");assert.equal(explanation.props.accessibilityLiveRegion,"polite");}
   h.find("Show captions").props.onPress();h.render();assert.equal(h.text(h.nodes().find(n=>n.props.accessibilityLabel==="Narration captions")),returned);

@@ -2,7 +2,7 @@
 // It has no auth bypass, API client, server, or persistence connection.
 import React, { useRef, useState } from "react";
 import { registerRootComponent } from "expo";
-import { SafeAreaProvider } from "react-native-safe-area-context";
+import { SafeAreaProvider, SafeAreaInsetsContext } from "react-native-safe-area-context";
 import { narrationFor, oldCartsPanels, conceptPanelsFor } from "../src/components/module0/teaching";
 import { hasApprovedChoices } from "../src/components/module0/presentation";
 import catalog from "../../backend/src/content/clinicalReadiness.json";
@@ -15,7 +15,7 @@ function Preview() {
   const oldCartsPreview = typeof location !== "undefined" && new URLSearchParams(location.search).get("exercise") === "organize-old-carts";
   const historyPreview = typeof location !== "undefined" && new URLSearchParams(location.search).get("exercise") === "history-and-context";
   const requested = typeof location === "undefined" ? "welcome" : new URLSearchParams(location.search).get("screen");
-  const [screen,setScreen] = useState<ApprovedScreen>(["old-carts-teach","exercise-transition","welcome","introduction","teach","practice","feedback","clarify","activity-complete","resume","module-complete"].includes(requested || "") ? requested as ApprovedScreen : "welcome");
+  const [screen,setScreen] = useState<ApprovedScreen>(["review","old-carts-teach","exercise-transition","welcome","introduction","teach","practice","feedback","clarify","activity-complete","resume","module-complete"].includes(requested || "") ? requested as ApprovedScreen : "welcome");
   const [panel,setPanel] = useState(typeof location === "undefined" ? 0 : Number(new URLSearchParams(location.search).get("panel") || 0));
   const [captions,setCaptions] = useState(false);
   const [playing,setPlaying] = useState(false);
@@ -43,18 +43,21 @@ function Preview() {
   const requestedExercise = typeof location === "undefined" ? null : new URLSearchParams(location.search).get("exercise");
   const exactStep = displayedActivity.steps.find(s=>s.id === requestedExercise);
   const shownStep = exactStep || (mappedActivity ? mappedActivity.steps[screen === "old-carts-teach" ? 1 : 0] : historyPreview ? historyActivity.steps[1] : oldCartsPreview ? {...catalog.activities[0].steps[1],completed:false,saved:null} : screen === "old-carts-teach" ? shownActivity.steps[1] : step);
+  result.activityId=displayedActivity.id; result.stepId=shownStep.id;
   progress.scenario=catalog.sharedScenario;
   const caseFactsExpanded=factsState ?? (shownStep.id === "organize-old-carts" && !optionalPractice && !shownStep.completed);
   const panels=conceptPanelsFor(shownStep);
   const next = () => { if(screen === "activity-complete" && progress.next){setRequestedActivityId(progress.next.activityId);setPanel(0);setScreen("introduction");return;} if(["old-carts-teach","teach"].includes(screen) && panel < panels.length-1) {setPanel(panel+1); return;} setScreen(screen === "exercise-transition" ? "old-carts-teach" : ["old-carts-teach","teach"].includes(screen) ? "practice" : screen === "welcome" ? "introduction" : screen === "introduction" ? "teach" : "practice"); };
-  return <SafeAreaProvider initialMetrics={{frame:{x:0,y:0,width:390,height:844},insets:{top:0,bottom:0,left:0,right:0}}}>
-    <ApprovedScreens screen={screen} activity={displayedActivity} step={shownStep} progress={progress} result={result} selected={selected} onSelect={setSelected} kind={optionalPractice ? "practice" : "required"} textMode={historyPreview || oldCartsPreview || !hasApprovedChoices(displayedActivity,shownStep,optionalPractice ? "practice" : "required")}
+  const previewInsets={top:typeof location === "undefined" ? 0 : Number(new URLSearchParams(location.search).get("safeTop") || 0),bottom:0,left:0,right:0};
+  return <SafeAreaProvider initialMetrics={{frame:{x:0,y:0,width:390,height:844},insets:{top:typeof location === "undefined" ? 0 : Number(new URLSearchParams(location.search).get("safeTop") || 0),bottom:0,left:0,right:0}}}>
+    <SafeAreaInsetsContext.Provider value={previewInsets}><ApprovedScreens screen={screen} activity={displayedActivity} step={shownStep} progress={progress} result={result} selected={selected} onSelect={setSelected} kind={optionalPractice ? "practice" : "required"} textMode={historyPreview || oldCartsPreview || !hasApprovedChoices(displayedActivity,shownStep,optionalPractice ? "practice" : "required")}
       caseFactsExpanded={caseFactsExpanded} onToggleCaseFacts={()=>setFactsState(!caseFactsExpanded)}
       onContinue={next} onBack={()=>{if(screen === "clarify" && clarifyOrigin.current){setScreen(clarifyOrigin.current.screen);setPanel(clarifyOrigin.current.panel);setSelected(clarifyOrigin.current.selected);clarifyOrigin.current=null;}else if(["old-carts-teach","teach"].includes(screen) && panel>0)setPanel(panel-1);else setScreen("introduction");}} onLeave={()=>setScreen("resume")}
       onFreeText={()=>{}} onClarify={()=>{clarifyOrigin.current={screen,panel,selected};setSelected("");setScreen("clarify");}} onListen={()=>setPlaying(true)} onStopAudio={()=>{}}
       onMicPress={controls ? ()=>{} : undefined} onReview={controls ? ()=>{} : undefined}
       teachingPanel={panel} narration={narrationFor(screen,shownStep,result,panel,displayedActivity,optionalPractice ? "practice" : "required")} captions={captions} onToggleCaptions={()=>setCaptions(v=>!v)} muted={muted} onToggleMute={()=>setMuted(v=>!v)}
-      onPlay={()=>setPlaying(true)} onPause={()=>setPlaying(false)} isSpeaking={playing} busy={false} disabled={false} referenceChrome />
+      onPlay={()=>setPlaying(true)} onPause={()=>setPlaying(false)} isSpeaking={playing} busy={false} disabled={false} referenceChrome={typeof location !== "undefined" && new URLSearchParams(location.search).get("chrome") === "1"} />
+    </SafeAreaInsetsContext.Provider>
   </SafeAreaProvider>;
 }
 registerRootComponent(Preview);

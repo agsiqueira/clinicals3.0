@@ -1,0 +1,203 @@
+{
+  "results": [
+    {
+      "stage": "before",
+      "screen": "teach",
+      "width": 320,
+      "height": 568,
+      "scrolled": 314,
+      "headerBefore": 46,
+      "headerAfter": -268
+    },
+    {
+      "stage": "before",
+      "screen": "practice",
+      "width": 320,
+      "height": 568,
+      "scrolled": 525,
+      "headerBefore": 46,
+      "headerAfter": -479
+    },
+    {
+      "stage": "before",
+      "screen": "feedback",
+      "width": 320,
+      "height": 568,
+      "scrolled": 113,
+      "headerBefore": 46,
+      "headerAfter": -67
+    },
+    {
+      "stage": "before",
+      "screen": "teach",
+      "width": 390,
+      "height": 844,
+      "scrolled": 72,
+      "headerBefore": 46,
+      "headerAfter": -26
+    },
+    {
+      "stage": "before",
+      "screen": "practice",
+      "width": 390,
+      "height": 844,
+      "scrolled": 163,
+      "headerBefore": 46,
+      "headerAfter": -117
+    },
+    {
+      "stage": "before",
+      "screen": "feedback",
+      "width": 390,
+      "height": 844,
+      "scrolled": 0,
+      "headerBefore": 46,
+      "headerAfter": 46
+    },
+    {
+      "stage": "before",
+      "screen": "teach",
+      "width": 1440,
+      "height": 900,
+      "scrolled": 0,
+      "headerBefore": 46,
+      "headerAfter": 46
+    },
+    {
+      "stage": "before",
+      "screen": "practice",
+      "width": 1440,
+      "height": 900,
+      "scrolled": 0,
+      "headerBefore": 46,
+      "headerAfter": 46
+    },
+    {
+      "stage": "before",
+      "screen": "feedback",
+      "width": 1440,
+      "height": 900,
+      "scrolled": 0,
+      "headerBefore": 46,
+      "headerAfter": 46
+    },
+    {
+      "stage": "after",
+      "screen": "teach",
+      "width": 320,
+      "height": 568,
+      "scrolled": 272,
+      "headerBefore": 0,
+      "headerAfter": 0
+    },
+    {
+      "stage": "after",
+      "screen": "practice",
+      "width": 320,
+      "height": 568,
+      "scrolled": 500,
+      "headerBefore": 0,
+      "headerAfter": 0
+    },
+    {
+      "stage": "after",
+      "screen": "feedback",
+      "width": 320,
+      "height": 568,
+      "scrolled": 88,
+      "headerBefore": 0,
+      "headerAfter": 0
+    },
+    {
+      "stage": "after",
+      "screen": "teach",
+      "width": 390,
+      "height": 844,
+      "scrolled": 30,
+      "headerBefore": 0,
+      "headerAfter": 0
+    },
+    {
+      "stage": "after",
+      "screen": "practice",
+      "width": 390,
+      "height": 844,
+      "scrolled": 138,
+      "headerBefore": 0,
+      "headerAfter": 0
+    },
+    {
+      "stage": "after",
+      "screen": "feedback",
+      "width": 390,
+      "height": 844,
+      "scrolled": 0,
+      "headerBefore": 0,
+      "headerAfter": 0
+    },
+    {
+      "stage": "after",
+      "screen": "teach",
+      "width": 1440,
+      "height": 900,
+      "scrolled": 0,
+      "headerBefore": 0,
+      "headerAfter": 0
+    },
+    {
+      "stage": "after",
+      "screen": "practice",
+      "width": 1440,
+      "height": 900,
+      "scrolled": 0,
+      "headerBefore": 0,
+      "headerAfter": 0
+    },
+    {
+      "stage": "after",
+      "screen": "feedback",
+      "width": 1440,
+      "height": 900,
+      "scrolled": 0,
+      "headerBefore": 0,
+      "headerAfter": 0
+    },
+    {
+      "stage": "after",
+      "screen": "introduction",
+      "safeTop": 47,
+      "headerFixed": true
+    },
+    {
+      "stage": "after",
+      "screen": "exercise-transition",
+      "safeTop": 47,
+      "headerFixed": true
+    },
+    {
+      "stage": "after",
+      "screen": "clarify",
+      "safeTop": 47,
+      "headerFixed": true
+    },
+    {
+      "stage": "after",
+      "screen": "activity-complete",
+      "safeTop": 47,
+      "headerFixed": true
+    },
+    {
+      "stage": "after",
+      "screen": "review",
+      "safeTop": 47,
+      "headerFixed": true
+    },
+    {
+      "stage": "after",
+      "screen": "synthetic-long-feedback",
+      "longScroll": 1510,
+      "headerFixed": true
+    }
+  ],
+  "errors": []
+}
