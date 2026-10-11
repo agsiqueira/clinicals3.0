@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -54,7 +54,12 @@ type TodayEncounter = {
 
 type TodayRotation = RotationUnit;
 
+import { Module0Card } from "../../src/components/Module0Card";
+import type { Module0Summary } from "../../src/types/clinicalReadiness";
+import { captureSession } from "../../src/api/sessionToken";
+
 type TodayResponse = {
+  module0?: Module0Summary | null;
   identity?: TodayIdentity | null;
   recommendedEncounter?: TodayEncounter | null;
   activeRotation?: TodayRotation | null;
@@ -133,24 +138,15 @@ export default function TodayScreen() {
   const router = useRouter();
   const { userId: authUserId, sessionId } = useAuth();
   const { user, isLoaded: userLoaded } = useUser();
+  const loadEpoch = useRef(0);
+  const [dataUserId, setDataUserId] = useState<string | null>(null);
   const [today, setToday] = useState<TodayResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [signingOut, setSigningOut] = useState(false);
 
-  const userHeaders = useMemo(() => {
-    const headers: Record<string, string> = {};
-    const email = user?.primaryEmailAddress?.emailAddress;
-    const fallbackEmail = email || user?.emailAddresses?.[0]?.emailAddress;
-    const resolvedUserId = user?.id || authUserId || (__DEV__ ? fallbackEmail || "dev-user" : undefined);
-
-    if (resolvedUserId) headers["x-clerk-user-id"] = resolvedUserId;
-    if (user?.fullName) headers["x-user-name"] = user.fullName;
-    if (email) headers["x-user-email"] = email;
-    if (user?.imageUrl) headers["x-user-image"] = user.imageUrl;
-    return headers;
-  }, [authUserId, user]);
+  const userHeaders = useMemo<Record<string, string>>(() => ({ expectedUserId: user?.id || "" }), [user?.id]);
 
   const loadToday = useCallback(
     async ({ asRefresh = false } = {}) => {
@@ -159,25 +155,31 @@ export default function TodayScreen() {
         return;
       }
 
-      if (!userHeaders["x-clerk-user-id"]) {
+      if (!user?.id) {
         setToday(null);
         setLoading(false);
         setRefreshing(false);
         return;
       }
 
+      const epoch = ++loadEpoch.current;
+      let assertSession: () => void;
+      try { assertSession = captureSession(user.id); }
+      catch { setToday(null); setDataUserId(null); setLoading(false); setRefreshing(false); return; }
+      const current = () => { try { assertSession(); return epoch === loadEpoch.current; } catch { return false; } };
       try {
         setError(null);
         if (asRefresh) setRefreshing(true);
         else setLoading(true);
 
         const data = await api.getToday(userHeaders);
+        if (!current()) return;
+        setDataUserId(user.id);
         setToday(data || null);
       } catch (err: any) {
-        setError(err?.message || "Failed to load Today.");
+        if (current()) setError(err?.message || "Failed to load Today.");
       } finally {
-        setLoading(false);
-        setRefreshing(false);
+        if (current()) { setLoading(false); setRefreshing(false); }
       }
     },
     [userHeaders, userLoaded]
@@ -201,10 +203,11 @@ export default function TodayScreen() {
     }
   };
 
-  const identity = today?.identity || {};
+  const visibleToday = dataUserId === authUserId ? today : null;
+  const identity = visibleToday?.identity || {};
   const streak = identity.streak || {};
-  const recommendedEncounter = today?.recommendedEncounter || null;
-  const dailyBriefing = today?.dailyBriefing || {};
+  const recommendedEncounter = visibleToday?.recommendedEncounter || null;
+  const dailyBriefing = visibleToday?.dailyBriefing || {};
   const nextGoal = dailyBriefing.nextGoal || null;
   const nextGoalProgress = goalProgressText(nextGoal);
   const mentorMessage = mentorCoachingMessage({
@@ -212,7 +215,7 @@ export default function TodayScreen() {
     focus: dailyBriefing.focus,
     goalProgress: nextGoalProgress,
   });
-  const todayRotationUnit = today?.activeRotation || null;
+  const todayRotationUnit = visibleToday?.activeRotation || null;
   const forceRetrySessionIds = useMemo(() => {
     if (recommendedEncounter?.status !== "completed") return undefined;
     const sessionId =
@@ -223,6 +226,7 @@ export default function TodayScreen() {
   }, [recommendedEncounter]);
 
   const openRotationSession = (session: RotationSession) => {
+    if (session.entryBlocked || visibleToday?.module0?.entryBlocked) { router.push("/module-0"); return; }
     const patientSessionSlug = session.slug || recommendedEncounter?.patientSessionSlug;
 
     if (!patientSessionSlug) {
@@ -239,7 +243,7 @@ export default function TodayScreen() {
     });
   };
 
-  if (loading && !today) {
+  if (loading && !visibleToday) {
     return (
       <SafeAreaView style={portfolioStyles.container}>
         <View style={portfolioStyles.centeredState}>
@@ -274,12 +278,6 @@ export default function TodayScreen() {
               {signingOut ? "Signing out..." : "Sign Out"}
             </Text>
           </Pressable>
-          <Pressable
-            onPress={() => router.push("/faculty")}
-            style={portfolioStyles.signOutButton}
-          >
-            <Text style={portfolioStyles.signOutButtonText}>Faculty</Text>
-          </Pressable>
         </View>
 
         {error ? (
@@ -302,6 +300,8 @@ export default function TodayScreen() {
           <Text style={portfolioStyles.mentorCalloutLabel}>🩺 Dr. Martinez · Today&apos;s Guidance</Text>
           <Text style={portfolioStyles.mentorCalloutText}>{mentorMessage}</Text>
         </View>
+
+        <Module0Card summary={visibleToday?.module0} />
 
         <View style={portfolioStyles.todayRotationSection}>
           {todayRotationUnit ? (

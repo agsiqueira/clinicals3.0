@@ -1,3 +1,4 @@
+import { ApiAuthBridge } from "../src/components/ApiAuthBridge";
 import { DefaultTheme, ThemeProvider } from "@react-navigation/native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -28,6 +29,7 @@ export default function RootLayout() {
       publishableKey={process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!}
       tokenCache={tokenCache}
     >
+      <ApiAuthBridge>
       <SafeAreaProvider style={{ flex: 1 }}>
         <ThemeProvider value={DefaultTheme}>
           <ClerkLoading>
@@ -42,6 +44,7 @@ export default function RootLayout() {
                 <Stack.Screen name="modal" options={{ presentation: "modal", title: "Modal" }} />
                 <Stack.Screen name="attempt-result" />
                 <Stack.Screen name="attempts" />
+                <Stack.Screen name="module-0" />
               </Stack>
             </SignedIn>
             <SignedOut>
@@ -53,6 +56,7 @@ export default function RootLayout() {
           <StatusBar style="dark" />
         </ThemeProvider>
       </SafeAreaProvider>
+      </ApiAuthBridge>
     </ClerkProvider>
   );
 }

@@ -67,3 +67,23 @@ test("patient reply safety returns a safe fallback after one failed regeneration
   assert.equal(reply, SAFE_PATIENT_FALLBACK);
   assert.equal(containsPatientReplyLeakage(reply), false);
 });
+
+test("patient safety rejects commentary even when appended to legitimate dialogue", async () => {
+  for (const unsafe of ["The student asked about a fever.", "Evaluation: the learner missed a pertinent negative.", "<think>The student asked about a fever.</think>", "Grading: score 90.", "The rubric requires a symptom history.", "You should respond as a simulated patient.", "As an AI, I am role-playing.", "Assistant: internal analysis.", "Note: answer only the permitted detail.", "The student is asking about fever.", "The patient reports a fever.", '{"evaluation":"missed fever"}']) {
+    let calls = 0;
+    const reply = await createSafePatientReply({ systemPrompt: "synthetic", messages: [], generateReply: async () => { calls++; return calls === 1 ? `I have a sore throat.\n${unsafe}` : "My throat hurts."; } });
+    assert.equal(reply, "My throat hurts."); assert.equal(calls, 2);
+  }
+});
+test("both rejected drafts and empty model output produce only the safe fallback", async () => {
+  for (const draft of ["I have a sore throat. The student asked about a fever.", "", "<analysis>Internal reasoning</analysis>"]) {
+    let calls = 0;
+    const reply = await createSafePatientReply({ systemPrompt: "synthetic", messages: [], generateReply: async () => { calls++; return draft; } });
+    assert.equal(reply, SAFE_PATIENT_FALLBACK); assert.equal(calls, 2);
+  }
+});
+test("natural symptom dialogue is preserved without an extra model call", async () => {
+  let calls = 0;
+  const reply = await createSafePatientReply({ systemPrompt: "synthetic", messages: [], generateReply: async () => { calls++; return "My doctor evaluated my fever yesterday."; } });
+  assert.equal(reply, "My doctor evaluated my fever yesterday."); assert.equal(calls, 1);
+});

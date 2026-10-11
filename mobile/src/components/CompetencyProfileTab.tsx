@@ -1,3 +1,4 @@
+import { useAuth } from "@clerk/clerk-expo";
 import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
@@ -99,12 +100,13 @@ export function CompetencyProfileTab({
 }: {
   userHeaders: Record<string, string>;
 }) {
+  const { userId } = useAuth();
   const [profile, setProfile] = useState<CompetencyProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const loadProfile = useCallback(async () => {
-    if (!userHeaders["x-clerk-user-id"]) {
+    if (!userId) {
       setProfile(null);
       setLoading(false);
       return;
@@ -121,7 +123,7 @@ export function CompetencyProfileTab({
     } finally {
       setLoading(false);
     }
-  }, [userHeaders]);
+  }, [userHeaders, userId]);
 
   useFocusEffect(
     useCallback(() => {

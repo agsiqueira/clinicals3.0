@@ -12,4 +12,23 @@ function sanitizeCase(caseData) {
   return safeCase;
 }
 
-module.exports = { sanitizeCase };
+// Response allowlist is deliberately separate from internal patient prompt data.
+function learnerCase(data) {
+  if (!data) return data;
+  const profile = data.patient_profile || {};
+  const opening = data.osce_opening || {};
+  return {
+    case_id: data.case_id, display_title: data.display_title, level: data.level,
+    setting: data.setting, time_allowed_minutes: data.time_allowed_minutes,
+    frame: data.frame, primary_tasks: data.primary_tasks,
+    patient_profile: Object.fromEntries(["first_name", "last_name", "preferred_name", "date_of_birth", "age", "sex"].map(key => [key, profile[key]])),
+    presenting_info: { chief_complaint: data.presenting_info?.chief_complaint },
+    osce_opening: {
+      student_intro: opening.student_intro,
+      patient_name_permission: { yes: opening.patient_name_permission?.yes, no: opening.patient_name_permission?.no },
+      student_prompt_variants: Array.isArray(opening.student_prompt_variants) ? opening.student_prompt_variants.filter(value => typeof value === "string") : [],
+      patient_chief_complaint_reply: opening.patient_chief_complaint_reply,
+    },
+  };
+}
+module.exports = { sanitizeCase, learnerCase };

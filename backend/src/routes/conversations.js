@@ -24,23 +24,11 @@ const {
   normalizeDebriefChatMessages,
 } = require("../utils/debriefChat");
 
+const { requireModule0 } = require("../services/module0Access");
 const router = express.Router();
 
-function getClerkUserId(req) {
-  return req.header("x-clerk-user-id");
-}
-
 async function resolveUser(req) {
-  const clerkUserId = getClerkUserId(req);
-  if (!clerkUserId) {
-    const error = new Error("Missing x-clerk-user-id header");
-    error.status = 401;
-    throw error;
-  }
-  const name = req.header("x-user-name") || undefined;
-  const email = req.header("x-user-email") || undefined;
-  const imageUrl = req.header("x-user-image") || undefined;
-  return getOrCreateUser(clerkUserId, { name, email, imageUrl });
+  return require("../utils/userResolver").resolveAuthenticatedUser(req);
 }
 
 router.post("/", async (req, res, next) => {
@@ -52,6 +40,7 @@ router.post("/", async (req, res, next) => {
     }
 
     const user = await resolveUser(req);
+    await requireModule0(req, prisma);
     const caseRecord = await ensureCaseFromId(caseId);
     if (!caseRecord) {
       res.status(404).json({ error: "Case not found" });
@@ -124,8 +113,8 @@ router.post("/:id/messages", async (req, res, next) => {
     }
 
     const user = await resolveUser(req);
-    const conversation = await prisma.conversation.findUnique({
-      where: { id: req.params.id }
+    const conversation = await prisma.conversation.findFirst({
+      where: { id: req.params.id, userId: user.id }
     });
 
     if (!conversation) {
@@ -134,10 +123,11 @@ router.post("/:id/messages", async (req, res, next) => {
     }
 
     if (conversation.userId !== user.id) {
-      res.status(403).json({ error: "Forbidden" });
+      res.status(404).json({ error: "Not found" });
       return;
     }
 
+    await requireModule0(req, prisma);
     const message = await prisma.message.create({
       data: {
         conversationId: conversation.id,
@@ -162,8 +152,8 @@ router.post("/:id/debrief-chat", async (req, res, next) => {
     }
 
     const user = await resolveUser(req);
-    const conversation = await prisma.conversation.findUnique({
-      where: { id: req.params.id },
+    const conversation = await prisma.conversation.findFirst({
+      where: { id: req.params.id, userId: user.id },
       include: {
         submission: true,
       },
@@ -175,7 +165,7 @@ router.post("/:id/debrief-chat", async (req, res, next) => {
     }
 
     if (conversation.userId !== user.id) {
-      res.status(403).json({ error: "Forbidden" });
+      res.status(404).json({ error: "Not found" });
       return;
     }
 
@@ -185,7 +175,7 @@ router.post("/:id/debrief-chat", async (req, res, next) => {
     }
 
     const debrief =
-      (await getSessionDebriefForAttempt(conversation.submission.sessionAttemptId)) || {
+      (await getSessionDebriefForAttempt(conversation.submission.sessionAttemptId, conversation.userId)) || {
         sessionScore: conversation.submission.score,
         badgeTier: "NONE",
         achievementResults: [],
@@ -210,8 +200,8 @@ router.post("/:id/debrief-chat", async (req, res, next) => {
 router.get("/:id", async (req, res, next) => {
   try {
     const user = await resolveUser(req);
-    const conversation = await prisma.conversation.findUnique({
-      where: { id: req.params.id },
+    const conversation = await prisma.conversation.findFirst({
+      where: { id: req.params.id, userId: user.id },
       include: {
         patientCase: true,
         messages: { orderBy: { createdAt: "asc" } },
@@ -230,12 +220,12 @@ router.get("/:id", async (req, res, next) => {
     }
 
     if (conversation.userId !== user.id) {
-      res.status(403).json({ error: "Forbidden" });
+      res.status(404).json({ error: "Not found" });
       return;
     }
 
     const debrief = conversation.submission
-      ? await getSessionDebriefForAttempt(conversation.submission.sessionAttemptId)
+      ? await getSessionDebriefForAttempt(conversation.submission.sessionAttemptId, conversation.userId)
       : null;
 
     res.json({
@@ -280,7 +270,7 @@ async function buildSavedSubmissionResponse(conversation, progressSummary) {
       level: conversation.patientCase.level,
       earnedPoints,
     });
-  const debrief = await getSessionDebriefForAttempt(conversation.submission.sessionAttemptId);
+  const debrief = await getSessionDebriefForAttempt(conversation.submission.sessionAttemptId, conversation.userId);
 
   return {
     score: conversation.submission.score,
@@ -318,8 +308,8 @@ router.post("/:id/submit", async (req, res, next) => {
     }
 
     const user = await resolveUser(req);
-    const conversation = await prisma.conversation.findUnique({
-      where: { id: req.params.id },
+    const conversation = await prisma.conversation.findFirst({
+      where: { id: req.params.id, userId: user.id },
       include: {
         patientCase: true,
         messages: { orderBy: { createdAt: "asc" } },
@@ -333,7 +323,7 @@ router.post("/:id/submit", async (req, res, next) => {
     }
 
     if (conversation.userId !== user.id) {
-      res.status(403).json({ error: "Forbidden" });
+      res.status(404).json({ error: "Not found" });
       return;
     }
 
@@ -343,6 +333,7 @@ router.post("/:id/submit", async (req, res, next) => {
       return;
     }
 
+    await requireModule0(req, prisma);
     const sessionAttempt = await getOrCreateSessionAttemptForConversation(
       conversation,
       patientSessionSlug
@@ -416,6 +407,7 @@ router.post("/:id/submit", async (req, res, next) => {
     if (sessionAttempt) {
       const finalizedAttempt = await finalizeSessionAttemptFromSubmission({
         sessionAttemptId: sessionAttempt.id,
+        userId: user.id,
         submission,
       });
       clinicals2Debrief = finalizedAttempt?.debrief || null;
@@ -425,14 +417,17 @@ router.post("/:id/submit", async (req, res, next) => {
     const progressSummary = await syncUserProgress(user.id);
 
     if (user.email) {
-      console.log("[email] user.name:", user.name, "user.email:", user.email);
-      sendResultsEmail({
-        toEmail: user.email,
-        userName: user.name,
-        caseId,
-        result,
-        conversation: conversationPayload, 
-      }).catch((err) => console.warn("Failed to send transcript + results email:", err));
+      // Historical Neon profile fields were client-writable. Never use them as
+      // authority for the destination of a sensitive transcript email.
+      try {
+        const contact = await require("../utils/userResolver").getVerifiedContact(req);
+        if (contact.email) sendResultsEmail({
+          toEmail: contact.email, userName: contact.name, caseId,
+          result, conversation: conversationPayload,
+        }).catch(() => console.warn("Failed to send results email"));
+      } catch {
+        console.warn("Verified results-email destination unavailable");
+      }
     }
 
     res.json({

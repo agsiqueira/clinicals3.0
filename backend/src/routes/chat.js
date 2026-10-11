@@ -1,16 +1,19 @@
 const express = require("express");
 const prisma = require("../db/prisma");
 const { loadCase } = require("../utils/caseLoader");
-const { sanitizeCase } = require("../utils/safeCase");
+const { sanitizeCase, learnerCase } = require("../utils/safeCase");
 const { buildPatientSystemPrompt } = require("../utils/patientPrompt");
 const { buildDisclosureState } = require("../utils/patientDisclosure");
 const { createPatientReply } = require("../llm/navigatorClient");
 const { createSafePatientReply } = require("../utils/patientReplySafety");
 
+const { approvePatientSpeech } = require("../utils/patientSpeech");
+
+const { requireModule0 } = require("../services/module0Access");
 const router = express.Router();
 
 function getClerkUserId(req) {
-  return req.header("x-clerk-user-id");
+  return req.studentIdentity?.clerkUserId;
 }
 
 async function loadConversationForDisclosure({ req, conversationId, caseId }) {
@@ -30,17 +33,12 @@ async function loadConversationForDisclosure({ req, conversationId, caseId }) {
     throw error;
   }
 
-  if (conversation.patientCase.caseId !== caseId) {
-    const error = new Error("conversationId does not match caseId");
-    error.status = 400;
-    throw error;
-  }
-
   const clerkUserId = getClerkUserId(req);
-  if (clerkUserId && conversation.user.clerkUserId !== clerkUserId) {
-    const error = new Error("Forbidden");
-    error.status = 403;
-    throw error;
+  if (!clerkUserId || conversation.user.clerkUserId !== clerkUserId) {
+    const error = new Error("Conversation not found"); error.status = 404; throw error;
+  }
+  if (conversation.patientCase.caseId !== caseId) {
+    const error = new Error("conversationId does not match caseId"); error.status = 400; throw error;
   }
 
   return conversation;
@@ -54,6 +52,13 @@ router.post("/", async (req, res, next) => {
       return;
     }
 
+    const conversation = await loadConversationForDisclosure({
+      req,
+      conversationId,
+      caseId,
+    });
+
+    await requireModule0(req, prisma);
     const caseData = await loadCase(caseId);
     if (!caseData) {
       res.status(404).json({ error: "Case not found" });
@@ -61,7 +66,7 @@ router.post("/", async (req, res, next) => {
     }
 
     const safeCase = sanitizeCase(caseData);
-    const osceOpening = caseData.osce_opening || null;
+    const osceOpening = learnerCase(caseData).osce_opening || null;
     // Keep opening metadata available to the client, but avoid feeding scripted
     // opening text to the patient model to reduce canned responses.
     const { osce_opening, ...promptCase } = safeCase;
@@ -80,11 +85,7 @@ router.post("/", async (req, res, next) => {
       return;
     }
 
-    const conversation = await loadConversationForDisclosure({
-      req,
-      conversationId,
-      caseId,
-    });
+
 
     // Use the LLM for all turns so responses are not hardcoded by turn number.
     const disclosureState = buildDisclosureState({
@@ -108,7 +109,10 @@ router.post("/", async (req, res, next) => {
       });
     }
 
-    res.json({ reply, osce_opening: osceOpening });
+    const speech = conversation && conversation.status === "IN_PROGRESS"
+      ? approvePatientSpeech({ text: reply, clerkUserId: getClerkUserId(req), conversationId: conversation.id, caseId })
+      : null;
+    res.json({ reply, speech, osce_opening: osceOpening });
   } catch (err) {
     next(err);
   }

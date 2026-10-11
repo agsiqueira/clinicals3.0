@@ -402,18 +402,7 @@ export default function ClinicalPortfolioScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const userHeaders = useMemo(() => {
-    const headers: Record<string, string> = {};
-    const email = user?.primaryEmailAddress?.emailAddress;
-    const fallbackEmail = email || user?.emailAddresses?.[0]?.emailAddress;
-    const resolvedUserId = user?.id || authUserId || (__DEV__ ? fallbackEmail || "dev-user" : undefined);
-
-    if (resolvedUserId) headers["x-clerk-user-id"] = resolvedUserId;
-    if (user?.fullName) headers["x-user-name"] = user.fullName;
-    if (email) headers["x-user-email"] = email;
-    if (user?.imageUrl) headers["x-user-image"] = user.imageUrl;
-    return headers;
-  }, [authUserId, user]);
+  const userHeaders = useMemo<Record<string, string>>(() => ({ expectedUserId: user?.id || "" }), [user?.id]);
 
   const loadPortfolio = useCallback(
     async ({ asRefresh = false } = {}) => {
@@ -422,7 +411,7 @@ export default function ClinicalPortfolioScreen() {
         return;
       }
 
-      if (!userHeaders["x-clerk-user-id"]) {
+      if (!user?.id) {
         setPortfolio(null);
         setToday(null);
         setLoading(false);

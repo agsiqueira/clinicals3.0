@@ -2,6 +2,8 @@ const prisma = require("../db/prisma");
 const { buildClinicalPortfolio } = require("./clinicalPortfolio");
 const { buildLearningPathRoadmap } = require("../utils/roadmap");
 
+const { getModule0Summary, applyModule0ToRoadmap } = require("./module0Access");
+
 const ROADMAP_CTA = {
   title: "Explore your full learning path",
   body: "See all units, upcoming encounters, and what unlocks next.",
@@ -350,11 +352,12 @@ async function loadRoadmapPaths({ userId, client }) {
 }
 
 async function buildToday({ userId, client = prisma }) {
-  const [portfolio, rawPaths] = await Promise.all([
+  const [portfolio, rawPaths, module0] = await Promise.all([
     buildClinicalPortfolio({ userId, client }),
     loadRoadmapPaths({ userId, client }),
+    getModule0Summary({ userId, client }),
   ]);
-  const roadmap = buildLearningPathRoadmap(rawPaths);
+  const roadmap = applyModule0ToRoadmap(buildLearningPathRoadmap(rawPaths), module0);
   const roadmapItems = flattenRoadmap(roadmap, rawPaths);
   const availableItem = roadmapItems.find((item) => item.session.status === "available");
   const lockedItem = roadmapItems.find((item) => item.session.status === "locked");
@@ -385,9 +388,14 @@ async function buildToday({ userId, client = prisma }) {
       nextLevelXp: portfolio.identity.nextLevelXp,
       streak: portfolio.streak,
     },
-    recommendedEncounter: buildRecommendedEncounter(recommendedItem),
+    module0,
+    recommendedEncounter: module0.entryBlocked ? null : buildRecommendedEncounter(recommendedItem),
     activeRotation: findActiveRotation({ roadmap, recommendedItem, availableItem, retryItem }),
-    dailyBriefing: buildDailyBriefing({
+    dailyBriefing: module0.entryBlocked ? {
+      motivation: "Start with Clinical Readiness, one short activity at a time.",
+      focus: "Dr. Martinez will help you prepare for interviewing, reasoning, and presenting. Completion unlocks Rotation 1; no passing score is required.",
+      nextGoal: null,
+    } : buildDailyBriefing({
       portfolio,
       recommendationKind,
       recommendedItem,

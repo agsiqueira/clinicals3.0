@@ -1,3 +1,5 @@
+import { readEncounterDraft, saveEncounterDraft } from "../../src/api/encounterDraft";
+import { authenticatedFetch, captureSession } from "../../src/api/sessionToken";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -54,13 +56,12 @@ function getRequestTimeoutMs(path: string, method: string) {
   return DEFAULT_REQUEST_TIMEOUT_MS;
 }
 
-async function request(
+async function sessionRequest(
   path: string,
-  opts: { method?: string; body?: any; headers?: Record<string, string> } = {}
+  opts: { method?: string; body?: any; headers?: Record<string, string>; expectedUserId?: string | null } = {}
 ) {
   if (!BASE_URL) throw new Error("Missing EXPO_PUBLIC_API_BASE_URL in .env");
 
-  const token = await getItemAsync("token");
   const method = String(opts.method || "GET").toUpperCase();
   const timeoutMs = getRequestTimeoutMs(path, method);
 
@@ -69,11 +70,11 @@ async function request(
   let res: Response;
 
   try {
-    res = await fetch(`${BASE_URL}${API_PREFIX}${path}`, {
+    res = await authenticatedFetch(`${BASE_URL}${API_PREFIX}${path}`, {
       method,
+      expectedUserId: opts.expectedUserId,
       headers: {
         "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(opts.headers || {}),
       },
       body: opts.body ? JSON.stringify(opts.body) : undefined,
@@ -231,6 +232,11 @@ function normalizeSubmissionPayload(payload: any): SubmissionResult {
 }
 
 export default function Level1Screen() {
+  const { user } = useUser();
+  const request = useCallback((path: string, opts: { method?: string; body?: any; headers?: Record<string, string> } = {}) => {
+    const { expectedUserId: _context, ...headers } = opts.headers || {};
+    return sessionRequest(path, { ...opts, headers, expectedUserId: user?.id ?? null });
+  }, [user?.id]);
   const params = useLocalSearchParams();
   const caseId = useMemo(() => {
     const raw = params.caseId;
@@ -244,19 +250,25 @@ export default function Level1Screen() {
     player.muted = true;
   });
 
+  const draftKey = `legacy_${user?.id}_${caseId}`;
+  const recoveredDraft = readEncounterDraft(draftKey);
+  const skipCheckpointRef = useRef(true);
+  const messageWritesRef = useRef(new Set<Promise<boolean>>());
+  const uncertainMessageWriteRef = useRef(Boolean(recoveredDraft?.uncertainWrite));
   const [loadingCase, setLoadingCase] = useState(true);
   const [sending, setSending] = useState(false);
   const [caseData, setCaseData] = useState<CaseData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [persistenceError, setPersistenceError] = useState<string | null>(recoveredDraft?.persistenceError || null);
 
-  const [input, setInput] = useState("");
-  const [messages, setMessages] = useState<Msg[]>([]);
+  const [input, setInput] = useState(recoveredDraft?.input || "");
+  const [messages, setMessages] = useState<Msg[]>(recoveredDraft?.messages || []);
   const listRef = useRef<FlatList<Msg>>(null);
-  const [conversationId, setConversationId] = useState<string | null>(null);
-  const [pendingMessages, setPendingMessages] = useState<Msg[]>([]);
+  const [conversationId, setConversationId] = useState<string | null>(recoveredDraft?.conversationId || null);
+  const [pendingMessages, setPendingMessages] = useState<Msg[]>(recoveredDraft?.pendingMessages || []);
   const [creatingConversation, setCreatingConversation] = useState(false);
-  const [stage, setStage] = useState<"chat" | "hpi" | "results">("chat");
-  const [hpiText, setHpiText] = useState("");
+  const [stage, setStage] = useState<"chat" | "hpi" | "results">(recoveredDraft?.stage || "chat");
+  const [hpiText, setHpiText] = useState(recoveredDraft?.hpiText || "");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submissionResult, setSubmissionResult] = useState<SubmissionResult | null>(null);
@@ -280,7 +292,9 @@ export default function Level1Screen() {
 
     setRecordingBusy(true);
     try {
+      const assertCurrent = captureSession(user?.id ?? null);
       const permission = await Audio.requestPermissionsAsync();
+      assertCurrent();
       if (!permission.granted) {
         console.warn("Microphone permission not granted.");
         return;
@@ -295,6 +309,7 @@ export default function Level1Screen() {
       await recording.prepareToRecordAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
       await recording.startAsync();
 
+      try { assertCurrent(); } catch (error) { await recording.stopAndUnloadAsync().catch(() => {}); throw error; }
       recordingRef.current = recording;
       setIsRecording(true);
     } catch (err) {
@@ -359,17 +374,8 @@ export default function Level1Screen() {
     }
   };
 
-  const { user } = useUser();
 
-  const userHeaders = useMemo(() => {
-    const headers: Record<string, string> = {};
-    if (user?.id) headers["x-clerk-user-id"] = user.id;
-    if (user?.fullName) headers["x-user-name"] = user.fullName;
-    const email = user?.primaryEmailAddress?.emailAddress;
-    if (email) headers["x-user-email"] = email;
-    if (user?.imageUrl) headers["x-user-image"] = user.imageUrl;
-    return headers;
-  }, [user]);
+  const userHeaders = useMemo<Record<string, string>>(() => ({ expectedUserId: user?.id || "" }), [user?.id]);
 
   const stopSpeechPlayback = useCallback(async () => {
     const currentSound = soundRef.current;
@@ -409,13 +415,16 @@ export default function Level1Screen() {
       if (!inputText) return;
 
       try {
+        const assertCurrent = captureSession(user?.id ?? null);
         await stopSpeechPlayback();
 
+        assertCurrent();
         const payload = await request("/voice/speak", {
           method: "POST",
           body: { text: inputText },
         });
 
+        assertCurrent();
         const audioBase64 = String(payload?.audio_base64 || "").trim();
         if (!audioBase64) return;
 
@@ -432,12 +441,15 @@ export default function Level1Screen() {
         });
 
         soundFilePathRef.current = filePath;
+        assertCurrent();
         const { sound } = await Audio.Sound.createAsync(
           { uri: filePath },
-          { shouldPlay: true }
+          { shouldPlay: false }
         );
 
         soundRef.current = sound;
+        assertCurrent();
+        await sound.playAsync();
         setIsSpeaking(true);
 
         sound.setOnPlaybackStatusUpdate((status) => {
@@ -457,7 +469,7 @@ export default function Level1Screen() {
         await stopSpeechPlayback();
       }
     },
-    [stopSpeechPlayback]
+    [stopSpeechPlayback, request, user?.id]
   );
 
   const queueMessage = useCallback((msg: Msg) => {
@@ -465,26 +477,34 @@ export default function Level1Screen() {
   }, []);
 
   const persistMessage = useCallback(
-    async (msg: Msg) => {
-      if (!conversationId) return;
-      try {
-        await request(`/conversations/${conversationId}/messages`, {
-          method: "POST",
-          headers: userHeaders,
-          body: {
-            role: msg.role,
-            content: msg.content,
-          },
-        });
-      } catch (err) {
-        console.warn("Failed to persist message:", err);
-      }
-    },
-    [conversationId, userHeaders]
+    (msg: Msg, targetConversationId = conversationId): Promise<boolean> => {
+      if (!targetConversationId) return Promise.resolve(false);
+      const write = (async () => {
+        try {
+          await request(`/conversations/${targetConversationId}/messages`, {
+            method: "POST", headers: userHeaders,
+            body: { role: msg.role, content: msg.content },
+          });
+          setPendingMessages(prev => prev.filter(item => item.id !== msg.id));
+          return true;
+        } catch (err: any) {
+          if (err?.status === 401) {
+            setPendingMessages(prev => prev.some(item => item.id === msg.id) ? prev : [...prev, msg]);
+          } else {
+            uncertainMessageWriteRef.current = true;
+          }
+          setPersistenceError("A message could not be saved. Restore your session before submitting; your local encounter remains available.");
+          return false;
+        }
+      })();
+      messageWritesRef.current.add(write);
+      void write.finally(() => messageWritesRef.current.delete(write));
+      return write;
+    }, [conversationId, userHeaders]
   );
 
   const ensureConversation = useCallback(async (): Promise<string | null> => {
-    if (!userHeaders["x-clerk-user-id"]) return null;
+    if (!user?.id) return null;
     if (conversationId) return conversationId;
     if (creatingConversation) return null;
 
@@ -508,21 +528,28 @@ export default function Level1Screen() {
   }, [caseId, conversationId, creatingConversation, userHeaders]);
 
   useEffect(() => {
-    setConversationId(null);
-    setPendingMessages([]);
-    setStage("chat");
-    setHpiText("");
+    skipCheckpointRef.current = true;
+    const draft = readEncounterDraft(draftKey);
+    setConversationId(draft?.conversationId || null);
+    setPendingMessages(draft?.pendingMessages || []);
+    setStage(draft?.stage || "chat");
+    setHpiText(draft?.hpiText || "");
     setSubmissionResult(null);
     setSubmitError(null);
     setSavedConversationId(null);
     setShowResumePrompt(false);
     setResumeCheckComplete(false);
-  }, [caseId]);
+  }, [draftKey]);
+
+  useEffect(() => {
+    if (skipCheckpointRef.current) { skipCheckpointRef.current = false; return; }
+    saveEncounterDraft(draftKey, { messages, input, hpiText, stage, conversationId, pendingMessages, persistenceError, uncertainWrite: uncertainMessageWriteRef.current });
+  }, [draftKey, messages, input, hpiText, stage, conversationId, pendingMessages, persistenceError]);
 
   // for resume chat button
   useEffect(() => {
     if (!conversationId) return;
-    setItemAsync(`conv_${caseId}`, conversationId).catch(() => {});
+    setItemAsync(`conv_${user?.id}_${caseId}`, conversationId).catch(() => {});
   }, [conversationId, caseId]);
 
   // on mount, check if a previous conversation exists for this case
@@ -531,7 +558,7 @@ export default function Level1Screen() {
 
     (async () => {
       try {
-        const saved = await getItemAsync(`conv_${caseId}`);
+        const saved = await getItemAsync(`conv_${user?.id}_${caseId}`);
         if (cancelled) return;
 
         if (saved) {
@@ -635,7 +662,7 @@ export default function Level1Screen() {
     toPersist.forEach((msg) => {
       persistMessage(msg);
     });
-  }, [conversationId, pendingMessages, persistMessage]);
+  }, [conversationId, userHeaders]);
 
   useEffect(() => {
     let cancelled = false;
@@ -651,10 +678,11 @@ export default function Level1Screen() {
         setCaseData(data);
 
         // Start with an empty transcript so opening behavior is graded from user input.
-        setMessages([]);
-        setInput("");
-        setStage("chat");
-        setHpiText("");
+        const draft = readEncounterDraft(draftKey);
+        setMessages(draft?.messages || []);
+        setInput(draft?.input || "");
+        setStage(draft?.stage || "chat");
+        setHpiText(draft?.hpiText || "");
         setSubmissionResult(null);
         setSubmitError(null);
       } catch (e: any) {
@@ -754,6 +782,8 @@ export default function Level1Screen() {
     let convoId = conversationId;
 
     try {
+      const outstanding = await Promise.all(Array.from(messageWritesRef.current));
+      if (outstanding.some(saved => !saved) || uncertainMessageWriteRef.current) throw new Error("A message was not confirmed saved. Resume the saved transcript before grading.");
       if (!convoId) {
         convoId = await ensureConversation();
       }
@@ -761,6 +791,10 @@ export default function Level1Screen() {
         throw new Error("Conversation is still being created. Please try again.");
       }
 
+      if (pendingMessages.length > 0) {
+        const saved = await Promise.all(pendingMessages.map(msg => persistMessage(msg, convoId)));
+        if (saved.some(ok => !ok)) throw new Error("Some messages remain unsaved. Sign in again before grading.");
+      }
       const data = await request(`/conversations/${convoId}/submit`, {
         method: "POST",
         headers: userHeaders,
@@ -768,7 +802,7 @@ export default function Level1Screen() {
       });
 
       setSubmissionResult(normalizeSubmissionPayload(data));
-      await deleteItemAsync(`conv_${caseId}`).catch(() => {});
+      await deleteItemAsync(`conv_${user?.id}_${caseId}`).catch(() => {});
       setStage("results");
     } catch (e: any) {
       const message = String(e?.message || "Failed to submit case.");
@@ -803,7 +837,7 @@ export default function Level1Screen() {
     } finally {
       setSubmitting(false);
     }
-  }, [caseId, conversationId, ensureConversation, hpiText, submitting, userHeaders]);
+  }, [caseId, conversationId, ensureConversation, hpiText, submitting, pendingMessages, persistMessage, userHeaders]);
 
   const resumeConversation = useCallback(async () => {
     if (!savedConversationId) return;
@@ -817,28 +851,33 @@ export default function Level1Screen() {
         role: m.role,
         content: m.content,
       }));
-      setMessages(msgs);
+      uncertainMessageWriteRef.current = false;
+      setPersistenceError(null);
+      setMessages([...msgs, ...pendingMessages]);
       setConversationId(savedConversationId);
       setShowResumePrompt(false);
     } catch (e: any) {
-      console.warn("Failed to resume conversation:", e.message);
-      await deleteItemAsync(`conv_${caseId}`).catch(() => {});
+      if (e?.status !== 404) { setPersistenceError("Unable to resume yet. Your encounter reference is retained; sign in and retry."); return; }
+      console.warn("Saved conversation is unavailable");
+      await deleteItemAsync(`conv_${user?.id}_${caseId}`).catch(() => {});
       setSavedConversationId(null);
       setShowResumePrompt(false);
     } finally {
       setResumeLoading(false);
     }
-  }, [caseId, savedConversationId, userHeaders]);
+  }, [caseId, savedConversationId, pendingMessages, userHeaders]);
 
   const startFresh = useCallback(async () => {
-    await deleteItemAsync(`conv_${caseId}`).catch(() => {});
+    await deleteItemAsync(`conv_${user?.id}_${caseId}`).catch(() => {});
     setSavedConversationId(null);
     setShowResumePrompt(false);
   }, [caseId]);
 
   const retryCase = useCallback(async () => {
+    uncertainMessageWriteRef.current = false;
+    setPersistenceError(null);
     await stopSpeechPlayback();
-    await deleteItemAsync(`conv_${caseId}`).catch(() => {});
+    await deleteItemAsync(`conv_${user?.id}_${caseId}`).catch(() => {});
 
     setSavedConversationId(null);
     setShowResumePrompt(false);
@@ -871,6 +910,7 @@ export default function Level1Screen() {
 
   return (
     <SafeAreaView style={caseStyles.container}>
+      {persistenceError ? <Text style={caseStyles.errorText}>{persistenceError}</Text> : null}
       {showResumePrompt && (
         <View style={caseStyles.resumeOverlay}>
           <View style={caseStyles.resumeCard}>

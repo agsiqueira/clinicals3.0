@@ -1,3 +1,6 @@
+import { useAuth } from "@clerk/clerk-expo";
+import { captureSession } from "../api/sessionToken";
+import { createSpeechPlaybackOwner } from "../api/speechPlayback";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Platform } from "react-native";
 import { Audio } from "expo-av";
@@ -7,169 +10,185 @@ import { api } from "../api/client";
 function createAudioBlobUrl(audioBase64: string, mimeType: string) {
   const binary = window.atob(audioBase64);
   const bytes = new Uint8Array(binary.length);
-  for (let index = 0; index < binary.length; index += 1) {
-    bytes[index] = binary.charCodeAt(index);
-  }
-  const blob = new Blob([bytes], { type: mimeType || "audio/mpeg" });
-  return URL.createObjectURL(blob);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  return URL.createObjectURL(new Blob([bytes], { type: mimeType || "audio/mpeg" }));
+}
+
+function speechDiagnostic(stage: string, detail: Record<string, unknown> = {}) {
+  if (typeof __DEV__ !== "undefined" && __DEV__) console.warn("[Speech playback]", JSON.stringify({ stage, ...detail }));
+}
+function playbackFailure(error: any, stage: string) {
+  // Never log upstream messages, response bodies, narration, or session credentials.
+  const reason = error?.data?.reason;
+  const code = error?.name === "NotAllowedError" ? "PLAYBACK_BLOCKED"
+    : error?.status === 401 ? "AUTH_REQUIRED"
+    : ["key_model_access_denied", "model_unavailable"].includes(reason) ? "TTS_UNAVAILABLE"
+    : error?.code === "REQUEST_TIMEOUT" ? "TTS_TIMEOUT" : "PLAYBACK_FAILED";
+  speechDiagnostic(stage, { code, status: Number.isInteger(error?.status) ? error.status : undefined });
+  return Object.assign(new Error("Speech playback unavailable"), { code });
 }
 
 type SpeechPlaybackOptions = {
   voice?: string | null;
   speed?: number;
+  channel?: "patient" | "mentor";
+  enabled?: boolean;
+  muted?: boolean;
+  exclusive?: boolean;
+  scopeKey?: string;
+  onStart?: () => void;
+  onStop?: () => void;
   onError?: (error: unknown) => void;
 };
+type PatientSpeech = { authorization: string; turnId: string; conversationId: string; caseId: string };
 
-export function useSpeechPlayback({ voice, speed, onError }: SpeechPlaybackOptions = {}) {
+export function useSpeechPlayback({ voice, speed, channel = "mentor", enabled = true, muted = false, exclusive = enabled, scopeKey = "", onStart, onStop, onError }: SpeechPlaybackOptions = {}) {
+  const { userId } = useAuth();
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const mutedRef = useRef(muted); mutedRef.current = muted;
   const soundRef = useRef<Audio.Sound | null>(null);
   const soundFilePathRef = useRef<string | null>(null);
   const webAudioRef = useRef<HTMLAudioElement | null>(null);
   const webAudioUrlRef = useRef<string | null>(null);
+  const optionsRef = useRef({ enabled, onStart, onStop, onError });
+  optionsRef.current = { enabled, onStart, onStop, onError };
+  const mountedRef = useRef(true);
+  const counterRef = useRef(0);
+  const contextRef = useRef({ userId, scopeKey });
+  contextRef.current = { userId, scopeKey };
 
-  const stop = useCallback(async () => {
+  const cleanup = useCallback(() => {
     const webAudio = webAudioRef.current;
     webAudioRef.current = null;
     if (webAudio) {
-      try {
-        webAudio.pause();
-        webAudio.src = "";
-      } catch {
-        // noop
-      }
+      webAudio.onended = null; webAudio.onerror = null;
+      try { webAudio.pause(); webAudio.src = ""; } catch { /* Already released. */ }
     }
-
-    const webAudioUrl = webAudioUrlRef.current;
+    const url = webAudioUrlRef.current;
     webAudioUrlRef.current = null;
-    if (webAudioUrl && Platform.OS === "web") {
-      try {
-        URL.revokeObjectURL(webAudioUrl);
-      } catch {
-        // noop
-      }
-    }
-
+    if (url) { try { URL.revokeObjectURL(url); } catch { /* Already released. */ } }
     const sound = soundRef.current;
     soundRef.current = null;
-    if (sound) {
-      try {
-        await sound.stopAsync();
-      } catch {
-        // noop
-      }
-      try {
-        await sound.unloadAsync();
-      } catch {
-        // noop
-      }
-    }
-
-    const soundFilePath = soundFilePathRef.current;
+    const file = soundFilePathRef.current;
     soundFilePathRef.current = null;
-    if (soundFilePath) {
-      try {
-        await FileSystem.deleteAsync(soundFilePath, { idempotent: true });
-      } catch {
-        // noop
+    // Only captured resources are cleaned: an older cleanup cannot touch a newer turn.
+    const released = (async () => {
+      if (sound) { try { sound.setOnPlaybackStatusUpdate(null); } catch { /* Already released. */ } await sound.stopAsync().catch(() => {}); await sound.unloadAsync().catch(() => {}); }
+      if (file) await FileSystem.deleteAsync(file, { idempotent: true }).catch(() => {});
+    })();
+    if (mountedRef.current) { setIsSpeaking(false); setIsPaused(false); optionsRef.current.onStop?.(); }
+    return released;
+  }, []);
+  const ownerRef = useRef<ReturnType<typeof createSpeechPlaybackOwner> | null>(null);
+  if (!ownerRef.current) ownerRef.current = createSpeechPlaybackOwner(cleanup);
+  const stop = useCallback(async () => { ownerRef.current?.stop(); }, []);
+
+  const speak = useCallback(async (text: string, patientSpeech?: PatientSpeech, isApprovedTurnCurrent?: () => boolean) => {
+    const inputText = String(text || "").trim();
+    if (!mountedRef.current || !optionsRef.current.enabled || !inputText || contextRef.current.userId !== userId) return;
+    if (channel === "patient" && !patientSpeech) return;
+    if (isApprovedTurnCurrent && !isApprovedTurnCurrent()) { speechDiagnostic("stale-view"); return; }
+    const speechScope = contextRef.current.scopeKey;
+    const lease = ownerRef.current!.begin(patientSpeech?.turnId || `mentor-${++counterRef.current}`);
+    if (!lease) { speechDiagnostic("owner-unavailable"); return; }
+    const current = () => mountedRef.current && optionsRef.current.enabled && contextRef.current.userId === userId && contextRef.current.scopeKey === speechScope && lease.isCurrent();
+    let stage = "request";
+    try {
+      const assertSession = captureSession(userId);
+      const assertCurrent = () => { assertSession(); if (!current()) throw new Error("Superseded speech"); };
+      assertCurrent();
+      speechDiagnostic("request", { channel });
+      const payload = channel === "patient"
+        ? await api.speakPatientVoice({ authorization: patientSpeech!.authorization, conversationId: patientSpeech!.conversationId, caseId: patientSpeech!.caseId }, { expectedUserId: userId || "" })
+        : await api.speakVoice({ text: inputText, ...(voice ? { voice } : {}), ...(speed ? { speed } : {}) }, { expectedUserId: userId || "" });
+      assertCurrent();
+      await lease.ready;
+      assertCurrent();
+      if (channel === "patient" && payload?.turnId !== patientSpeech!.turnId) throw new Error("Unexpected patient speech turn");
+      const audioBase64 = String(payload?.audio_base64 || "").trim();
+      const mimeType = String(payload?.mime_type || "audio/mpeg").toLowerCase();
+      stage = "decode";
+      speechDiagnostic("response", { channel, mimeType, hasAudio: !!audioBase64 });
+      if (!audioBase64) { speechDiagnostic("empty-audio"); lease.finish(); optionsRef.current.onError?.(new Error("Narration audio unavailable")); return; }
+      if (Platform.OS === "web") {
+        const url = createAudioBlobUrl(audioBase64, mimeType);
+        const audio = new window.Audio(url);
+        audio.volume = 1.0; audio.muted = mutedRef.current;
+        webAudioUrlRef.current = url; webAudioRef.current = audio;
+        audio.onended = () => { if (current()) lease.finish(); };
+        audio.onerror = () => { if (current()) { speechDiagnostic("media-error", { mediaCode: audio.error?.code }); lease.finish(); optionsRef.current.onError?.(new Error("Audio playback failed")); } };
+        assertCurrent(); setIsSpeaking(true); optionsRef.current.onStart?.();
+        stage = "play";
+        await audio.play(); assertCurrent();
+        speechDiagnostic("playing", { channel, muted: audio.muted });
+        return;
+      }
+      const baseDir = FileSystem.cacheDirectory || FileSystem.documentDirectory;
+      if (!baseDir) throw new Error("No writable filesystem directory for audio playback.");
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: false, playsInSilentModeIOS: true }).catch(() => {});
+      assertCurrent();
+      const file = `${baseDir}${channel}-tts-${Date.now()}-${counterRef.current++}.${mimeType.includes("wav") ? "wav" : "mp3"}`;
+      await FileSystem.writeAsStringAsync(file, audioBase64, { encoding: FileSystem.EncodingType.Base64 });
+      if (!current()) { await FileSystem.deleteAsync(file, { idempotent: true }).catch(() => {}); return; }
+      soundFilePathRef.current = file; assertCurrent();
+      const { sound } = await Audio.Sound.createAsync({ uri: file }, { shouldPlay: false, volume: 1.0, isMuted: mutedRef.current });
+      if (!current()) { await sound.unloadAsync().catch(() => {}); return; }
+      soundRef.current = sound; assertCurrent();
+      await sound.setIsMutedAsync(mutedRef.current); assertCurrent();
+      sound.setOnPlaybackStatusUpdate(status => {
+        if (!current()) return;
+        if (!status.isLoaded && status.error) { lease.finish(); optionsRef.current.onError?.(new Error("Audio playback failed")); }
+        else if (status.isLoaded && status.didJustFinish) lease.finish();
+      });
+      setIsSpeaking(true); optionsRef.current.onStart?.();
+      await sound.playAsync(); assertCurrent();
+    } catch (error: any) {
+      if (current()) {
+        // Keep decoded audio after an autoplay rejection. The next user gesture
+        // calls play() directly, without another asynchronous TTS request.
+        if (Platform.OS === "web" && error?.name === "NotAllowedError" && webAudioRef.current) {
+          setIsSpeaking(false); setIsPaused(true);
+        } else lease.finish();
+        optionsRef.current.onError?.(playbackFailure(error, stage));
       }
     }
-
-    setIsSpeaking(false);
-  }, []);
-
-  const speak = useCallback(
-    async (text: string) => {
-      const inputText = String(text || "").trim();
-      if (!inputText) return;
-
-      try {
-        await stop();
-        const payload = await api.speakVoice({
-          text: inputText,
-          ...(voice ? { voice } : {}),
-          ...(speed ? { speed } : {}),
-        });
-
-        const audioBase64 = String(payload?.audio_base64 || "").trim();
-        const mimeType = String(payload?.mime_type || "audio/mpeg").toLowerCase();
-        if (!audioBase64) return;
-
-        if (Platform.OS === "web") {
-          const audioUrl = createAudioBlobUrl(audioBase64, mimeType);
-          const audio = new window.Audio(audioUrl);
-          audio.volume = 1.0;
-          audio.muted = false;
-          webAudioUrlRef.current = audioUrl;
-          webAudioRef.current = audio;
-          audio.onended = () => {
-            setIsSpeaking(false);
-            webAudioRef.current = null;
-            if (webAudioUrlRef.current) {
-              URL.revokeObjectURL(webAudioUrlRef.current);
-              webAudioUrlRef.current = null;
-            }
-          };
-          audio.onerror = () => {
-            setIsSpeaking(false);
-            onError?.(audio.error || new Error("Audio playback failed"));
-          };
-          setIsSpeaking(true);
-          await audio.play();
-          return;
-        }
-
-        const extension = mimeType.includes("wav") ? "wav" : "mp3";
-        const baseDir = FileSystem.cacheDirectory || FileSystem.documentDirectory;
-        if (!baseDir) throw new Error("No writable filesystem directory for audio playback.");
-
-        await Audio.setAudioModeAsync({
-          allowsRecordingIOS: false,
-          playsInSilentModeIOS: true,
-        }).catch(() => {});
-
-        const filePath = `${baseDir}mentor-tts-${Date.now()}.${extension}`;
-        await FileSystem.writeAsStringAsync(filePath, audioBase64, {
-          encoding: FileSystem.EncodingType.Base64,
-        });
-        soundFilePathRef.current = filePath;
-
-        const { sound } = await Audio.Sound.createAsync(
-          { uri: filePath },
-          { shouldPlay: false, volume: 1.0, isMuted: false }
-        );
-        soundRef.current = sound;
-        setIsSpeaking(true);
-        await sound.playAsync();
-
-        sound.setOnPlaybackStatusUpdate((status) => {
-          if (!status.isLoaded) {
-            if (status.error) {
-              setIsSpeaking(false);
-              onError?.(new Error(status.error));
-            }
-            return;
-          }
-          if (status.didJustFinish) {
-            void stop();
-          }
-        });
-      } catch (error) {
-        setIsSpeaking(false);
-        onError?.(error);
-      }
-    },
-    [onError, speed, stop, voice]
-  );
+  }, [channel, speed, voice, userId, scopeKey]);
 
   useEffect(() => {
-    return () => {
-      void stop();
-    };
-  }, [stop]);
-
-  return {
-    isSpeaking,
-    speak,
-    stop,
-  };
+    const owner = ownerRef.current!;
+    owner.stop();
+    if (channel === "patient") { owner.reserve(); if (!exclusive) owner.release(); }
+    return () => { owner.stop(); owner.release(); };
+  }, [userId, scopeKey, enabled, exclusive, channel]);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; ownerRef.current?.stop(); ownerRef.current?.release(); };
+  }, []);
+  const capture = useCallback(() => {
+    const valid = ownerRef.current!.capture();
+    const speechScope = contextRef.current.scopeKey;
+    return () => valid() && mountedRef.current && optionsRef.current.enabled && contextRef.current.userId === userId && contextRef.current.scopeKey === speechScope;
+  }, [userId, scopeKey]);
+  useEffect(() => {
+    if (webAudioRef.current) webAudioRef.current.muted = muted;
+    void soundRef.current?.setIsMutedAsync(muted).catch(() => {});
+  }, [muted]);
+  const pause = useCallback(async () => {
+    if (webAudioRef.current) webAudioRef.current.pause();
+    await soundRef.current?.pauseAsync().catch(() => {});
+    if (mountedRef.current) { setIsPaused(true); setIsSpeaking(false); }
+  }, []);
+  const resume = useCallback(async () => {
+    const valid = ownerRef.current!.capture();
+    const scope = contextRef.current.scopeKey;
+    const audio = webAudioRef.current; const sound = soundRef.current;
+    try {
+      if (audio) await audio.play();
+      else if (sound) await sound.playAsync();
+      else return;
+      if (mountedRef.current && valid() && scope === contextRef.current.scopeKey) { setIsPaused(false); setIsSpeaking(true); }
+    } catch (error) { if (mountedRef.current && valid() && scope === contextRef.current.scopeKey) optionsRef.current.onError?.(playbackFailure(error, "resume")); }
+  }, []);
+  return { isSpeaking, isPaused, speak, stop, capture, pause, resume };
 }

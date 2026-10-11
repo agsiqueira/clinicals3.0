@@ -1,9 +1,8 @@
-import { deleteItemAsync, getItemAsync, setItemAsync } from "../utils/storage";
+import { authenticatedFetch } from "./sessionToken";
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 const REQUEST_TIMEOUT_MS = 10000;
 const TTS_REQUEST_TIMEOUT_MS = 90000;
-const TOKEN_READ_TIMEOUT_MS = 1500;
 
 if (!BASE_URL) {
   throw new Error("Missing EXPO_PUBLIC_API_BASE_URL in .env");
@@ -15,99 +14,69 @@ function apiUrl(path) {
   return `${BASE_URL}${API_PREFIX}${path}`;
 }
 
-function withTimeout(promise, ms, fallback) {
-  return Promise.race([
-    promise,
-    new Promise((resolve) => setTimeout(() => resolve(fallback), ms)),
-  ]);
-}
-
-async function getStoredToken() {
-  try {
-    return await withTimeout(
-      getItemAsync("token"),
-      TOKEN_READ_TIMEOUT_MS,
-      null
-    );
-  } catch {
-    return null;
-  }
-}
-
-async function request(path, { method = "GET", body, headers } = {}) {
-  const token = await getStoredToken();
+async function request(path, { method = "GET", body, headers, signal, timeoutMs: timeoutOverride } = {}) {
+  // Legacy optional argument now carries local session context; it is never an identity header.
+  const { expectedUserId, ...transportHeaders } = headers || {};
   const controller = new AbortController();
-  const timeoutMs =
-    String(method).toUpperCase() === "POST" && path === "/voice/speak"
+  const timeoutMs = timeoutOverride ?? (
+    String(method).toUpperCase() === "POST" && ["/voice/speak", "/voice/patient-speak"].includes(path)
       ? TTS_REQUEST_TIMEOUT_MS
-      : REQUEST_TIMEOUT_MS;
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+      : REQUEST_TIMEOUT_MS
+  );
+  const abort = () => controller.abort();
+  signal?.addEventListener("abort", abort, { once: true });
+  if (signal?.aborted) controller.abort();
+  let timedOut = false;
+  const timeoutId = setTimeout(() => { timedOut = true; controller.abort(); }, timeoutMs);
 
-  let res;
   try {
-    res = await fetch(apiUrl(path), {
+    const res = await authenticatedFetch(apiUrl(path), {
       method,
+      expectedUserId,
       headers: {
         "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...(headers || {}),
+        ...transportHeaders,
       },
       body: body ? JSON.stringify(body) : undefined,
       signal: controller.signal,
     });
+    const text = await res.text();
+    let data;
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch {
+      data = text;
+    }
+    if (!res.ok) {
+      const msg = (data && (data.error || data.message)) || `Request failed: ${res.status} ${res.statusText}`;
+      const error = new Error(msg);
+      error.status = res.status;
+      error.data = data;
+      throw error;
+    }
+    return data;
   } catch (err) {
-    if (err?.name === "AbortError") {
-      throw new Error(
-        `Request timed out. Verify EXPO_PUBLIC_API_BASE_URL (${BASE_URL}) and that the backend is reachable from this device.`
-      );
+    if (err?.name === "AbortError" && timedOut && !signal?.aborted) {
+      const error = new Error("Request timed out. Refresh saved progress before retrying a submitted answer.");
+      error.code = "REQUEST_TIMEOUT";
+      throw error;
     }
     throw err;
   } finally {
     clearTimeout(timeoutId);
+    signal?.removeEventListener("abort", abort);
   }
-
-  const text = await res.text();
-  let data;
-  try {
-    data = text ? JSON.parse(text) : null;
-  } catch {
-    data = text; // if backend returns non-JSON
-  }
-
-  if (!res.ok) {
-    const msg =
-      (data && (data.error || data.message)) ||
-      `Request failed: ${res.status} ${res.statusText}`;
-    const err = new Error(msg);
-    err.status = res.status;
-    err.data = data;
-    throw err;
-  }
-
-  return data;
 }
 
 export const api = {
   // ---- Test: health / ping
   health: () => request("/health"),
 
-  // ---- Auth (edit paths + fields to match your backend)
-  login: async (email, password) => {
-    const data = await request("/auth/login", {
-      method: "POST",
-      body: { email, password },
-    });
-    // Expecting { token: "..." } from backend
-    if (data?.token) await setItemAsync("token", data.token);
-    return data;
-  },
-
-  logout: async () => {
-    await deleteItemAsync("token");
-  },
-
   // to view previous attempts for a case
   getAttemptsByCase: (caseId, headers) => request(`/conversations/by-case/${caseId}`, { headers }),
+
+  getModule0Progress: (headers, signal) => request("/modules/clinical-readiness", { headers, signal }),
+  submitModule0Interaction: (payload, headers, signal) => request("/modules/clinical-readiness/interactions", { method: "POST", body: payload, headers, signal, timeoutMs: 45000 }),
 
   // ---- Clinicals 2.0 roadmap
   getLearningPaths: (headers) => request("/learning-paths", { headers }),
@@ -125,6 +94,7 @@ export const api = {
       body: payload,
       headers,
     }),
+  speakPatientVoice: (payload, headers) => request("/voice/patient-speak", { method: "POST", body: payload, headers }),
   speakVoice: (payload, headers) =>
     request("/voice/speak", {
       method: "POST",

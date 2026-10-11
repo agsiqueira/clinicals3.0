@@ -37,6 +37,10 @@ async function createSessionAttemptForConversation({
   conversationId,
   patientSessionSlug,
 }) {
+  const ownedConversation = await prisma.conversation.findFirst({ where: { id: conversationId, userId } });
+  if (!userId || !ownedConversation) { const error = new Error("Not found"); error.status = 404; throw error; }
+  const existingAttempt = await prisma.sessionAttempt.findUnique({ where: { conversationId } });
+  if (existingAttempt && existingAttempt.userId !== userId) { const error = new Error("Not found"); error.status = 404; throw error; }
   const patientSession = await resolvePatientSessionForAttempt({
     caseRecordId,
     patientSessionSlug,
@@ -51,10 +55,7 @@ async function createSessionAttemptForConversation({
       conversationId,
       status: "IN_PROGRESS",
     },
-    update: {
-      userId,
-      patientSessionId: patientSession.id,
-    },
+    update: {},
   });
 }
 
@@ -64,7 +65,10 @@ async function getOrCreateSessionAttemptForConversation(conversation, patientSes
   const existing = await prisma.sessionAttempt.findUnique({
     where: { conversationId: conversation.id },
   });
-  if (existing) return existing;
+  if (existing) {
+    if (existing.userId !== conversation.userId) { const error = new Error("Not found"); error.status = 404; throw error; }
+    return existing;
+  }
 
   return createSessionAttemptForConversation({
     userId: conversation.userId,
@@ -257,7 +261,7 @@ function buildSessionDebriefPayload({
   };
 }
 
-async function finalizeSessionAttemptFromSubmission({ sessionAttemptId, submission }) {
+async function finalizeSessionAttemptFromSubmission({ sessionAttemptId, submission, userId }) {
   if (!sessionAttemptId || !submission) return null;
 
   const sessionAttempt = await prisma.sessionAttempt.findUnique({
@@ -275,6 +279,9 @@ async function finalizeSessionAttemptFromSubmission({ sessionAttemptId, submissi
   });
 
   if (!sessionAttempt) return null;
+  if (!userId || sessionAttempt.userId !== userId) { const error = new Error("Not found"); error.status = 404; throw error; }
+
+  if (submission.conversationId !== sessionAttempt.conversationId || submission.sessionAttemptId !== sessionAttempt.id) { const error = new Error("Not found"); error.status = 404; throw error; }
 
   const criteriaResults = submission.details?.criteria_results || [];
   const achievementResults = computeAchievementResults(
@@ -408,7 +415,7 @@ async function finalizeSessionAttemptFromSubmission({ sessionAttemptId, submissi
   };
 }
 
-async function getSessionDebriefForAttempt(sessionAttemptId) {
+async function getSessionDebriefForAttempt(sessionAttemptId, userId) {
   if (!sessionAttemptId) return null;
 
   const sessionAttempt = await prisma.sessionAttempt.findUnique({
@@ -424,6 +431,7 @@ async function getSessionDebriefForAttempt(sessionAttemptId) {
   });
 
   if (!sessionAttempt) return null;
+  if (!userId || sessionAttempt.userId !== userId) { const error = new Error("Not found"); error.status = 404; throw error; }
 
   return buildSessionDebriefPayload({
     sessionAttemptId: sessionAttempt.id,

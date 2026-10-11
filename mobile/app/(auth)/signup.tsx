@@ -20,7 +20,8 @@ export default function SignupScreen() {
     const { signUp, setActive, isLoaded } = useSignUp();
 
     const [email, setEmail] = useState("");
-    const [username, setUsername] = useState("");
+    const [verificationCode, setVerificationCode] = useState("");
+    const [pendingVerification, setPendingVerification] = useState(false);
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
@@ -40,7 +41,7 @@ export default function SignupScreen() {
     }
 
     const handleSignUp = async () => {
-        if (!isLoaded || loading) return;
+        if (!isLoaded || !signUp || !setActive || loading) return;
 
         const trimmedEmail = email.trim();
         if (!trimmedEmail || !password) {
@@ -52,25 +53,17 @@ export default function SignupScreen() {
         setLoading(true);
 
         try {
-            const trimmedUsername = username.trim();
+            const result = pendingVerification
+                ? await signUp.attemptEmailAddressVerification({ code: verificationCode.trim() })
+                : await signUp.create({ emailAddress: trimmedEmail, password });
 
-            if (!trimmedEmail || !trimmedUsername || !password) {
-                setErrorMsg("Please enter username, email, and password.");
-                return;
-            }
-
-            const result = await signUp.create({
-                emailAddress: trimmedEmail,
-                password,
-                username: trimmedUsername,
-            });
-
-
-            // Clerk email verification is disabled for now
-            if (result.status !== "complete") {
-                setErrorMsg(
-                    "Signup is not complete. Disable email verification in Clerk or you must add a verify screen."
-                );
+            if (result.status !== "complete" || !result.createdSessionId) {
+                if (!pendingVerification && result.unverifiedFields.includes("email_address")) {
+                    await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
+                    setPendingVerification(true);
+                } else {
+                    setErrorMsg("Signup requires additional verification. Please complete email verification or contact support.");
+                }
                 return;
             }
 
@@ -106,20 +99,23 @@ export default function SignupScreen() {
                     </View>
                     
                     <Text style={authStyles.title}>Sign Up</Text>
-                    <Text style={authStyles.subtitle}>Create your account.</Text>
+                    <Text style={authStyles.subtitle}>{pendingVerification ? "Enter the code sent to your email." : "Create your account."}</Text>
 
                     {!!errorMsg && <Text style={authStyles.errorText}>{errorMsg}</Text>}
 
-                    <View style={authStyles.inputContainer}>
-                        <TextInput
-                            placeholder="Username"
-                            autoCapitalize="none"
-                            value={username}
-                            onChangeText={setUsername}
-                            style={authStyles.textInput}
-                        />
-                    </View>
-
+                    {pendingVerification ? (
+                        <View style={authStyles.inputContainer}>
+                            <TextInput
+                                value={verificationCode}
+                                onChangeText={setVerificationCode}
+                                placeholder="Email verification code"
+                                keyboardType="number-pad"
+                                autoComplete="one-time-code"
+                                textContentType="oneTimeCode"
+                                style={authStyles.textInput}
+                            />
+                        </View>
+                    ) : (<>
                     <View style={authStyles.inputContainer}>
                         <TextInput
                             value={email}
@@ -159,17 +155,19 @@ export default function SignupScreen() {
                         </TouchableOpacity>
                     </View>
 
+                    </>)}
+
                     <TouchableOpacity
                         style={[
                             authStyles.authButton,
-                            (!isLoaded || loading || !email.trim() || !username.trim() || !password) && authStyles.buttonDisabled,
+                            (!isLoaded || loading || (pendingVerification ? !verificationCode.trim() : !email.trim() || !password)) && authStyles.buttonDisabled,
                         ]}
                         activeOpacity={0.8}
-                        disabled={!isLoaded || loading || !email.trim() || !username.trim() || !password}
+                        disabled={!isLoaded || loading || (pendingVerification ? !verificationCode.trim() : !email.trim() || !password)}
                         onPress={handleSignUp}
                     >
                         <Text style={authStyles.buttonText}>
-                        {loading ? "Creating..." : "Create Account"}
+                        {loading ? "Please wait..." : pendingVerification ? "Verify Email" : "Create Account"}
                         </Text>
                     </TouchableOpacity>
 

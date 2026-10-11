@@ -2,6 +2,7 @@ const DEFAULT_BASE_URL = "https://api.ai.it.ufl.edu";
 const DEFAULT_CHAT_TIMEOUT_MS = 30000;
 const DEFAULT_GRADING_TIMEOUT_MS = 180000;
 const DEFAULT_TTS_TIMEOUT_MS = 60000;
+const { lessonError, failureCode } = require("../utils/lessonEvaluationErrors");
 
 function readTimeoutMs(raw, fallback) {
   if (Number.isFinite(raw) && raw > 0) {
@@ -52,7 +53,8 @@ async function callNavigatorChat({
   temperature = 0.4,
   maxTokens = 250,
   stop = null,
-  timeoutMs = DEFAULT_CHAT_TIMEOUT_MS
+  timeoutMs = DEFAULT_CHAT_TIMEOUT_MS,
+  lessonFeedback = false
 }) {
   const { apiKey, baseUrl } = getNavigatorConfig();
 
@@ -81,9 +83,29 @@ async function callNavigatorChat({
       body: JSON.stringify(payload),
       signal: controller.signal
     });
+    if (lessonFeedback) {
+      // Do not consume or forward upstream error bodies; they may echo input.
+      if (!response.ok) {
+        await response.body?.cancel().catch(() => {});
+        throw lessonError("UPSTREAM_ERROR", response.status);
+      }
+      let data;
+      try { data = await response.json(); }
+      catch (error) { if (error?.name === "AbortError") throw error; throw lessonError("UPSTREAM_INVALID_JSON"); }
+      const choice = data?.choices?.[0];
+      if (choice?.finish_reason === "length") throw lessonError("OUTPUT_TRUNCATED");
+      const message = choice?.message?.content;
+      if (typeof message !== "string" || !message.trim()) throw lessonError("UPSTREAM_EMPTY_RESPONSE");
+      return message.trim();
+    }
   } catch (err) {
     if (err?.name === "AbortError") {
+      if (lessonFeedback) throw lessonError("UPSTREAM_TIMEOUT");
       throw new Error(`NaviGator API timed out after ${timeoutMs}ms`);
+    }
+    if (lessonFeedback) {
+      if (failureCode(err) !== "EVALUATION_FAILED") throw err;
+      throw lessonError("UPSTREAM_REQUEST_FAILED");
     }
     throw err;
   } finally {
@@ -115,6 +137,18 @@ async function createPatientReply({ systemPrompt, messages }) {
   });
 }
 
+async function createLessonReply({ systemPrompt, messages, timeoutMs }) {
+  let chatModel;
+  try { ({ chatModel } = getNavigatorConfig()); }
+  catch { throw lessonError("UPSTREAM_CONFIGURATION"); }
+  return callNavigatorChat({
+    model: chatModel, temperature: 0, maxTokens: 512,
+    timeoutMs: Math.min(getChatTimeoutMs(), 30000, timeoutMs),
+    lessonFeedback: true, // JSON teaching has no patient-specific stop sequences.
+    messages: [{ role: "system", content: systemPrompt }, ...messages],
+  });
+}
+
 async function createRubricEval({ systemPrompt, userPrompt }) {
   const { gradingModel } = getNavigatorConfig();
   return callNavigatorChat({
@@ -129,7 +163,7 @@ async function createRubricEval({ systemPrompt, userPrompt }) {
   });
 }
 
-function getTtsConfig(overrides = {}) {
+function getTtsConfig(overrides = {}, { allowMissingVoice = false } = {}) {
   // Note: the current development NaviGator key only has access to
   // granite-3.3-8b-instruct. Audio playback requires a key/model with TTS
   // access, configured via NAVIGATOR_TTS_MODEL and NAVIGATOR_TTS_VOICE.
@@ -142,7 +176,7 @@ function getTtsConfig(overrides = {}) {
     .toLowerCase();
   const voice = String(overrides.voice || process.env.NAVIGATOR_TTS_VOICE || "").trim();
 
-  if (!voice) {
+  if (!voice && !allowMissingVoice) {
     throw new Error("NAVIGATOR_TTS_VOICE is not set");
   }
 
@@ -158,12 +192,10 @@ function isDevelopment() {
   return process.env.NODE_ENV !== "production";
 }
 
-function debugLog(...args) {
-  if (isDevelopment()) console.log(...args);
+function debugLog(event) { require("../utils/safeDiagnostics").diagnostic(event);
 }
 
-function debugError(...args) {
-  if (isDevelopment()) console.error(...args);
+function debugError() { require("../utils/safeDiagnostics").diagnostic("Upstream operation failed");
 }
 
 function sanitizeHeaders(headers) {
@@ -327,4 +359,4 @@ async function transcribeAudio({
   };
 }
 
-module.exports = { createPatientReply, createRubricEval, createSpeechAudio, transcribeAudio };
+module.exports = { createPatientReply, createLessonReply, createRubricEval, createSpeechAudio, transcribeAudio, getTtsConfig };

@@ -9,28 +9,18 @@ const {
   normalizePreceptorChatMessages,
 } = require("../utils/preceptorChat");
 
+const { requireModule0, getModule0Summary, applyModule0ToRoadmap } = require("../services/module0Access");
 const router = express.Router();
 
-function getClerkUserId(req) {
-  return req.header("x-clerk-user-id");
-}
-
 async function resolveUser(req) {
-  const clerkUserId = getClerkUserId(req);
-  if (!clerkUserId) {
-    return null;
-  }
-  const name = req.header("x-user-name") || undefined;
-  const email = req.header("x-user-email") || undefined;
-  const imageUrl = req.header("x-user-image") || undefined;
-  return getOrCreateUser(clerkUserId, { name, email, imageUrl });
+  return require("../utils/userResolver").resolveAuthenticatedUser(req);
 }
 
 router.get("/", async (req, res, next) => {
   try {
     const user = await resolveUser(req);
     if (!user) {
-      res.status(401).json({ error: "Missing x-clerk-user-id header" });
+      res.status(401).json({ error: "Authentication required" });
       return;
     }
 
@@ -59,7 +49,8 @@ router.get("/", async (req, res, next) => {
       orderBy: { sortOrder: "asc" },
     });
 
-    res.json(buildLearningPathRoadmap(paths));
+    const summary = await getModule0Summary({ userId: user.id, client: prisma });
+    res.json(applyModule0ToRoadmap(buildLearningPathRoadmap(paths), summary));
   } catch (err) {
     next(err);
   }
@@ -69,7 +60,7 @@ router.post("/patient-sessions/:slug/preceptor-chat", async (req, res, next) => 
   try {
     const user = await resolveUser(req);
     if (!user) {
-      res.status(401).json({ error: "Missing x-clerk-user-id header" });
+      res.status(401).json({ error: "Authentication required" });
       return;
     }
 
@@ -107,6 +98,7 @@ router.post("/patient-sessions/:slug/preceptor-chat", async (req, res, next) => 
       return;
     }
 
+    await requireModule0(req, prisma);
     const chatMessages = [
       ...normalizePreceptorChatMessages(messages),
       { role: "user", content: userMessage },
@@ -130,7 +122,7 @@ router.get("/patient-sessions/:slug", async (req, res, next) => {
   try {
     const user = await resolveUser(req);
     if (!user) {
-      res.status(401).json({ error: "Missing x-clerk-user-id header" });
+      res.status(401).json({ error: "Authentication required" });
       return;
     }
 

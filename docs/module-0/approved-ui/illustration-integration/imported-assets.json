@@ -1,0 +1,180 @@
+[
+  {
+    "filename": "history-medications-allergies.png",
+    "exerciseId": "history-and-context",
+    "panelNumber": 2,
+    "panelTitle": "Review medical history",
+    "description": "Medication and allergy discussion with patient",
+    "suggestedDestination": "mobile/assets/module0/history-medications-allergies.png",
+    "status": "approved-user-integration",
+    "sourceArchive": "Clinicals3_Module0_Eight_Illustrations.zip",
+    "sourceEntry": "history-medications-allergies.png",
+    "sha256": "99f4a619cf7a142e735b3c42cb207758ee5225a780d9c00adba1f3730221c79e",
+    "dimensions": [
+      362,
+      383
+    ],
+    "accessibleDescription": "A clinician discusses medication and allergy history with an older patient, alongside medicine and allergy symbols.",
+    "type": "scene"
+  },
+  {
+    "filename": "history-surgical-family-context.png",
+    "exerciseId": "history-and-context",
+    "panelNumber": 3,
+    "panelTitle": "Surgical and family history",
+    "description": "Surgical and family health background",
+    "suggestedDestination": "mobile/assets/module0/history-surgical-family-context.png",
+    "status": "approved-user-integration",
+    "sourceArchive": "Clinicals3_Module0_Eight_Illustrations.zip",
+    "sourceEntry": "history-surgical-family-context.png",
+    "sha256": "407285f84c80a89e3391c91f7421266e9ee946e6a34ee321ea2f1421a018bb5c",
+    "dimensions": [
+      366,
+      383
+    ],
+    "accessibleDescription": "A clinician asks an older patient about prior surgery and family health, with surgical and family-tree motifs.",
+    "type": "scene"
+  },
+  {
+    "filename": "history-social-environmental-context.png",
+    "exerciseId": "history-and-context",
+    "panelNumber": 4,
+    "panelTitle": "Understand daily life",
+    "description": "Patient-led living, work, and social support context",
+    "suggestedDestination": "mobile/assets/module0/history-social-environmental-context.png",
+    "status": "approved-user-integration",
+    "sourceArchive": "Clinicals3_Module0_Eight_Illustrations.zip",
+    "sourceEntry": "history-social-environmental-context.png",
+    "sha256": "fd149b03cce85afa12805df74e477d798156a570ad4b55a7fecfeeb2b9a936f6",
+    "dimensions": [
+      370,
+      383
+    ],
+    "accessibleDescription": "A clinician and older patient discuss daily life, with home, work, and social-support symbols.",
+    "type": "scene"
+  },
+  {
+    "filename": "ros-systematic-symptom-questions.png",
+    "exerciseId": "review-of-systems",
+    "panelNumber": 2,
+    "panelTitle": "Use a systematic review",
+    "description": "Patient-reported symptom questions across organ systems",
+    "suggestedDestination": "mobile/assets/module0/ros-systematic-symptom-questions.png",
+    "status": "approved-user-integration",
+    "sourceArchive": "Clinicals3_Module0_Eight_Illustrations.zip",
+    "sourceEntry": "ros-systematic-symptom-questions.png",
+    "sha256": "ee4f22a3502546111f41972c68f6652dfbd259b8aefedbfbb24740c4137443c9",
+    "dimensions": [
+      368,
+      383
+    ],
+    "accessibleDescription": "A clinician asks a patient about symptoms across body systems, illustrated by a body silhouette and organ symbols.",
+    "type": "scene"
+  },
+  {
+    "filename": "ros-symptoms-in-history.png",
+    "exerciseId": "review-of-systems",
+    "panelNumber": 4,
+    "panelTitle": "Connect ROS to the history",
+    "description": "Connecting patient-reported symptoms to the history",
+    "suggestedDestination": "mobile/assets/module0/ros-symptoms-in-history.png",
+    "status": "approved-user-integration",
+    "sourceArchive": "Clinicals3_Module0_Eight_Illustrations.zip",
+    "sourceEntry": "ros-symptoms-in-history.png",
+    "sha256": "4476524c19460fd21e04db3344d07981f82a17c5157ac859e498ee992f878403",
+    "dimensions": [
+      362,
+      359
+    ],
+    "accessibleDescription": "A clinician listens to reported symptoms and records the history, with symptom and timeline motifs.",
+    "type": "scene"
+  },
+  {
+    "filename": "focused-examination-purpose.png",
+    "exerciseId": "focused-examination",
+    "panelNumber": 1,
+    "panelTitle": "Examine with a purpose",
+    "description": "Purposeful clinician–patient focused examination",
+    "suggestedDestination": "mobile/assets/module0/focused-examination-purpose.png",
+    "status": "approved-user-integration",
+    "sourceArchive": "Clinicals3_Module0_Eight_Illustrations.zip",
+    "sourceEntry": "focused-examination-purpose.png",
+    "sha256": "22e9c07f90a53e0a7d607bbf22087d7e1e58c445b87e764dc187a1d6adb490ac",
+    "dimensions": [
+      366,
+      359
+    ],
+    "accessibleDescription": "A clinician performs a focused chest examination on a seated patient using a stethoscope.",
+    "type": "scene"
+  },
+  {
+    "filename": "focused-examination-guided-by-history.png",
+    "exerciseId": "focused-examination",
+    "panelNumber": 2,
+    "panelTitle": "Let history guide the exam",
+    "description": "History guiding relevant examination choices",
+    "suggestedDestination": "mobile/assets/module0/focused-examination-guided-by-history.png",
+    "status": "approved-user-integration",
+    "sourceArchive": "Clinicals3_Module0_Eight_Illustrations.zip",
+    "sourceEntry": "focused-examination-guided-by-history.png",
+    "sha256": "d02db890cb548158750a9b8ed0ccd94b5a97775d5359e6e6328360b93803ab29",
+    "dimensions": [
+      370,
+      359
+    ],
+    "accessibleDescription": "A clinician discusses a relevant chest examination with a patient, alongside a chest and lung illustration.",
+    "type": "scene"
+  },
+  {
+    "filename": "focused-findings-support-challenge.png",
+    "exerciseId": "focused-examination",
+    "panelNumber": 4,
+    "panelTitle": "Connect findings to reasoning",
+    "description": "Findings supporting or challenging multiple clinical possibilities",
+    "suggestedDestination": "mobile/assets/module0/focused-findings-support-challenge.png",
+    "status": "approved-user-integration",
+    "sourceArchive": "Clinicals3_Module0_Eight_Illustrations.zip",
+    "sourceEntry": "focused-findings-support-challenge.png",
+    "sha256": "b4ce776775461c282a37e605586754d602f27596d87dacd0ce599966ba33eaa6",
+    "dimensions": [
+      368,
+      359
+    ],
+    "accessibleDescription": "A clinician and patient consider two chest-imaging examples marked with a check and a question.",
+    "type": "scene"
+  },
+  {
+    "filename": "clinical-reasoning-possibilities.png",
+    "exerciseId": "evidence-and-differential",
+    "panelNumber": 2,
+    "panelTitle": "Identify plausible explanations",
+    "sourceArchive": "Clinicals3_Module0_Illustrations_Set02.zip",
+    "sourceEntry": "Clinicals3_Module0_Illustrations_Set02/04_clinical_reasoning_from_ideas_to_decisions.png",
+    "sha256": "fc7c7201e26fc2f9a815b3c7efef96bc87feb20d23ff740e104acf0ff8854377",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "accessibleDescription": "A clinical mentor and learner discuss possible explanations, with a thought-network and evidence symbols.",
+    "status": "approved-user-integration",
+    "type": "scene"
+  },
+  {
+    "filename": "focused-findings-support-challenge-v2.png",
+    "exerciseId": "focused-examination",
+    "panelNumber": 4,
+    "panelTitle": "Connect findings to reasoning",
+    "description": "Lung auscultation contributes to clinical reasoning",
+    "suggestedDestination": "mobile/assets/module0/focused-findings-support-challenge-v2.png",
+    "status": "approved-user-integration",
+    "sourceArchive": null,
+    "sourceEntry": "C:/Users/alexa/Downloads/stethoscope_and_diagnostic_possibilities.png",
+    "sha256": "7eb49fea15e427c97d41df4fac664f784463d92c131242fc71575758991339be",
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "accessibleDescription": "A clinician listens to an older patient’s lungs with a stethoscope, alongside lung and sound symbols marked with a check and a question.",
+    "type": "scene"
+  }
+]

@@ -1,0 +1,15 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="274" height="240" viewBox="0 0 274 240" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Module completion illustration">
+<path id="Vector" d="M137 199.636C180.582 199.636 215.912 164.47 215.912 121.091C215.912 77.7114 180.582 42.5455 137 42.5455C93.4181 42.5455 58.088 77.7114 58.088 121.091C58.088 164.47 93.4181 199.636 137 199.636Z" fill="#E4F8EE"/>
+<path id="Vector_2" d="M137 182.182C170.897 182.182 198.376 154.83 198.376 121.091C198.376 87.3513 170.897 60 137 60C103.103 60 75.624 87.3513 75.624 121.091C75.624 154.83 103.103 182.182 137 182.182Z" fill="#27BC84"/>
+<path id="Vector_3" d="M105.216 120L127.136 141.818L168.784 94.9091" stroke="white" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+<g id="Vector_4">
+<path d="M30.688 57.8182L43.84 70.9091ZM212.624 29.4545L201.664 44.7273ZM42.744 189.818L63.568 178.909ZM233.448 187.636L218.104 172.364Z" fill="black"/>
+<path d="M30.688 57.8182L43.84 70.9091M212.624 29.4545L201.664 44.7273M42.744 189.818L63.568 178.909M233.448 187.636L218.104 172.364" stroke="#6952E9" stroke-width="8" stroke-linecap="round"/>
+</g>
+<g id="Vector_5">
+<path d="M56.992 27.2727L72.336 34.9091ZM221.392 79.6364L240.024 76.3636ZM81.104 216L67.952 201.818ZM173.168 219.273L181.936 202.909Z" fill="black"/>
+<path d="M56.992 27.2727L72.336 34.9091M221.392 79.6364L240.024 76.3636M81.104 216L67.952 201.818M173.168 219.273L181.936 202.909" stroke="#FFCE47" stroke-width="7" stroke-linecap="round"/>
+</g>
+</g>
+</svg>

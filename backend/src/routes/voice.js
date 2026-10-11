@@ -7,12 +7,10 @@ function isDevelopment() {
   return process.env.NODE_ENV !== "production";
 }
 
-function debugLog(...args) {
-  if (isDevelopment()) console.log(...args);
+function debugLog(event) { require("../utils/safeDiagnostics").diagnostic(event);
 }
 
-function debugError(...args) {
-  if (isDevelopment()) console.error(...args);
+function debugError() { require("../utils/safeDiagnostics").diagnostic("Upstream operation failed");
 }
 
 function parseErrorBody(error) {
@@ -48,6 +46,37 @@ function getTtsUnavailableReason(error) {
   }
   return null;
 }
+
+const prisma = require("../db/prisma");
+const { requireModule0 } = require("../services/module0Access");
+const { approvePatientSpeech, verifyPatientSpeech, ownedActiveEncounter } = require("../utils/patientSpeech");
+
+router.post("/patient-greeting", async (req, res, next) => {
+  try {
+    const { conversationId, caseId } = req.body || {};
+    const clerkUserId = req.studentIdentity?.clerkUserId;
+    await ownedActiveEncounter(prisma, clerkUserId, conversationId, caseId);
+    await requireModule0(req, prisma);
+    const reply = "Hello.";
+    const speech = approvePatientSpeech({ text: reply, clerkUserId, conversationId, caseId });
+    res.json({ reply, speech });
+  } catch (error) { next(error); }
+});
+
+router.post("/patient-speak", async (req, res, next) => {
+  try {
+    const { authorization, conversationId, caseId } = req.body || {};
+    if (Object.keys(req.body || {}).some(name => !["authorization", "conversationId", "caseId"].includes(name))) {
+      res.status(400).json({ error: "Patient speech accepts only server-approved content and settings" }); return;
+    }
+    const clerkUserId = req.studentIdentity?.clerkUserId;
+    const approved = verifyPatientSpeech({ authorization, clerkUserId, conversationId, caseId });
+    await ownedActiveEncounter(prisma, clerkUserId, conversationId, caseId);
+    await requireModule0(req, prisma);
+    const { audioBase64, mimeType } = await createSpeechAudio({ text: approved.text.slice(0, 1200), ...approved.settings });
+    res.json({ audio_base64: audioBase64, mime_type: mimeType, turnId: approved.turnId });
+  } catch (error) { next(error); }
+});
 
 router.post("/speak", async (req, res, next) => {
   try {
@@ -106,19 +135,6 @@ router.post("/speak", async (req, res, next) => {
           unavailableReason === "key_model_access_denied"
             ? "Configured key does not have access to the requested TTS model."
             : "Configured TTS model is unavailable for this key or endpoint."
-      });
-      return;
-    }
-
-    if (isDevelopment()) {
-      res.status(500).json({
-        error: err?.message || "Internal Server Error",
-        stack: err?.stack || null,
-        upstream: {
-          status: err?.status || null,
-          headers: err?.headers || null,
-          responseBody: err?.responseBody || null
-        }
       });
       return;
     }

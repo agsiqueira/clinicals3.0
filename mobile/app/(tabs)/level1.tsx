@@ -1,3 +1,6 @@
+import { useIsFocused } from "@react-navigation/native";
+import { readEncounterDraft, saveEncounterDraft } from "../../src/api/encounterDraft";
+import { authenticatedFetch, captureSession } from "../../src/api/sessionToken";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -86,29 +89,18 @@ function getRequestTimeoutMs(path: string, method: string) {
   if (method === "POST" && /^\/conversations\/[^/]+\/submit$/.test(path)) {
     return SUBMIT_REQUEST_TIMEOUT_MS;
   }
-  if (method === "POST" && path === "/voice/speak") {
+  if (method === "POST" && ["/voice/speak", "/voice/patient-speak"].includes(path)) {
     return TTS_REQUEST_TIMEOUT_MS;
   }
   return DEFAULT_REQUEST_TIMEOUT_MS;
 }
 
-function createAudioBlobUrl(audioBase64: string, mimeType: string) {
-  const binary = window.atob(audioBase64);
-  const bytes = new Uint8Array(binary.length);
-  for (let index = 0; index < binary.length; index += 1) {
-    bytes[index] = binary.charCodeAt(index);
-  }
-  const blob = new Blob([bytes], { type: mimeType || "audio/mpeg" });
-  return URL.createObjectURL(blob);
-}
-
-async function request(
+async function sessionRequest(
   path: string,
-  opts: { method?: string; body?: any; headers?: Record<string, string> } = {}
+  opts: { method?: string; body?: any; headers?: Record<string, string>; expectedUserId?: string | null } = {}
 ) {
   if (!BASE_URL) throw new Error("Missing EXPO_PUBLIC_API_BASE_URL in .env");
 
-  const token = await getItemAsync("token");
   const method = String(opts.method || "GET").toUpperCase();
   const timeoutMs = getRequestTimeoutMs(path, method);
 
@@ -117,11 +109,11 @@ async function request(
   let res: Response;
 
   try {
-    res = await fetch(`${BASE_URL}${API_PREFIX}${path}`, {
+    res = await authenticatedFetch(`${BASE_URL}${API_PREFIX}${path}`, {
       method,
+      expectedUserId: opts.expectedUserId,
       headers: {
         "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(opts.headers || {}),
       },
       body: opts.body ? JSON.stringify(opts.body) : undefined,
@@ -508,6 +500,13 @@ function summarizeCriteriaAchievement(
 }
 
 export default function Level1Screen() {
+  const isFocused = useIsFocused();
+  const { userId: authUserId } = useAuth();
+  const { user } = useUser();
+  const request = useCallback((path: string, opts: { method?: string; body?: any; headers?: Record<string, string> } = {}) => {
+    const { expectedUserId: _context, ...headers } = opts.headers || {};
+    return sessionRequest(path, { ...opts, headers, expectedUserId: authUserId ?? null });
+  }, [authUserId]);
   const params = useLocalSearchParams();
   const router = useRouter();
   const { width } = useWindowDimensions();
@@ -534,35 +533,44 @@ export default function Level1Screen() {
     return String(value).toLowerCase() === "true";
   }, [params.requiresHpi]);
   const conversationStorageKey = useMemo(
-    () => `conv_${patientSessionSlug || caseId}`,
-    [caseId, patientSessionSlug]
+    () => `conv_${authUserId}_${patientSessionSlug || caseId}`,
+    [authUserId, caseId, patientSessionSlug]
   );
 
+  const recoveredDraft = readEncounterDraft(conversationStorageKey);
+  const skipCheckpointRef = useRef(true);
   const [loadingCase, setLoadingCase] = useState(true);
   const [sending, setSending] = useState(false);
   const [caseData, setCaseData] = useState<CaseData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [persistenceError, setPersistenceError] = useState<string | null>(recoveredDraft?.persistenceError || null);
 
-  const [input, setInput] = useState("");
-  const [messages, setMessages] = useState<Msg[]>([]);
+  const [input, setInput] = useState(recoveredDraft?.input || "");
+  const [messages, setMessages] = useState<Msg[]>(recoveredDraft?.messages || []);
   const listRef = useRef<FlatList<Msg>>(null);
-  const [conversationId, setConversationId] = useState<string | null>(null);
-  const [pendingMessages, setPendingMessages] = useState<Msg[]>([]);
+  const encounterContextRef = useRef(conversationStorageKey);
+  encounterContextRef.current = conversationStorageKey;
+  const [conversationId, setConversationId] = useState<string | null>(recoveredDraft?.conversationId || null);
+  const [pendingMessages, setPendingMessages] = useState<Msg[]>(recoveredDraft?.pendingMessages || []);
   const [creatingConversation, setCreatingConversation] = useState(false);
   const conversationCreationRef = useRef(false);
+  const conversationCreationPromiseRef = useRef<Promise<string | null> | null>(null);
+  const messageWritesRef = useRef(new Set<Promise<boolean>>());
+  const uncertainMessageWriteRef = useRef(Boolean(recoveredDraft?.uncertainWrite));
   const answerInProgressRef = useRef(false);
   const hangUpInProgressRef = useRef(false);
   const callEndedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const patientGreetingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const patientGreetingGenerationRef = useRef(0);
+  const encounterGenerationRef = useRef(0);
   const greetedConversationIdsRef = useRef(new Set<string>());
   const [callState, setCallState] = useState<CallState>("incoming");
   const callStateRef = useRef<CallState>("incoming");
   const [callStartedAt, setCallStartedAt] = useState<number | null>(null);
   const [elapsedCallSeconds, setElapsedCallSeconds] = useState(0);
   const [answeringCall, setAnsweringCall] = useState(false);
-  const [stage, setStage] = useState<"chat" | "hpi" | "results">("chat");
-  const [hpiText, setHpiText] = useState("");
+  const [stage, setStage] = useState<"chat" | "hpi" | "results">(recoveredDraft?.stage || "chat");
+  const [hpiText, setHpiText] = useState(recoveredDraft?.hpiText || "");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submissionResult, setSubmissionResult] = useState<SubmissionResult | null>(null);
@@ -579,6 +587,8 @@ export default function Level1Screen() {
   });
   const debriefMentorSpeech = useSpeechPlayback({
     voice: MENTOR_TTS_VOICE,
+    enabled: isFocused && debriefVisible && stage === "results",
+    scopeKey: `${authUserId}:${caseId}:${conversationId}:${stage}:${debriefVisible}`,
     onError: () => {
       // Keep debrief chat usable when mentor TTS is unavailable.
     },
@@ -590,11 +600,8 @@ export default function Level1Screen() {
   const [resumeCheckComplete, setResumeCheckComplete] = useState(false);
   const { voiceEnabled, setVoiceEnabled } = useVoicePreference();
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const sendInProgressRef = useRef(false);
   const [patientVisualSpeaking, setPatientVisualSpeaking] = useState(false);
-  const soundRef = useRef<Audio.Sound | null>(null);
-  const soundFilePathRef = useRef<string | null>(null);
-  const webAudioRef = useRef<HTMLAudioElement | null>(null);
-  const webAudioUrlRef = useRef<string | null>(null);
   const patientVisualSpeakingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const voiceEnabledRef = useRef(true);
 
@@ -714,6 +721,7 @@ export default function Level1Screen() {
 
     if (Platform.OS === "web") {
       try {
+        const assertCurrent = captureSession(authUserId);
         setWebTalkError(null);
         if (webTalkErrorTimerRef.current) {
           clearTimeout(webTalkErrorTimerRef.current);
@@ -749,6 +757,7 @@ export default function Level1Screen() {
         }
 
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        try { assertCurrent(); } catch (error) { stream.getTracks().forEach(track => track.stop()); throw error; }
         const recorder = new MediaRecorder(stream);
         const audioContext = new WebAudioContext();
         const analyser = audioContext.createAnalyser();
@@ -805,7 +814,9 @@ export default function Level1Screen() {
     }
 
     try {
+      const assertCurrent = captureSession(authUserId);
       const permission = await Audio.requestPermissionsAsync();
+      assertCurrent();
       logNativeVoiceDiagnostic("permission", { granted: permission.granted });
       if (!permission.granted) {
         console.warn("Microphone permission not granted.");
@@ -850,6 +861,7 @@ export default function Level1Screen() {
         await restoreAudioModeAfterRecording();
         return;
       }
+      try { assertCurrent(); } catch (error) { await recording.stopAndUnloadAsync().catch(() => {}); throw error; }
       recordingRef.current = recording;
       logNativeVoiceDiagnostic("recorder-created", {
         meterIntervalMs: VOICE_ACTIVITY.meterIntervalMs,
@@ -1012,21 +1024,8 @@ export default function Level1Screen() {
     void stopRecordingAndTranscribe(reason);
   };
 
-  const { userId: authUserId } = useAuth();
-  const { user } = useUser();
 
-  const userHeaders = useMemo(() => {
-    const headers: Record<string, string> = {};
-    const email = user?.primaryEmailAddress?.emailAddress;
-    const fallbackEmail = email || user?.emailAddresses?.[0]?.emailAddress;
-    const resolvedUserId = user?.id || authUserId || (__DEV__ ? fallbackEmail || "dev-user" : undefined);
-
-    if (resolvedUserId) headers["x-clerk-user-id"] = resolvedUserId;
-    if (user?.fullName) headers["x-user-name"] = user.fullName;
-    if (email) headers["x-user-email"] = email;
-    if (user?.imageUrl) headers["x-user-image"] = user.imageUrl;
-    return headers;
-  }, [authUserId, user]);
+  const userHeaders = useMemo<Record<string, string>>(() => ({ expectedUserId: user?.id || "" }), [user?.id]);
 
   const clearPatientVisualSpeakingTimer = useCallback(() => {
     const timer = patientVisualSpeakingTimerRef.current;
@@ -1059,350 +1058,106 @@ export default function Level1Screen() {
     }
   }, [caseId, clearPatientVisualSpeakingTimer, patientSessionSlug]);
 
-  const stopSpeechPlayback = useCallback(async ({ stopVisual = true }: { stopVisual?: boolean } = {}) => {
-    const currentWebAudio = webAudioRef.current;
-    webAudioRef.current = null;
-    if (currentWebAudio) {
-      try {
-        currentWebAudio.pause();
-        currentWebAudio.removeAttribute("src");
-        currentWebAudio.load();
-      } catch {
-        // noop
-      }
-    }
+  const patientSpeech = useSpeechPlayback({
+    channel: "patient",
+    exclusive: isFocused && stage === "chat" && callState === "active",
+    enabled: isFocused && voiceEnabled && stage === "chat" && callState === "active",
+    scopeKey: `${authUserId}:${caseId}:${conversationId}:${stage}:${callState}`,
+    onStart: () => { setIsSpeaking(true); startPatientVisualSpeaking(); },
+    onStop: () => { setIsSpeaking(false); stopPatientVisualSpeaking(); },
+  });
+  const stopSpeechPlayback = patientSpeech.stop;
+  const speakAssistantReply = patientSpeech.speak;
 
-    const currentWebAudioUrl = webAudioUrlRef.current;
-    webAudioUrlRef.current = null;
-    if (currentWebAudioUrl) {
-      try {
-        URL.revokeObjectURL(currentWebAudioUrl);
-      } catch {
-        // noop
-      }
-    }
-
-    const currentSound = soundRef.current;
-    soundRef.current = null;
-
-    if (currentSound) {
-      try {
-        await currentSound.stopAsync();
-      } catch {
-        // noop
-      }
-      try {
-        await currentSound.unloadAsync();
-      } catch {
-        // noop
-      }
-    }
-
-    const soundFilePath = soundFilePathRef.current;
-    soundFilePathRef.current = null;
-    if (soundFilePath) {
-      try {
-        await FileSystem.deleteAsync(soundFilePath, { idempotent: true });
-      } catch {
-        // noop
-      }
-    }
-
-    setIsSpeaking(false);
-    if (stopVisual) {
-      stopPatientVisualSpeaking();
-    }
-  }, [stopPatientVisualSpeaking]);
-
-  const speakAssistantReply = useCallback(
-    async (text: string) => {
-      if (!voiceEnabledRef.current) return;
-
-      const inputText = String(text || "").trim();
-      if (!inputText) return;
-
-      try {
-        await stopSpeechPlayback({ stopVisual: false });
-
-        if (SHOW_PATIENT_AVATAR_RUNTIME_DEBUG) {
-          console.debug("[Level1 TTS] attempt start", {
-            patientSessionSlug,
-            caseId,
-          });
-        }
-
-        const payload = await request("/voice/speak", {
-          method: "POST",
-          body: { text: inputText },
-        });
-
-        const audioBase64 = String(payload?.audio_base64 || "").trim();
-        const mimeType = String(payload?.mime_type || "audio/mpeg").toLowerCase();
-
-        if (SHOW_PATIENT_AVATAR_RUNTIME_DEBUG) {
-          console.debug("[Level1 TTS] response received", {
-            patientSessionSlug,
-            caseId,
-            hasAudioBase64: Boolean(audioBase64),
-            audioBase64Length: audioBase64.length,
-            mimeType,
-          });
-        }
-
-        if (!audioBase64) {
-          if (SHOW_PATIENT_AVATAR_RUNTIME_DEBUG) {
-            console.debug("[Level1 TTS] empty audio response; keeping avatar still", {
-              patientSessionSlug,
-              caseId,
-            });
-          }
-          stopPatientVisualSpeaking();
-          return;
-        }
-
-        if (Platform.OS === "web") {
-          const audioUrl = createAudioBlobUrl(audioBase64, mimeType);
-          const audio = new window.Audio(audioUrl);
-          audio.volume = 1.0;
-          audio.muted = false;
-          webAudioUrlRef.current = audioUrl;
-          webAudioRef.current = audio;
-
-          if (SHOW_PATIENT_AVATAR_RUNTIME_DEBUG) {
-            console.debug("[Level1 TTS] web audio object created", {
-              patientSessionSlug,
-              caseId,
-              audioUrl,
-              volume: audio.volume,
-              muted: audio.muted,
-            });
-          }
-
-          audio.onended = () => {
-            if (SHOW_PATIENT_AVATAR_RUNTIME_DEBUG) {
-              console.debug("[Level1 TTS] web playback ended", {
-                patientSessionSlug,
-                caseId,
-                paused: audio.paused,
-                ended: audio.ended,
-                volume: audio.volume,
-                muted: audio.muted,
-              });
-            }
-            setIsSpeaking(false);
-            stopPatientVisualSpeaking();
-            webAudioRef.current = null;
-            if (webAudioUrlRef.current) {
-              URL.revokeObjectURL(webAudioUrlRef.current);
-              webAudioUrlRef.current = null;
-            }
-          };
-
-          audio.onerror = () => {
-            if (SHOW_PATIENT_AVATAR_RUNTIME_DEBUG) {
-              console.debug("[Level1 TTS] web playback error; keeping avatar still", {
-                patientSessionSlug,
-                caseId,
-                error: audio.error?.message || audio.error?.code || null,
-                volume: audio.volume,
-                muted: audio.muted,
-              });
-            }
-            setIsSpeaking(false);
-            stopPatientVisualSpeaking();
-          };
-
-          startPatientVisualSpeaking();
-          setIsSpeaking(true);
-          await audio.play();
-
-          if (SHOW_PATIENT_AVATAR_RUNTIME_DEBUG) {
-            console.debug("[Level1 TTS] web playback started", {
-              patientSessionSlug,
-              caseId,
-              paused: audio.paused,
-              ended: audio.ended,
-              volume: audio.volume,
-              muted: audio.muted,
-            });
-          }
-          return;
-        }
-
-        const extension = mimeType.includes("wav") ? "wav" : "mp3";
-        const baseDir = FileSystem.cacheDirectory || FileSystem.documentDirectory;
-        if (!baseDir) {
-          throw new Error("No writable filesystem directory for audio playback.");
-        }
-
-        await Audio.setAudioModeAsync({
-          allowsRecordingIOS: false,
-          playsInSilentModeIOS: true,
-        }).catch(() => {});
-
-        const filePath = `${baseDir}tts-${Date.now()}.${extension}`;
-        await FileSystem.writeAsStringAsync(filePath, audioBase64, {
-          encoding: FileSystem.EncodingType.Base64,
-        });
-
-        if (SHOW_PATIENT_AVATAR_RUNTIME_DEBUG) {
-          console.debug("[Level1 TTS] audio file written", {
-            patientSessionSlug,
-            caseId,
-            filePath,
-            mimeType,
-          });
-        }
-
-        soundFilePathRef.current = filePath;
-        const { sound } = await Audio.Sound.createAsync(
-          { uri: filePath },
-          { shouldPlay: false, volume: 1.0, isMuted: false }
-        );
-
-        if (SHOW_PATIENT_AVATAR_RUNTIME_DEBUG) {
-          console.debug("[Level1 TTS] playback object created", {
-            patientSessionSlug,
-            caseId,
-          });
-        }
-
-        soundRef.current = sound;
-        startPatientVisualSpeaking();
-        setIsSpeaking(true);
-        const playbackStatus = await sound.playAsync();
-        if (SHOW_PATIENT_AVATAR_RUNTIME_DEBUG) {
-          console.debug("[Level1 TTS] native playback started", {
-            patientSessionSlug,
-            caseId,
-            isLoaded: playbackStatus.isLoaded,
-            isPlaying: playbackStatus.isLoaded ? playbackStatus.isPlaying : false,
-            didJustFinish: playbackStatus.isLoaded ? playbackStatus.didJustFinish : false,
-            volume: playbackStatus.isLoaded ? playbackStatus.volume : null,
-            isMuted: playbackStatus.isLoaded ? playbackStatus.isMuted : null,
-            error: playbackStatus.isLoaded ? null : playbackStatus.error,
-          });
-        }
-
-        sound.setOnPlaybackStatusUpdate((status) => {
-          if (!status.isLoaded) {
-            if (status.error) {
-              if (SHOW_PATIENT_AVATAR_RUNTIME_DEBUG) {
-                console.debug("[Level1 TTS] native error; keeping avatar still", {
-                  patientSessionSlug,
-                  caseId,
-                });
-              }
-              setIsSpeaking(false);
-              stopPatientVisualSpeaking();
-            }
-            return;
-          }
-
-          if (SHOW_PATIENT_AVATAR_RUNTIME_DEBUG && (status.isPlaying || status.didJustFinish)) {
-            console.debug("[Level1 TTS] native status", {
-              patientSessionSlug,
-              caseId,
-              isLoaded: status.isLoaded,
-              isPlaying: status.isPlaying,
-              didJustFinish: status.didJustFinish,
-              volume: status.volume,
-              isMuted: status.isMuted,
-            });
-          }
-
-          if (status.didJustFinish) {
-            if (SHOW_PATIENT_AVATAR_RUNTIME_DEBUG) {
-              console.debug("[Level1 TTS] native end", {
-                patientSessionSlug,
-                caseId,
-              });
-            }
-            void stopSpeechPlayback();
-          }
-        });
-      } catch (err) {
-        console.warn("Failed to play patient voice:", err);
-        if (SHOW_PATIENT_AVATAR_RUNTIME_DEBUG) {
-          console.debug("[Level1 TTS] error; keeping avatar still", {
-            patientSessionSlug,
-            caseId,
-          });
-        }
-        setIsSpeaking(false);
-        stopPatientVisualSpeaking();
-        await stopSpeechPlayback({ stopVisual: false });
-      }
-    }, 
-    [
-      caseId,
-      patientSessionSlug,
-      startPatientVisualSpeaking,
-      stopPatientVisualSpeaking,
-      stopSpeechPlayback,
-    ]
-  );
 
   const queueMessage = useCallback((msg: Msg) => {
     setPendingMessages((prev) => [...prev, msg]);
   }, []);
 
   const persistMessage = useCallback(
-    async (msg: Msg, targetConversationId = conversationId) => {
-      if (!targetConversationId) return;
-      try {
-        await request(`/conversations/${targetConversationId}/messages`, {
-          method: "POST",
-          headers: userHeaders,
-          body: {
-            role: msg.role,
-            content: msg.content,
-          },
-        });
-      } catch (err) {
-        console.warn("Failed to persist message:", err);
-      }
-    },
-    [conversationId, userHeaders]
+    (msg: Msg, targetConversationId = conversationId): Promise<boolean> => {
+      if (!targetConversationId) return Promise.resolve(false);
+      const write = (async () => {
+        try {
+          await request(`/conversations/${targetConversationId}/messages`, {
+            method: "POST", headers: userHeaders,
+            body: { role: msg.role, content: msg.content },
+          });
+          setPendingMessages(prev => prev.filter(item => item.id !== msg.id));
+          return true;
+        } catch (err: any) {
+          if (err?.status === 401) {
+            setPendingMessages(prev => prev.some(item => item.id === msg.id) ? prev : [...prev, msg]);
+          } else {
+            uncertainMessageWriteRef.current = true;
+          }
+          setPersistenceError("A message could not be saved. Restore your session before submitting; your local encounter remains available.");
+          return false;
+        }
+      })();
+      messageWritesRef.current.add(write);
+      void write.finally(() => messageWritesRef.current.delete(write));
+      return write;
+    }, [conversationId, userHeaders]
   );
 
   const ensureConversation = useCallback(async (): Promise<string | null> => {
-    if (!userHeaders["x-clerk-user-id"]) return null;
+    if (!user?.id) return null;
     if (conversationId) return conversationId;
-    if (conversationCreationRef.current) return null;
+    if (conversationCreationPromiseRef.current) return conversationCreationPromiseRef.current;
 
+    const encounterContext = conversationStorageKey;
+    const generation = encounterGenerationRef.current;
     conversationCreationRef.current = true;
     setCreatingConversation(true);
-    try {
-      const data = await request("/conversations", {
-        method: "POST",
-        headers: userHeaders,
-        body: { caseId, patientSessionSlug },
-      });
-      const id = String(data?.conversationId || "");
-      if (!id) return null;
-      setConversationId(id);
-      return id;
-    } catch (err) {
-      console.warn("Failed to create conversation:", err);
-      return null;
-    } finally {
-      conversationCreationRef.current = false;
-      setCreatingConversation(false);
-    }
-  }, [caseId, conversationId, patientSessionSlug, userHeaders]);
+    const creation = (async () => {
+      try {
+        const data = await request("/conversations", {
+          method: "POST",
+          headers: userHeaders,
+          body: { caseId, patientSessionSlug },
+        });
+        if (encounterContextRef.current !== encounterContext || encounterGenerationRef.current !== generation) return null;
+        const id = String(data?.conversationId || "");
+        if (!id) return null;
+        setConversationId(id);
+        return id;
+      } catch (err) {
+        console.warn("Failed to create conversation:", err);
+        return null;
+      } finally {
+        if (encounterContextRef.current === encounterContext && encounterGenerationRef.current === generation) {
+          conversationCreationRef.current = false;
+          conversationCreationPromiseRef.current = null;
+          setCreatingConversation(false);
+        }
+      }
+    })();
+    conversationCreationPromiseRef.current = creation;
+    return creation;
+  }, [caseId, conversationId, conversationStorageKey, patientSessionSlug, userHeaders]);
 
   useEffect(() => {
-    setConversationId(null);
-    setPendingMessages([]);
+    patientGreetingGenerationRef.current += 1;
+    encounterGenerationRef.current += 1;
+    if (patientGreetingTimerRef.current) { clearTimeout(patientGreetingTimerRef.current); patientGreetingTimerRef.current = null; }
+    sendInProgressRef.current = false;
+    conversationCreationRef.current = false;
+    conversationCreationPromiseRef.current = null;
+    setCreatingConversation(false);
+    setSending(false);
+    skipCheckpointRef.current = true;
+    const draft = readEncounterDraft(conversationStorageKey);
+    setConversationId(draft?.conversationId || null);
+    setPendingMessages(draft?.pendingMessages || []);
     setCallState("incoming");
     setCallStartedAt(null);
     setElapsedCallSeconds(0);
     setAnsweringCall(false);
     answerInProgressRef.current = false;
     hangUpInProgressRef.current = false;
-    setStage("chat");
-    setHpiText("");
+    setStage(draft?.stage || "chat");
+    setHpiText(draft?.hpiText || "");
     setSubmissionResult(null);
     setAchievementUnlockVisible(false);
     setDebriefVisible(false);
@@ -1418,6 +1173,11 @@ export default function Level1Screen() {
     setResumeCheckComplete(false);
   }, [conversationStorageKey]);
 
+  useEffect(() => {
+    if (skipCheckpointRef.current) { skipCheckpointRef.current = false; return; }
+    saveEncounterDraft(conversationStorageKey, { messages, input, hpiText, stage, conversationId, pendingMessages, persistenceError, uncertainWrite: uncertainMessageWriteRef.current });
+  }, [conversationStorageKey, messages, input, hpiText, stage, conversationId, pendingMessages, persistenceError]);
+
   // for resume chat button
   useEffect(() => {
     if (!conversationId) return;
@@ -1430,7 +1190,7 @@ export default function Level1Screen() {
 
     (async () => {
       try {
-        const saved = await getItemAsync(conversationStorageKey);
+        const saved = (await getItemAsync(conversationStorageKey)) || (await getItemAsync(`conv_${patientSessionSlug || caseId}`));
         if (cancelled) return;
 
         if (!saved) {
@@ -1473,9 +1233,11 @@ export default function Level1Screen() {
             return;
           }
 
+          await setItemAsync(conversationStorageKey, saved);
           setSavedConversationId(saved);
           setShowResumePrompt(true);
-        } catch {
+        } catch (err: any) {
+          if (err?.status !== 404) { setError("Unable to resume yet. Your encounter reference has been retained; sign in and retry."); return; }
           await deleteItemAsync(conversationStorageKey).catch(() => {});
           if (cancelled) return;
           setSavedConversationId(null);
@@ -1493,13 +1255,9 @@ export default function Level1Screen() {
     };
   }, [caseId, conversationStorageKey, patientSessionSlug, userHeaders]);
 
-  useEffect(() => {
-    voiceEnabledRef.current = voiceEnabled;
-  }, [voiceEnabled]);
+  voiceEnabledRef.current = voiceEnabled;
 
-  useEffect(() => {
-    callStateRef.current = callState;
-  }, [callState]);
+  callStateRef.current = callState;
 
   const patientAvatarState: AnimatedPatientAvatarState =
     patientVisualSpeaking && voiceEnabled && stage === "chat"
@@ -1555,6 +1313,7 @@ export default function Level1Screen() {
   useEffect(() => {
     if (callState === "active") return;
     patientGreetingGenerationRef.current += 1;
+    encounterGenerationRef.current += 1;
     if (patientGreetingTimerRef.current) {
       clearTimeout(patientGreetingTimerRef.current);
       patientGreetingTimerRef.current = null;
@@ -1590,6 +1349,7 @@ export default function Level1Screen() {
       if (callEndedTimerRef.current) clearTimeout(callEndedTimerRef.current);
       if (webTalkErrorTimerRef.current) clearTimeout(webTalkErrorTimerRef.current);
       patientGreetingGenerationRef.current += 1;
+    encounterGenerationRef.current += 1;
       if (patientGreetingTimerRef.current) clearTimeout(patientGreetingTimerRef.current);
       patientGreetingTimerRef.current = null;
       clearVoiceActivityResources();
@@ -1638,7 +1398,7 @@ export default function Level1Screen() {
     toPersist.forEach((msg) => {
       persistMessage(msg);
     });
-  }, [conversationId, pendingMessages, persistMessage]);
+  }, [conversationId, userHeaders]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1653,11 +1413,11 @@ export default function Level1Screen() {
 
         setCaseData(data);
 
-        // Start with an empty transcript so opening behavior is graded from user input.
-        setMessages([]);
-        setInput("");
-        setStage("chat");
-        setHpiText("");
+        const draft = readEncounterDraft(conversationStorageKey);
+        setMessages(draft?.messages || []);
+        setInput(draft?.input || "");
+        setStage(draft?.stage || "chat");
+        setHpiText(draft?.hpiText || "");
         setSubmissionResult(null);
         setAchievementUnlockVisible(false);
         setSubmitError(null);
@@ -1678,7 +1438,10 @@ export default function Level1Screen() {
     if (stage !== "chat" || callState !== "active" || hangUpInProgressRef.current) return;
 
     const text = (textOverride ?? input).trim();
-    if (!text || sending) return;
+    if (!text || sending || sendInProgressRef.current) return;
+    sendInProgressRef.current = true;
+    patientGreetingGenerationRef.current += 1;
+    if (patientGreetingTimerRef.current) { clearTimeout(patientGreetingTimerRef.current); patientGreetingTimerRef.current = null; }
 
     const userMsg: Msg = {
       id: `u-${Date.now()}`,
@@ -1695,15 +1458,21 @@ export default function Level1Screen() {
     }
     setInput("");
     setSending(true);
+    const encounterGeneration = patientGreetingGenerationRef.current;
 
     try {
+      const activeConversationId = conversationId || await ensureConversation();
+      if (!activeConversationId) throw new Error("Unable to start the encounter. Please try again.");
+      if (encounterContextRef.current !== conversationStorageKey || patientGreetingGenerationRef.current !== encounterGeneration || callStateRef.current !== "active") return;
+      await stopSpeechPlayback();
+      const isSpeechCurrent = patientSpeech.capture();
       // backend contract:
       // { caseId, messages: [{role, content}, ...] }
       const data = await request("/chat", {
         method: "POST",
         body: {
           caseId,
-          ...(conversationId ? { conversationId } : {}),
+          conversationId: activeConversationId,
           messages: nextMessages.map((m) => ({
             role: m.role,
             content: m.content,
@@ -1711,6 +1480,7 @@ export default function Level1Screen() {
         },
       });
 
+      if (encounterContextRef.current !== conversationStorageKey || patientGreetingGenerationRef.current !== encounterGeneration || callStateRef.current !== "active") return;
       const replyText = String(data?.reply ?? "");
 
       const assistantMsg: Msg = {
@@ -1726,9 +1496,10 @@ export default function Level1Screen() {
         queueMessage(assistantMsg);
       }
       if (voiceEnabledRef.current) {
-        void speakAssistantReply(assistantMsg.content);
+        void speakAssistantReply(assistantMsg.content, data?.speech ? { ...data.speech, conversationId: activeConversationId, caseId } : undefined, isSpeechCurrent);
       }
     } catch (e: any) {
+      if (encounterContextRef.current !== conversationStorageKey || patientGreetingGenerationRef.current !== encounterGeneration || callStateRef.current !== "active") return;
       const assistantMsg: Msg = {
         id: `a-err-${Date.now()}`,
         role: "assistant",
@@ -1736,7 +1507,10 @@ export default function Level1Screen() {
       };
       setMessages((prev) => [...prev, assistantMsg]);
     } finally {
-      setSending(false);
+      if (patientGreetingGenerationRef.current === encounterGeneration) {
+        sendInProgressRef.current = false;
+        setSending(false);
+      }
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 50);
     }
   };
@@ -1754,11 +1528,15 @@ export default function Level1Screen() {
     let convoId = conversationId;
 
     try {
-      if (!convoId) {
-        convoId = await ensureConversation();
+      const outstanding = await Promise.all(Array.from(messageWritesRef.current));
+      if (outstanding.some(saved => !saved) || uncertainMessageWriteRef.current) {
+        throw new Error("A message was not confirmed saved. Resume the saved transcript before grading.");
       }
-      if (!convoId) {
-        throw new Error("Conversation is still being created. Please try again.");
+      if (!convoId) convoId = await ensureConversation();
+      if (!convoId) throw new Error("Conversation is still being created. Please try again.");
+      if (pendingMessages.length > 0) {
+        const saved = await Promise.all(pendingMessages.map(msg => persistMessage(msg, convoId)));
+        if (saved.some(ok => !ok)) throw new Error("Some messages remain unsaved. Sign in again before grading.");
       }
 
       const data = await request(`/conversations/${convoId}/submit`, {
@@ -1831,6 +1609,8 @@ export default function Level1Screen() {
     patientSessionSlug,
     requiresHpi,
     submitting,
+    pendingMessages,
+    persistMessage,
     userHeaders,
   ]);
 
@@ -1855,6 +1635,8 @@ export default function Level1Screen() {
     if (answerInProgressRef.current || callState !== "incoming") return;
     answerInProgressRef.current = true;
     setAnsweringCall(true);
+    const answerGeneration = encounterGenerationRef.current;
+    const initialGreetingGeneration = patientGreetingGenerationRef.current;
     const startedAt = Date.now();
     setCallStartedAt(startedAt);
     setElapsedCallSeconds(0);
@@ -1866,37 +1648,48 @@ export default function Level1Screen() {
         activeConversationId = await ensureConversation();
         createdNewConversation = Boolean(activeConversationId);
       }
+      if (encounterContextRef.current !== conversationStorageKey || encounterGenerationRef.current !== answerGeneration) return;
       if (
+        patientGreetingGenerationRef.current === initialGreetingGeneration &&
         createdNewConversation &&
         activeConversationId &&
         !greetedConversationIdsRef.current.has(activeConversationId)
       ) {
         greetedConversationIdsRef.current.add(activeConversationId);
         const greetingGeneration = patientGreetingGenerationRef.current;
-        patientGreetingTimerRef.current = setTimeout(() => {
+        patientGreetingTimerRef.current = setTimeout(async () => {
           patientGreetingTimerRef.current = null;
           if (
+            encounterContextRef.current !== conversationStorageKey ||
             patientGreetingGenerationRef.current !== greetingGeneration ||
             callStateRef.current !== "active" ||
             hangUpInProgressRef.current
           ) {
             return;
           }
+          const isSpeechCurrent = patientSpeech.capture();
+          let greeting;
+          try {
+            greeting = await request("/voice/patient-greeting", { method: "POST", body: { conversationId: activeConversationId, caseId } });
+          } catch { return; }
+          if (encounterContextRef.current !== conversationStorageKey || patientGreetingGenerationRef.current !== greetingGeneration || callStateRef.current !== "active" || hangUpInProgressRef.current) return;
           const greetingMessage: Msg = {
             id: `a-greeting-${Date.now()}`,
             role: "assistant",
-            content: "Hello.",
+            content: greeting.reply,
           };
           setMessages((current) => [...current, greetingMessage]);
           void persistMessage(greetingMessage, activeConversationId);
-          void speakAssistantReply(greetingMessage.content);
+          void speakAssistantReply(greetingMessage.content, { ...greeting.speech, conversationId: activeConversationId, caseId }, isSpeechCurrent);
         }, 150);
       }
     } finally {
-      answerInProgressRef.current = false;
-      setAnsweringCall(false);
+      if (encounterContextRef.current === conversationStorageKey && encounterGenerationRef.current === answerGeneration) {
+        answerInProgressRef.current = false;
+        setAnsweringCall(false);
+      }
     }
-  }, [callState, conversationId, ensureConversation, persistMessage, speakAssistantReply]);
+  }, [callState, caseId, conversationId, conversationStorageKey, ensureConversation, persistMessage, request, speakAssistantReply, patientSpeech.capture]);
 
   const hangUpCall = useCallback(async () => {
     const blocked =
@@ -2041,9 +1834,9 @@ export default function Level1Screen() {
       setDebriefInput("");
       setDebriefError(null);
       setDebriefSending(true);
-      if (debriefMentorSpeech.isSpeaking) {
-        void debriefMentorSpeech.stop();
-      }
+      const encounterGeneration = patientGreetingGenerationRef.current;
+      void debriefMentorSpeech.stop();
+      const isSpeechCurrent = debriefMentorSpeech.capture();
 
       try {
         const data = await request(`/conversations/${conversationId}/debrief-chat`, {
@@ -2054,6 +1847,7 @@ export default function Level1Screen() {
             messages: debriefMessages,
           },
         });
+        if (encounterContextRef.current !== conversationStorageKey || patientGreetingGenerationRef.current !== encounterGeneration || callStateRef.current === "active") return;
         const reply = String(data?.reply || "").trim();
         const assistantReply =
           reply ||
@@ -2066,7 +1860,7 @@ export default function Level1Screen() {
           },
         ]);
         if (voiceEnabled) {
-          void debriefMentorSpeech.speak(assistantReply);
+          void debriefMentorSpeech.speak(assistantReply, undefined, isSpeechCurrent);
         }
       } catch (err: any) {
         setDebriefError(err?.message || "Dr. Martinez could not respond right now.");
@@ -2076,6 +1870,7 @@ export default function Level1Screen() {
     },
     [
       conversationId,
+      conversationStorageKey,
       debriefInput,
       debriefMessages,
       debriefMentorSpeech,
@@ -2086,11 +1881,14 @@ export default function Level1Screen() {
   );
 
   const resetForNewAttempt = useCallback(async () => {
+    uncertainMessageWriteRef.current = false;
+    setPersistenceError(null);
     if (callEndedTimerRef.current) {
       clearTimeout(callEndedTimerRef.current);
       callEndedTimerRef.current = null;
     }
     patientGreetingGenerationRef.current += 1;
+    encounterGenerationRef.current += 1;
     if (patientGreetingTimerRef.current) {
       clearTimeout(patientGreetingTimerRef.current);
       patientGreetingTimerRef.current = null;
@@ -2121,6 +1919,7 @@ export default function Level1Screen() {
     }
     await stopSpeechPlayback();
 
+    sendInProgressRef.current = false;
     setSending(false);
     setCreatingConversation(false);
     conversationCreationRef.current = false;
@@ -2173,18 +1972,21 @@ export default function Level1Screen() {
         role: m.role,
         content: m.content,
       }));
-      setMessages(msgs);
+      uncertainMessageWriteRef.current = false;
+      setPersistenceError(null);
+      setMessages([...msgs, ...pendingMessages]);
       setConversationId(savedConversationId);
       setShowResumePrompt(false);
     } catch (e: any) {
-      console.warn("Failed to resume conversation:", e.message);
+      if (e?.status !== 404) { setPersistenceError("Unable to resume yet. Your encounter reference is retained; sign in and retry."); return; }
+      console.warn("Saved conversation is unavailable");
       await deleteItemAsync(conversationStorageKey).catch(() => {});
       setSavedConversationId(null);
       setShowResumePrompt(false);
     } finally {
       setResumeLoading(false);
     }
-  }, [conversationStorageKey, savedConversationId, userHeaders]);
+  }, [conversationStorageKey, savedConversationId, pendingMessages, userHeaders]);
 
   const startFresh = useCallback(async () => {
     await deleteItemAsync(conversationStorageKey).catch(() => {});
@@ -2192,6 +1994,8 @@ export default function Level1Screen() {
   }, [conversationStorageKey, resetForNewAttempt]);
 
   const retryCase = useCallback(async () => {
+    uncertainMessageWriteRef.current = false;
+    setPersistenceError(null);
     await deleteItemAsync(conversationStorageKey).catch(() => {});
     await resetForNewAttempt();
   }, [conversationStorageKey, resetForNewAttempt]);
@@ -2215,6 +2019,7 @@ export default function Level1Screen() {
 
   return (
     <SafeAreaView style={caseStyles.container}>
+      {persistenceError ? <Text style={caseStyles.errorText}>{persistenceError}</Text> : null}
       <Tabs.Screen options={{ tabBarStyle: stage === "chat" ? { display: "none" } : undefined }} />
       {showResumePrompt && (
         <View style={caseStyles.resumeOverlay}>

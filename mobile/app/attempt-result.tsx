@@ -1,3 +1,4 @@
+import { authenticatedFetch } from "../src/api/sessionToken";
 import { useCallback, useMemo, useState, useEffect } from "react";
 import { ActivityIndicator, FlatList, Pressable, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -12,12 +13,12 @@ const API_PREFIX = "/api";
 
 async function request(path: string, headers: Record<string, string> = {}) {
   if (!BASE_URL) throw new Error("Missing EXPO_PUBLIC_API_BASE_URL in .env");
-  const token = await getItemAsync("token");
-  const res = await fetch(`${BASE_URL}${API_PREFIX}${path}`, {
+  const { expectedUserId, ...transportHeaders } = headers;
+  const res = await authenticatedFetch(`${BASE_URL}${API_PREFIX}${path}`, {
+    expectedUserId,
     headers: {
       "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...headers,
+      ...transportHeaders,
     },
   });
   const text = await res.text();
@@ -118,15 +119,7 @@ export default function AttemptResultScreen() {
   const [messages, setMessages] = useState<{ role: string; content: string }[]>([]);
   const [showTranscript, setShowTranscript] = useState(false);
 
-  const userHeaders = useMemo(() => {
-    const headers: Record<string, string> = {};
-    if (user?.id) headers["x-clerk-user-id"] = user.id;
-    if (user?.fullName) headers["x-user-name"] = user.fullName;
-    const email = user?.primaryEmailAddress?.emailAddress;
-    if (email) headers["x-user-email"] = email;
-    if (user?.imageUrl) headers["x-user-image"] = user.imageUrl;
-    return headers;
-  }, [user]);
+  const userHeaders = useMemo<Record<string, string>>(() => ({ expectedUserId: user?.id || "" }), [user?.id]);
 
   const loadResult = useCallback(async () => {
     if (!conversationId) return;

@@ -9,9 +9,7 @@ function envFlagEnabled(value) {
 const GRADING_DEBUG = envFlagEnabled(process.env.GRADING_DEBUG);
 const GRADING_LLM_DISABLED = envFlagEnabled(process.env.GRADING_LLM_DISABLED);
 
-function debugLog(...args) {
-  if (!GRADING_DEBUG) return;
-  console.log("[grading]", ...args);
+function debugLog(event) { require("../utils/safeDiagnostics").diagnostic(event);
 }
 
 function normalizeText(text) {
@@ -349,7 +347,7 @@ async function evaluateCriteriaWithLlm({ caseData, criteria, conversation, suppl
     return normalizedResultsById;
 
   } catch (err) {
-    console.error("Error evaluating LLM criteria:", err);
+    console.error("Error evaluating LLM criteria");
     return new Map();
   }
 }
