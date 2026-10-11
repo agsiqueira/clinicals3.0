@@ -9,6 +9,7 @@ import { oldCartsPanels, conceptPanelsFor, conceptTitle, responseAudioTooLong } 
 import { lessonPosition, exerciseTitle, activityIntroductions, provisionalOpeningChoices } from "./presentation";
 import { module0Colors as c } from "./tokens";
 import { ClinicalsChatComposer } from "../ClinicalsChatComposer";
+import { PracticeTask } from "./PracticeTask";
 
 export type ApprovedScreen = "review" | "exercise-transition" | "old-carts-teach" | "welcome" | "introduction" | "teach" | "practice" | "feedback" | "clarify" | "activity-complete" | "resume" | "module-complete";
 const artwork = {
@@ -110,26 +111,27 @@ type IconName = React.ComponentProps<typeof MaterialCommunityIcons>["name"];
 function IconControl({ label, icon, onPress, active=false, disabled=false }: {label:string;icon:IconName;onPress?:()=>void;active?:boolean;disabled?:boolean}) {
  return <Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{disabled,selected:active}} disabled={disabled} onPress={onPress} style={({pressed})=>[s.iconControl,active && s.iconActive,disabled && s.iconDisabled,pressed && s.pressed]}><MaterialCommunityIcons name={icon} size={24} color={active ? c.primary : c.body} /></Pressable>;
 }
-function MentorAudio(p: Props) {
- const {height}=useWindowDimensions();
+function MentorAudio(p: Props & { compact?: boolean }) {
+ const {height,width}=useWindowDimensions();
+ const narrow = p.compact && width < 360;
  const unavailable=p.busy || p.disabled || !!p.progress?.pending;
  const responseTooLong=responseAudioTooLong(p.screen,p.narration);
  const askAvailable=["teach","old-carts-teach","practice","feedback"].includes(p.screen);
  if (!p.narration && !askAvailable) return null;
+ const ask = askAvailable && <Pressable accessibilityRole="button" accessibilityLabel="Ask Dr. Martinez" accessibilityState={{disabled:unavailable}} disabled={unavailable} onPress={p.onClarify} style={({pressed})=>[s.askMentor,p.compact && s.compactAsk,unavailable && s.iconDisabled,pressed && s.pressed]}>
+   <Image source={artwork.avatar} contentFit="contain" style={p.compact ? s.compactAvatar : s.stripAvatar} accessibilityElementsHidden importantForAccessibility="no"/><Text style={[s.askMentorText,p.compact && s.compactMentorText]}>Ask Dr. Martinez</Text>
+  </Pressable>;
+ const controls = !!p.narration && <View style={[s.narrationControls,narrow && s.narrowNarrationControls]}>
+   <IconControl label={p.isSpeaking ? "Pause narration" : "Play narration"} icon={p.isSpeaking ? "pause" : "play"} onPress={p.isSpeaking ? p.onPause : p.onPlay || p.onListen} active={p.isSpeaking || p.isPaused} disabled={unavailable || (!p.isSpeaking && responseTooLong)}/>
+   <IconControl label={p.muted ? "Unmute narration" : "Mute narration"} icon={p.muted ? "volume-off" : "volume-high"} onPress={p.onToggleMute} active={p.muted}/>
+   <IconControl label={p.captions ? "Hide captions" : "Show captions"} icon="closed-caption" onPress={p.onToggleCaptions} active={p.captions}/>
+ </View>;
  return <View style={s.narrationArea}>
-  {askAvailable && <Pressable accessibilityRole="button" accessibilityLabel="Ask Dr. Martinez" accessibilityState={{disabled:unavailable}} disabled={unavailable} onPress={p.onClarify} style={({pressed})=>[s.askMentor,unavailable && s.iconDisabled,pressed && s.pressed]}>
-   <Image source={artwork.avatar} contentFit="contain" style={s.stripAvatar} accessibilityElementsHidden importantForAccessibility="no"/><Text style={s.askMentorText}>Ask Dr. Martinez</Text>
-  </Pressable>}
+  {p.compact ? <View style={[s.compactMentorRow,narrow && s.narrowMentorRow]}>{ask}{controls}</View> : ask}
   {p.captions && <ScrollView style={[s.captionPanel,height<700 && {maxHeight:64}]} contentContainerStyle={s.captionContent} nestedScrollEnabled><Text selectable accessibilityLabel="Narration captions" style={s.captionText}>{p.narration}</Text></ScrollView>}
   {p.audioError && <Text accessibilityRole="alert" style={s.lessonHint}>{p.audioError}</Text>}
   {responseTooLong && <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={s.lessonHint}>Audio playback is unavailable because this response is too long.</Text>}
-  {!!p.narration && <View style={s.narrationRow}>
-   <View style={s.narrationControls}>
-    <IconControl label={p.isSpeaking ? "Pause narration" : "Play narration"} icon={p.isSpeaking ? "pause" : "play"} onPress={p.isSpeaking ? p.onPause : p.onPlay || p.onListen} active={p.isSpeaking || p.isPaused} disabled={unavailable || (!p.isSpeaking && responseTooLong)}/>
-    <IconControl label={p.muted ? "Unmute narration" : "Mute narration"} icon={p.muted ? "volume-off" : "volume-high"} onPress={p.onToggleMute} active={p.muted}/>
-    <IconControl label={p.captions ? "Hide captions" : "Show captions"} icon="closed-caption" onPress={p.onToggleCaptions} active={p.captions}/>
-   </View>
-  </View>}
+  {!p.compact && controls && <View style={s.narrationRow}>{controls}</View>}
  </View>;
 }
 function Checklist({ labels, module }: { labels: string[]; module?: boolean }) {
@@ -140,13 +142,13 @@ function Checklist({ labels, module }: { labels: string[]; module?: boolean }) {
 function SavedFeedback({ result }: { result: LessonResult }) {
   return <View style={s.lessonCard}><Text style={s.lessonHeading}>{result.evaluation.label || "Dr. Martinez · Clarification"}</Text><Text style={s.lessonText}>{result.evaluation.feedback || result.evaluation.reply}</Text>{result.evaluation.evidence?.map((e,i) => <Text key={i} selectable style={s.lessonHint}>Your response: “{e}”</Text>)}</View>;
 }
-function Shell({children,header,footer,referenceChrome,contentKey}:{children:React.ReactNode;header:React.ReactNode;footer:React.ReactNode;referenceChrome?:boolean;contentKey:string}) {
+function Shell({children,header,footer,referenceChrome,contentKey,practice}:{children:React.ReactNode;header:React.ReactNode;footer:React.ReactNode;referenceChrome?:boolean;contentKey:string;practice?:boolean}) {
  const insets=useSafeAreaInsets();
  return <View style={s.root}><View style={s.frame}>
   <View style={[s.fixedHeader,{paddingTop:Math.max(referenceChrome ? 44 : 0,insets.top)}]}>
    {referenceChrome && <View pointerEvents="none" style={s.status}><Text style={s.statusText}>9:41</Text><Text style={s.statusText}>●　 ▰</Text></View>}{header}
   </View>
-  <KeyboardAvoidingView style={s.body} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+  <KeyboardAvoidingView style={s.body} behavior={Platform.OS === "ios" ? "padding" : practice && Platform.OS === "android" ? "height" : undefined}>
    <ScrollView key={contentKey} style={s.body} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={s.scroll}><View style={[s.shell,{paddingBottom:20}]}>{children}</View></ScrollView>
    <View style={[s.dock,{paddingBottom:Math.max(16,insets.bottom)}]}>{footer}</View>
   </KeyboardAvoidingView>
@@ -183,19 +185,18 @@ export function ApprovedScreens(props: Props) {
     {p.error && <Text accessibilityRole="alert" style={s.error}>{p.error}</Text>}
     <Button label={p.busy ? "Preparing feedback…" : label} onPress={p.onContinue} disabled={p.disabled || p.busy || (p.screen === "practice" && !p.selected)} />
   </View>);
-  const responseInput = () => <>
-    <Text style={s.lessonHint}>{p.step.answerHint}</Text>
-    <ClinicalsChatComposer value={p.selected} onChangeText={p.onSelect} onSubmit={p.onContinue} onMicPress={p.onMicPress || (() => {})}
-      placeholder="Answer here" placeholderTextColor={c.placeholder} inputAccessibilityLabel="Your exercise response"
-      editable={!p.busy && !p.progress?.pending && !p.disabled} sending={p.busy} sendDisabled={p.busy || !!p.progress?.pending || p.disabled || !p.selected.trim()}
-      micDisabled={p.micDisabled || p.busy || !!p.progress?.pending} isRecording={p.isRecording} transcribing={p.transcribing}
-      compact lesson={oldCarts} submitLabel="Submit" showSendControl={oldCarts} containerStyle={s.responseComposer} inputStyle={s.responseInput} />
-  </>;
   const hasHeader = !["welcome","resume","module-complete"].includes(p.screen);
   const header = hasHeader && <>
     <View style={s.navigationBar}><IconControl label="Back" icon="arrow-left" onPress={p.onBack} disabled={p.busy || p.disabled || !!p.progress?.pending}/><Text numberOfLines={2} style={s.lessonIdentifier}>{p.screen === "review" ? "Review & Practice" : p.screen === "introduction" || p.screen === "activity-complete" ? p.activity.title : conceptTitle(p.step,p.activity)}</Text><IconControl label="Close lesson" icon="close" onPress={p.onLeave}/></View>
     <View style={s.lessonProgress}><View accessibilityRole="progressbar" accessibilityLabel={conceptScreen ? "Teaching panel progress" : "Saved exercise progress"} accessibilityValue={conceptScreen ? {min:1,max:panels.length,now:lessonPanel+1} : {min:0,max:position.exerciseTotal,now:position.completedCount}} style={[s.track,{marginTop:0}]}><View style={[s.fill,{width:((conceptScreen ? (lessonPanel+1)/panels.length : position.exerciseTotal ? Math.min(1,position.completedCount/position.exerciseTotal) : 0)*100 + "%") as `${number}%`}]} /></View><Text style={s.panelCount}>{conceptScreen ? lessonPanel+1 : position.exerciseNumber}/{conceptScreen ? panels.length : position.exerciseTotal}</Text></View>
   </>;
+  const caseFacts = p.progress?.scenario && <View style={[s.practiceReference,["history-and-context","review-of-systems"].includes(p.step.id) && {backgroundColor:c.reply}]}>
+    <Pressable accessibilityRole="button" accessibilityLabel="Mr. Jones · Case facts" accessibilityState={{expanded:!!p.caseFactsExpanded}} aria-expanded={!!p.caseFactsExpanded} onPress={p.onToggleCaseFacts}
+      style={(state)=>[s.caseFactsHeader,Platform.OS === "web" && (state as {pressed:boolean;focused?:boolean}).focused && s.caseFactsFocus,state.pressed && s.pressed]}>
+      <Text style={s.practiceReferenceLabel}>Mr. Jones · Patient facts</Text><MaterialCommunityIcons name={p.caseFactsExpanded ? "chevron-up" : "chevron-down"} size={22} color={c.primary}/>
+    </Pressable>
+    {p.caseFactsExpanded && <View style={s.practiceFacts}><Text selectable style={s.practiceCopy}>{p.progress.scenario.text}</Text><Text style={s.lessonHint}>{p.progress.scenario.purpose}</Text></View>}
+  </View>;
   const content=<>
     {p.screen === "review" && p.progress && <View style={s.response}>
       <Text accessibilityRole="header" style={s.responseTitle}>Review &amp; Practice</Text>
@@ -213,7 +214,7 @@ export function ApprovedScreens(props: Props) {
         </View>)}
       </View>)}
     </View>}
-    {!oldCarts && !conceptScreen && ["practice","feedback","exercise-transition"].includes(p.screen) && <View style={s.lessonHierarchy}>
+    {!oldCarts && !conceptScreen && ["feedback","exercise-transition"].includes(p.screen) && <View style={s.lessonHierarchy}>
      <Text style={s.activityLabel}>Activity {position.activityNumber} of {position.activityTotal} — {p.activity.title}</Text>
      <Text style={s.exerciseHierarchy}>Exercise {position.exerciseNumber} of {position.exerciseTotal} — {exerciseTitle(p.step,p.activity)}</Text>
     </View>}
@@ -269,7 +270,7 @@ export function ApprovedScreens(props: Props) {
     </>}
     {p.screen === "practice" && !p.textMode && <>
       <View style={s.practice}>
-        <Text accessibilityRole="header" style={s.practiceTitle}>What would you ask first?</Text>
+        <PracticeTask step={p.step} optional={false} choices />
         <View accessibilityRole="radiogroup" accessibilityLabel="Opening question choices" style={s.choices}>
           {provisionalOpeningChoices.map(choice => <Pressable key={choice} accessibilityRole="radio" accessibilityLabel={choice} accessibilityState={{ checked: p.selected === choice, disabled: p.disabled || p.busy }} disabled={p.disabled || p.busy} onPress={() => p.onSelect(choice)} style={[s.choice, p.selected === choice && s.selected]}>
             <View style={s.radio}><Art source={artwork.radioOutline} width={22} height={22} /><View style={s.radioInner}><Art source={artwork.radioInside} width={20} height={20} /></View>{p.selected === choice && <View style={s.radioDot} />}</View>
@@ -277,31 +278,14 @@ export function ApprovedScreens(props: Props) {
           </Pressable>)}
         </View>
       </View>
-      {footer("Check answer →")}
+      {dock(<View style={s.practiceDock}><MentorAudio {...p} compact/>{p.error && <Text accessibilityRole="alert" style={s.error}>{p.error}</Text>}<Button label={p.busy ? "Preparing feedback…" : "Check answer →"} onPress={p.onContinue} disabled={p.disabled || p.busy || !p.selected}/></View>)}
     </>}
     {p.screen === "practice" && p.textMode && <>
-      <View style={[s.response,oldCarts && {marginTop:16,gap:14}]}>
-        {!oldCarts && <><Text style={s.activityLabel}>{p.activity.title}</Text><Text style={s.savedProgress}>{p.progress?.completed ? "Module 0 completed · Your completion is saved" : `${p.progress?.completedCount || 0} of ${position.exerciseTotal} interactions complete`}</Text></>}
-        <Text accessibilityRole="header" style={s.responseTitle}>{oldCarts ? "Practice OLD CARTS" : p.kind === "practice" ? p.step.optionalPracticeQuestion : p.step.question}</Text>
-        {oldCarts && <Text style={s.lessonText}>{p.kind === "practice" ? p.step.optionalPracticeQuestion : "Use OLD CARTS to turn the patient information into a concise clinical summary."}</Text>}
-        {oldCarts && !p.step.completed && p.kind === "required" && <Text style={s.lessonHint}>Include all eight OLD CARTS categories. Short phrases are sufficient.</Text>}
-        {!oldCarts && <View style={s.responseTools}>
-          <Pressable accessibilityRole="button" onPress={p.onToggleNavigation} style={s.control}><Text style={s.controlText}>Activities and reviews</Text></Pressable>
-        </View>}
+      <View style={s.practiceBody}>
+        <PracticeTask step={p.step} optional={p.kind === "practice"} caseFacts={caseFacts}/>
+        <View style={s.responseTools}><Pressable accessibilityRole="button" onPress={p.onToggleNavigation} style={s.control}><Text style={s.controlText}>Activities and reviews</Text></Pressable></View>
         {p.navigationOpen && <View style={s.lessonCard}>{p.progress?.activities.map((a,i) => <Pressable key={a.id} accessibilityRole="button" onPress={() => p.onChoose?.(a.id)} style={s.control}><Text style={s.lessonText}>{a.completed ? "✓" : `${i + 1}.`} {a.title} · {a.completedCount}/{a.requiredCount}</Text></Pressable>)}</View>}
         {p.navigationOpen && <View style={s.responseTools}>{p.activity.steps.map((step,i) => <Pressable key={step.id} accessibilityRole="button" disabled={!step.completed && step.id !== p.activity.nextStepId} onPress={() => p.onChoose?.(p.activity.id,step.id)} style={s.control}><Text style={s.controlText}>{step.completed ? "✓ Review" : "Exercise"} {i + 1}</Text></Pressable>)}</View>}
-        {!oldCarts && <View style={s.lessonCard}><Text style={s.lessonText}>{p.step.teach}</Text></View>}
-        {p.progress?.scenario && <View style={[s.lessonCard,oldCarts && {backgroundColor:c.lavender}]}>
-          <Pressable accessibilityRole="button" accessibilityLabel="Mr. Jones · Case facts" accessibilityState={{expanded:!!p.caseFactsExpanded}} aria-expanded={!!p.caseFactsExpanded} onPress={p.onToggleCaseFacts}
-            style={(state)=>[s.caseFactsHeader,Platform.OS === "web" && (state as {pressed:boolean;focused?:boolean}).focused && s.caseFactsFocus,state.pressed && s.pressed]}>
-            <Text style={s.lessonHeading}>Mr. Jones · Case facts</Text>
-            <MaterialCommunityIcons name={p.caseFactsExpanded ? "chevron-up" : "chevron-down"} size={24} color={c.body}/>
-          </Pressable>
-          {p.caseFactsExpanded && <View style={s.caseFactsBody}>
-            {(p.progress.scenario.text.match(oldCarts ? /(?:Mr\.|[^.!?])+[.!?]?/g : /[^:;,]+[:;,]?/g) || [p.progress.scenario.text]).map((fact,i)=><Text key={i} selectable style={s.lessonText}>{oldCarts ? fact.trim() : fact}</Text>)}
-            <Text style={s.lessonHint}>{p.progress.scenario.purpose}</Text>
-          </View>}
-        </View>}
         {p.step.saved && <><View style={s.lessonCard}><Text style={s.lessonHeading}>Your saved response</Text><Text selectable style={s.lessonText}>{p.step.saved.response}</Text></View><SavedFeedback result={p.step.saved} /></>}
         {p.history?.map(result => <SavedFeedback key={result.requestId} result={result} />)}
         {p.error && <View style={s.lessonCard}><Text accessibilityRole="alert" style={s.error}>{p.error}</Text><Pressable accessibilityRole="button" onPress={p.onRefresh} style={s.control}><Text style={s.controlText}>Refresh saved progress</Text></Pressable></View>}
@@ -313,18 +297,23 @@ export function ApprovedScreens(props: Props) {
           <Pressable accessibilityRole="button" onPress={p.onRefresh} style={s.control}><Text style={s.controlText}>Refresh saved progress</Text></Pressable>
         </View>}
         <View style={s.responseTools}>
-          {!oldCarts && !p.step.completed && <Pressable accessibilityRole="button" onPress={() => p.onChoose?.(p.activity.id,p.step.id,"required")} style={s.control}><Text style={s.controlText}>Answer exercise</Text></Pressable>}
           {p.step.completed && <Pressable accessibilityRole="button" onPress={() => p.onChoose?.(p.activity.id,p.step.id,"practice")} style={s.control}><Text style={s.controlText}>Optional targeted practice</Text></Pressable>}
         </View>
-        {!oldCarts && (!p.step.completed || p.kind !== "required") && responseInput()}
         {p.step.completed && p.kind === "required" && !p.activity.completed && p.activity.nextStepId && <Pressable accessibilityRole="button" onPress={() => p.onChoose?.(p.activity.id,p.activity.nextStepId!)} style={s.control}><Text style={s.controlText}>Continue to the next unfinished exercise</Text></Pressable>}
         {p.activity.completed && <><Text style={s.lessonHint}>Activity complete. Review or practice without repeating required work.</Text>{p.progress?.next && <Pressable accessibilityRole="button" onPress={() => p.onChoose?.(p.progress!.next!.activityId,p.progress!.next!.stepId)} style={s.control}><Text style={s.controlText}>Continue to the next unfinished activity</Text></Pressable>}</>}
       </View>
       
-      {dock(<View style={s.footer}><MentorAudio {...p}/>{oldCarts && (!p.step.completed || p.kind !== "required") && responseInput()}
-        {p.progress?.pending ? <Button label={p.busy ? "Working…" : "Retry feedback"} onPress={p.onRetry || (() => {})} disabled={p.busy || !!p.retryWait} />
-          : (!p.step.completed || p.kind !== "required") ? (!oldCarts && <Button label={p.busy ? "Preparing feedback…" : "Submit"} onPress={p.onContinue} disabled={p.disabled || p.busy || !p.selected.trim()} />) : p.result ? <Button label="Return to feedback →" onPress={p.onContinue} /> : null}
+      {dock(<View style={s.practiceDock}><MentorAudio {...p} compact/>
+        {(!p.step.completed || p.kind !== "required" || p.progress?.pending) ? <ClinicalsChatComposer key={p.step.id+":"+p.kind} practice compact
+              value={p.selected} onChangeText={p.onSelect} onSubmit={p.onContinue} onMicPress={p.onMicPress || (()=>{})}
+              placeholder="Answer here" inputAccessibilityLabel="Your exercise response" submitLabel="Submit" showSendControl={!p.progress?.pending}
+              editable={!p.busy && !p.progress?.pending && !p.disabled} sending={p.busy}
+              sendDisabled={p.busy || !!p.progress?.pending || p.disabled || !p.selected.trim()}
+              micDisabled={p.micDisabled || p.busy || !!p.progress?.pending || p.disabled} isRecording={p.isRecording} transcribing={p.transcribing}/>
+          : p.result ? <Button label="Return to feedback →" onPress={p.onContinue}/> : null}
+        {p.progress?.pending && <Button label={p.busy ? "Working…" : "Retry feedback"} onPress={p.onRetry || (() => {})} disabled={p.busy || !!p.retryWait}/>}
       </View>)}
+
     </>}
     {p.screen === "feedback" && p.result && <>
       <View style={[s.feedbackContent,height < 700 && {marginTop:16,gap:20}]}>
@@ -388,9 +377,17 @@ export function ApprovedScreens(props: Props) {
       {footer("Continue to Rotation 1")}
     </>}
   </>;
-  return <Shell header={header} referenceChrome={p.referenceChrome} contentKey={`${p.screen}:${p.step.id}:${lessonPanel}`} footer={bottom}>{content}</Shell>;
+  return <Shell practice={p.screen === "practice"} header={header} referenceChrome={p.referenceChrome} contentKey={`${p.screen}:${p.step.id}:${lessonPanel}`} footer={bottom}>{content}</Shell>;
 }
 const s = StyleSheet.create({
+  practiceBody:{paddingHorizontal:24,paddingTop:24,gap:18},
+  practiceDock:{paddingHorizontal:24,paddingTop:12,borderTopWidth:1,borderTopColor:c.track,gap:10},
+  practiceReference:{backgroundColor:c.lavender,borderRadius:14,paddingHorizontal:16},
+  practiceReferenceLabel:{flex:1,fontFamily:"Module0InterSemiBold",fontSize:14,lineHeight:20,color:c.ink},
+  practiceFacts:{paddingBottom:16,gap:12},practiceCopy:{fontFamily:"Module0Inter",fontSize:14,lineHeight:21,color:c.body},
+  narrowMentorRow:{columnGap:4},narrowNarrationControls:{gap:0,flexShrink:0},
+  compactMentorRow:{flexDirection:"row",alignItems:"center",backgroundColor:c.lavender,borderRadius:12},
+  compactAsk:{flex:1,minWidth:0,gap:4,paddingLeft:6},compactAvatar:{width:24,height:30},compactMentorText:{flex:1,fontSize:12,lineHeight:16},
   caseFactsHeader:{minHeight:44,flexDirection:"row",alignItems:"center",justifyContent:"space-between",gap:12},caseFactsBody:{gap:12},caseFactsFocus:{outlineWidth:2,outlineStyle:"solid",outlineColor:c.primary,outlineOffset:3},
   narrationArea:{gap:8}, narrationRow:{flexDirection:"row",alignItems:"center",justifyContent:"center",gap:8}, stripAvatar:{width:44,height:44}, narrationControls:{flexDirection:"row",gap:8},askMentor:{minHeight:44,flexDirection:"row",alignItems:"center",justifyContent:"center",gap:10},askMentorText:{fontFamily:"Module0InterMedium",fontSize:15,lineHeight:21,color:c.primary},
   conceptContent:{flexGrow:1,justifyContent:"space-evenly",paddingHorizontal:23,paddingTop:20,paddingBottom:20,gap:20},conceptIllustration:{alignItems:"center"},conceptCopy:{gap:20},conceptTitle:{fontFamily:"Module0InterBold",fontSize:25,lineHeight:33.75,color:c.ink,textAlign:"center"},conceptExplanation:{fontFamily:"Module0Inter",fontSize:20,lineHeight:26,color:c.body,textAlign:"center"},clinicalExamples:{gap:24},clinicalExample:{gap:12},exampleText:{fontFamily:"Module0Inter",fontSize:18,lineHeight:25,color:c.body},exampleItalic:{fontStyle:"italic"},exampleLabel:{fontFamily:"Module0InterSemiBold",color:c.ink},clarifyContext:{paddingHorizontal:24,marginTop:24,gap:8},
@@ -437,12 +434,12 @@ const s = StyleSheet.create({
   mentor: { flexDirection: "row", alignItems: "center", marginTop: 77, marginLeft: 57, gap: 0 },
   avatar: { width: 100, height: 100 }, audioBlock: { alignItems: "center", width: 84, marginLeft: -1 }, audioButton: { width: 52, height: 52 },
   audioGlyph: { position: "absolute", left: 11, top: 14 }, mentorName: { transform: [{ translateX: 7 }], fontFamily: "Module0InterMedium",  color: c.primary, fontSize: 13, lineHeight: 17.55, marginTop: 6 },
-  practice: { paddingHorizontal: 23, marginTop: 53 },
+  practice: { paddingHorizontal: 24, marginTop: 24 },
   practiceTitle: { fontFamily: "Module0InterBold", fontSize: 26,  lineHeight: 35.1, color: c.ink },
-  choices: { marginTop: 70, gap: 19 }, choice: { minHeight: 92, borderWidth: 1, borderColor: c.track, borderRadius: 16, flexDirection: "row", alignItems: "center", gap: 18, paddingLeft: 20, paddingRight: 11, paddingVertical: 20 },
+  choices: { marginTop: 40, gap: 18 }, choice: { minHeight: 72, borderWidth: 1, borderColor: c.border, borderRadius: 14, flexDirection: "row", alignItems: "center", gap: 14, paddingHorizontal: 18, paddingVertical: 16 },
   selected: { borderColor: c.primary, backgroundColor: "#f9f8ff" }, radio: { width: 22, height: 22 }, radioInner: { position: "absolute", top: 1, left: 1 },
   radioDot: { position: "absolute", width: 12, height: 12, top: 5, left: 5, backgroundColor: c.primary, borderRadius: 6 },
-  choiceText: { flex: 1, fontFamily: "Module0Inter", fontSize: 20, lineHeight: 21.6, color: c.ink },
+  choiceText: { flex: 1, fontFamily: "Module0InterMedium", fontSize: 15, lineHeight: 21, color: c.ink },
   freeText: { minHeight: 44, justifyContent: "center", alignItems: "center", marginTop: 15 }, freeTextLabel: { color: c.primary, fontFamily: "Module0InterMedium", fontSize: 13 },
   clarify: { minHeight: 52, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 12, paddingHorizontal: 12, backgroundColor: c.lavender, borderRadius: 12, marginTop: 32 },
   clarifyText: { fontFamily: "Module0InterMedium", color: c.primary, fontSize: 15,  lineHeight: 20.25 },
