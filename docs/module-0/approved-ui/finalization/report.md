@@ -1,0 +1,13 @@
+# Module 0 final validation and publication scope
+
+Branch: `feature/module-0-approved-ui`.
+
+Approved implementation covers all nine exercises and 48 teaching panels, distinct required/optional Practice narration, returned Feedback/Clarify narration with manual playback and the transformed 1,200-character limit, Review/Practice Again navigation, collapsible case facts, simplified response fields, and approved illustration mappings. Focused Examination panel 4 uses `focused-findings-support-challenge-v2.png`; its original image is retained.
+
+Validation: `node --test backend/test/module0Frontend.test.js backend/test/speechPlayback.test.js backend/test/module0Recording.test.js` passed 95 tests, zero failures. Tests use synthetic records, not live learner accounts. `node node_modules/typescript/bin/tsc --noEmit` in mobile reports 24 previously documented error headers, exactly matching the illustration-integration baseline; zero new errors. No production build or deployed smoke test was performed during finalization.
+
+Only the explicit implementation, assets, reusable validation scripts, tests, artwork inventories/provenance, and this finalization documentation are selected. The file manifest lists the exact commit scope. Source and documentation were reviewed for sensitive content, including tracked changes; secret/private-key/JWT/real-Clerk-ID/credential-URI scans found no matches. Runtime identity references and progress handling are application logic; test identities and records are synthetic.
+
+All other local approved-ui documentation/output remains excluded and untouched, including phase3/learner-baseline.json, phase3/progress-after-recovery.json, phase3/preflight-results.json, screenshots/contact sheets, logs, patches, baseline snapshots, and generated validation output. Local environment files, dependencies, caches, and build outputs are excluded. No authoritative curriculum, grading, backend implementation, authentication, database, infrastructure, or Figma changes are included.
+
+Deployment inspection: mobile/app.json and mobile/eas.json identify https://clinicals3-backend.onrender.com as the backend. EAS defines an internal Android preview APK profile, not an Expo web deployment. No deployment files/workflows were found in the checkout; GitHub reports zero Actions workflows and no recorded deployments, and Pages is unavailable (404). No verified frontend destination or feature-branch deployment process was found. Deployment must wait for identification of the existing web hosting service and permitted branch/deploy procedure. No merge, migration, infrastructure change, backend redeployment, or learner submission was performed.

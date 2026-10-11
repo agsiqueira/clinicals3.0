@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "@clerk/clerk-expo";
@@ -14,6 +14,12 @@ import { useEnglishSpeechTranscription } from "../src/hooks/useEnglishSpeechTran
 import { useVoicePreference } from "../src/hooks/useVoicePreference";
 import { portfolioStyles } from "../assets/styles/portfolio.styles";
 import type { LessonActivity, LessonProgress, LessonResult, LessonStep, LessonSubmission } from "../src/types/clinicalReadiness";
+import { ApprovedScreens } from "../src/components/module0/ApprovedScreens";
+import type { ApprovedScreen } from "../src/components/module0/ApprovedScreens";
+import { afterFeedback, hasApprovedChoices, initialPresentation, isSubmissionResult } from "../src/components/module0/presentation";
+import { module0SpeechText, responseAudioTooLong, exerciseEntry, narrationFor, oldCartsPanels, previousScreen, conceptPanelsFor, conceptTitle } from "../src/components/module0/teaching";
+import { getItemAsync, setItemAsync } from "../src/utils/storage";
+import { module0Colors } from "../src/components/module0/tokens";
 
 const MENTOR_TTS_VOICE = process.env.EXPO_PUBLIC_NAVIGATOR_MENTOR_TTS_VOICE || "am_adam";
 function errorMessage(code?: string) {
@@ -37,8 +43,12 @@ export default function Module0Screen() {
 function Module0Experience({ userId }: { userId: string }) {
   const router = useRouter();
   const isFocused = useIsFocused();
-  const params = useLocalSearchParams<{ activityId?: string | string[] }>();
+  const params = useLocalSearchParams<{ activityId?: string | string[]; preview?: string | string[]; mode?:string | string[] }>();
+  const reviewEntry = (Array.isArray(params.mode) ? params.mode[0] : params.mode) === "review";
   const initialActivity = Array.isArray(params.activityId) ? params.activityId[0] : params.activityId;
+  const preview = Array.isArray(params.preview) ? params.preview[0] : params.preview;
+  // Development-only presentation entry; server progress is never reset or replaced.
+  const previewWelcome = typeof __DEV__ !== "undefined" && __DEV__ && preview === "welcome";
   const [progress, setProgress] = useState<LessonProgress | null>(null);
   const [activityId, setActivityId] = useState<string | undefined>(initialActivity);
   const [stepId, setStepId] = useState<string | undefined>();
@@ -49,9 +59,30 @@ function Module0Experience({ userId }: { userId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<LessonResult | null>(null);
   const [retryClock, setRetryClock] = useState(Date.now());
+  const [screen, setScreen] = useState<ApprovedScreen | null>(null);
+  const [teachingPanel, setTeachingPanel] = useState(0);
+  const [caseFactsState, setCaseFactsState] = useState<{context:string;expanded:boolean} | null>(null);
+  const [captions, setCaptions] = useState(false);
+  const [audioError, setAudioError] = useState<string | null>(null);
+
+  const [navigationOpen, setNavigationOpen] = useState(false);
+  const presentationInitialized = useRef(false);
+  const reviewNavigation = useRef<{source:"route" | "module-complete";mode:"review" | "practice" | null} | null>(reviewEntry ? {source:"route",mode:null} : null);
+  const answerDraft = useRef("");
+  const oldCartsOrigin = useRef<{ stepId: string; result: LessonResult | null } | null>(null);
+  const oldCartsDraft = useRef("");
+  const clarificationOrigin = useRef<{
+    activityId: string; stepId: string; activityTitle: string; exerciseTitle: string;
+    screen: ApprovedScreen | null; panel: number; panelTitle: string | null;
+    kind: LessonResult["kind"]; input: string; notice: LessonResult | null;
+    navigationOpen: boolean; caseFactsExpanded: boolean; error: string | null; retry: LessonSubmission | null;
+  } | null>(null);
   const boundary = useRef(createModule0Boundary()).current;
   const { activity, step } = module0Selection(progress, activityId, stepId) as { activity?: LessonActivity; step?: LessonStep };
-  const scope = `${userId}:${activity?.id || activityId}:${step?.id}:${kind}`;
+  const caseFactsContext = `${userId}:${activity?.id}:${step?.id}:${kind}`;
+  const caseFactsExpanded = caseFactsState?.context === caseFactsContext ? caseFactsState.expanded
+    : step?.id === "organize-old-carts" && kind === "required" && !step.completed;
+  const scope = `${userId}:${activity?.id || activityId}:${step?.id}:${kind}:${screen || "existing"}:${teachingPanel}`;
   boundary.enter(scope, isFocused);
   const controllers = useRef(new Set<AbortController>());
   const readGeneration = useRef(0);
@@ -65,9 +96,17 @@ function Module0Experience({ userId }: { userId: string }) {
     onText: text => setInput(current => current ? `${current} ${text}` : text),
     onError: () => setError("Could not transcribe. Please try again or type your answer."),
   });
+  useEffect(() => { let active=true; void getItemAsync("module0_captions").then(v=>{if(active) setCaptions(v === "1");}); return ()=>{active=false;}; }, []);
+  useEffect(() => { setCaseFactsState(null); }, [userId]);
   const mentorSpeech = useSpeechPlayback({
     channel: "mentor", voice: MENTOR_TTS_VOICE,
-    enabled: voiceEnabled && isFocused && !transcription.isRecording,
+    enabled: isFocused && !transcription.isRecording,
+    muted: !voiceEnabled,
+    onError: (error: any) => setAudioError(error?.code === "AUTH_REQUIRED" ? "Sign in again to play narration."
+      : error?.code === "TTS_UNAVAILABLE" ? "The configured TTS model is unavailable. Check the development provider configuration."
+      : error?.code === "TTS_TIMEOUT" ? "Narration took too long to load. Press Play to retry."
+      : error?.code === "PLAYBACK_BLOCKED" ? "Your browser blocked audio. Press Play to try again."
+      : "Narration could not play. Press Play to retry; check development diagnostics if it continues."),
     scopeKey: scope,
   });
   const headers = { expectedUserId: userId };
@@ -77,22 +116,80 @@ function Module0Experience({ userId }: { userId: string }) {
     return () => { try { validSession(); return validView(); } catch { return false; } };
   }
   const choose = (id: string, selectedStep?: string, nextKind: LessonResult["kind"] = "required") => {
+    clarificationOrigin.current = null;
+    oldCartsOrigin.current = null;
+    if (nextKind === "clarify") answerDraft.current = input;
     boundary.invalidate(); void mentorSpeech.stop();
     setActivityId(id); setStepId(selectedStep); setKind(nextKind);
     activeSubmission.current?.abort(); activeSubmission.current = null;
     setInput(""); setNotice(null); setError(null); setSending(false); retrySubmission.current = null;
+    setNavigationOpen(false);
+    setTeachingPanel(0);
+    setCaseFactsState(null);
+    const targetActivity = progressRef.current?.activities.find(a => a.id === id);
+    const targetStep = targetActivity?.steps.find(s => s.id === (selectedStep || targetActivity.nextStepId));
+    setScreen(nextKind === "clarify" ? "clarify" : id !== activity?.id && nextKind === "required" && targetStep && !targetStep.completed ? "introduction" : exerciseEntry(targetStep, nextKind));
   };
+  const present = (next: ApprovedScreen | null) => {
+    boundary.invalidate(); void mentorSpeech.stop();
+    spoken.current = ""; setAudioError(null); setScreen(next);
+  };
+  function openReview() {
+    reviewNavigation.current={source:"module-complete",mode:null};
+    present("review");
+  }
+  function returnToReview() {
+    if(reviewNavigation.current) reviewNavigation.current.mode=progressRef.current?.pending?.kind === "practice" ? "practice" : null;
+    clarificationOrigin.current=null;setInput("");setNotice(null);setError(null);setKind("required");setTeachingPanel(0);setCaseFactsState(null);
+    present("review");
+  }
+  function exitReview() {
+    const source=reviewNavigation.current?.source;reviewNavigation.current=null;
+    if(source === "route") {boundary.invalidate();void mentorSpeech.stop();if(router.canGoBack())router.back();else router.replace("/(tabs)/cases");}
+    else present("module-complete");
+  }
+  function selectReviewExercise(id:string, selectedStep:string, practice:boolean) {
+    const target=progressRef.current?.activities.find(a=>a.id === id)?.steps.find(s=>s.id === selectedStep);
+    if(!target?.completed || sending || progressRef.current?.pending || !isFocused || transcription.isRecording || transcription.transcribing) return;
+    choose(id,selectedStep,practice ? "practice" : "required");
+    if(reviewNavigation.current) reviewNavigation.current.mode=practice ? "practice" : "review";
+    if(!practice) setNotice(target.saved);
+    present(practice ? "practice" : selectedStep === "organize-old-carts" ? "old-carts-teach" : "teach");
+  }
+  function openClarification() {
+    if (!activity || !step || kind === "clarify" || sending || progress?.pending || !isFocused || transcription.isRecording || transcription.transcribing) return;
+    clarificationOrigin.current = {
+      activityId:activity.id,stepId:step.id,activityTitle:activity.title,exerciseTitle:conceptTitle(step,activity),
+      screen,panel:teachingPanel,panelTitle:screen === "old-carts-teach" || screen === "teach" ? conceptPanelsFor(step)[teachingPanel]?.title || (step.id === "open-the-interview" ? "Start with curiosity." : conceptTitle(step,activity)) : null,
+      kind,input,notice,navigationOpen,caseFactsExpanded,error,retry:retrySubmission.current,
+    };
+    answerDraft.current = input;
+    setActivityId(activity.id);setStepId(step.id);setKind("clarify");setNotice(null);setInput("");setError(null);setNavigationOpen(false);retrySubmission.current=null;
+    present("clarify");
+  }
+  function returnFromClarification() {
+    const origin = clarificationOrigin.current;
+    if (!origin) { setKind("required");setNotice(null);setInput(answerDraft.current);present(hasApprovedChoices(activity,step) ? "practice" : null);return; }
+    clarificationOrigin.current=null;
+    setActivityId(origin.activityId);setStepId(origin.stepId);setKind(origin.kind);setTeachingPanel(origin.panel);setInput(origin.input);setNotice(origin.notice);setNavigationOpen(origin.navigationOpen);retrySubmission.current=origin.retry;
+    setCaseFactsState({context:`${userId}:${origin.activityId}:${origin.stepId}:${origin.kind}`,expanded:origin.caseFactsExpanded});
+    present(origin.screen);setError(origin.error);
+  }
   function applySaved(data: LessonProgress, result?: LessonResult) {
     if (progressRef.current && data.revision < progressRef.current.revision) return;
     progressRef.current = data; setProgress(data);
+    if (!presentationInitialized.current) {
+      presentationInitialized.current = true;
+      const entry = initialPresentation(data, initialActivity);
+      setScreen(previewWelcome ? "welcome" : reviewEntry ? "review" : entry || exerciseEntry(module0Selection(data, initialActivity).step));
+    }
+    // Pending interactions retain the existing durable recovery UI.
+    if (data.pending) setScreen(current => current === "resume" || current === "review" ? current : null);
     if (result) {
       setNotice(result); setInput(""); setError(null); setSending(false); retrySubmission.current = null;
-      if (result.kind === "clarify") setKind("required");
-      if (result.kind === "required") {
-        const nextActivity = data.activities.find(a => a.id === result.activityId);
-        // Advance within this activity; completed activities remain open for review.
-        setActivityId(result.activityId); setStepId(nextActivity?.nextStepId || result.stepId); setKind("required");
-      }
+      // Result identity, rather than server.next, anchors feedback to its submission.
+      setActivityId(result.activityId); setStepId(result.stepId); setKind(result.kind);
+      setScreen(result.kind === "clarify" ? "clarify" : "feedback");
     }
   }
   const load = async (recover = false, resume = false) => {
@@ -106,15 +203,16 @@ function Module0Experience({ userId }: { userId: string }) {
       if (progressRef.current && data.revision < progressRef.current.revision) return;
       const previous = progressRef.current?.pending || retrySubmission.current;
       const result = recover && previous && previous.activityId === activity?.id && previous.stepId === step?.id
-        ? data.activities.flatMap(a => a.steps).map(s => s.saved).find(r => r?.requestId === previous.requestId)
-          || data.history.find(r => r.requestId === previous.requestId) : undefined;
+        ? data.activities.flatMap(a => a.steps).map(s => s.saved).find(r => isSubmissionResult(r, previous))
+          || data.history.find(r => isSubmissionResult(r, previous)) : undefined;
       setLoading(false);
       applySaved(data, result || undefined);
       if (!recover) setError(null);
-      if (resume) {
+      if (resume && !result && !notice && !clarificationOrigin.current && !reviewNavigation.current) {
         const target = data.pending || data.next;
         setActivityId(target?.activityId || initialActivity); setStepId(target?.stepId);
         setKind(data.pending?.kind || "required"); setNotice(null);
+        setScreen(initialPresentation(data, initialActivity));
       }
       if (data.pending && !activityId) { setActivityId(data.pending.activityId); setStepId(data.pending.stepId); setKind(data.pending.kind); }
     } catch (err: any) {
@@ -155,25 +253,40 @@ function Module0Experience({ userId }: { userId: string }) {
     const timer = setTimeout(() => setRetryClock(Date.now()), delay);
     return () => clearTimeout(timer);
   }, [progress?.pending?.requestId, progress?.pending?.retryAfter, isFocused]);
+  const currentResult = notice && notice.activityId === activity?.id && notice.stepId === step?.id ? notice : null;
+  const narration = narrationFor(screen || "practice", step, currentResult, teachingPanel, activity, kind);
+  const responseAudioBlocked = responseAudioTooLong(screen || "practice", narration);
+  const playNarration = (replay = false) => {
+    if (!narration || responseAudioBlocked || progress?.pending || sending) return;
+    setAudioError(null);
+    if (!replay && mentorSpeech.isPaused) void mentorSpeech.resume();
+    else { const valid = boundary.capture(); void mentorSpeech.speak(module0SpeechText(narration), undefined, valid); }
+  };
   useEffect(() => {
-    if (!isFocused || !voiceEnabled || !step || !activity || transcription.isRecording) return;
-    const latest = notice?.activityId === activity.id ? notice : null;
+    // Returned feedback and mentor answers are read only on the learner's request.
+    if (screen === "feedback" || screen === "clarify") return;
+    if (progress?.pending || sending || !isFocused || !voiceEnabled || !step || !activity || transcription.isRecording || !narration) return;
+    const latest = notice?.activityId === activity.id && notice.stepId === step.id ? notice : null;
     const key = `${scope}:${latest?.requestId || "teach"}`;
     if (spoken.current === key) return;
     spoken.current = key;
-    const text = latest ? latest.evaluation.feedback || latest.evaluation.reply || "" : `${step.teach} ${step.question}`;
+    const text = narration;
     const valid = boundary.capture();
-    void mentorSpeech.speak(text, undefined, valid);
-  }, [scope, step?.id, notice, isFocused, voiceEnabled, transcription.isRecording]);
+    void mentorSpeech.speak(module0SpeechText(text), undefined, valid);
+  }, [scope, step?.id, notice, isFocused, transcription.isRecording, narration]);
 
   const submit = async (pending = false) => {
+    if(reviewNavigation.current?.mode === "review" && kind === "required") return;
     if (activeSubmission.current || sending || !progress || !activity || !step || !isFocused) return;
     let current: () => boolean;
     try { current = guard(); } catch { setError("Your session expired. Sign in again to resume your saved progress."); return; }
     const savedPending = progress.pending;
     if ((!pending && savedPending) || (!pending && (!input.trim() || transcription.isRecording || transcription.transcribing))) return;
     const old = retrySubmission.current;
-    const response = input.trim();
+    // Existing clarification contract accepts a question in response. Add only
+    // the teaching context to that question; required/practice answers are untouched.
+    const origin = kind === "clarify" ? clarificationOrigin.current : null;
+    const response = origin?.panelTitle ? `Teaching context: ${origin.activityTitle} / ${origin.exerciseTitle} / ${origin.panelTitle}\n\nLearner question: ${input.trim()}` : input.trim();
     const request: LessonSubmission = pending && savedPending
       ? { ...savedPending, expectedRevision: progress.revision } // Project below; no server metadata is submitted.
       : old && old.activityId === activity.id && old.stepId === step.id && old.kind === kind && old.response === response
@@ -188,9 +301,14 @@ function Module0Experience({ userId }: { userId: string }) {
       const data = await api.submitModule0Interaction(payload, headers, controller.signal);
       if (!current()) return;
       setSending(false);
+      if (data.status === "saved" && !isSubmissionResult(data.result, payload)) {
+        setError("The returned feedback did not match this answer. Refreshing your saved response.");
+        void load(true); return;
+      }
       applySaved(data.progress, data.status === "saved" ? data.result : undefined);
     } catch (err: any) {
       if (current() && !controller.signal.aborted) {
+        setScreen(null);
         setError(err?.status === 401 ? "Your session expired. Sign in again to resume your saved progress." : errorMessage(err?.data?.error || err?.code));
         // The server may have saved the answer even when transport/evaluation failed.
         void load(true);
@@ -207,6 +325,95 @@ function Module0Experience({ userId }: { userId: string }) {
   const relevantHistory = progress?.history.filter(r => r.activityId === activity?.id && r.stepId === step?.id) || [];
   const pending = progress?.pending;
   const retryWait = pending ? Math.max(0, Math.ceil((Date.parse(pending.retryAfter) - Math.max(Date.now(), retryClock)) / 1000)) : 0;
+  if (progress && activity && step) {
+    return <ApprovedScreens screen={pending && screen !== "resume" && screen !== "review" ? "practice" : screen || "practice"} activity={activity} step={step} progress={progress}
+      onReviewExercise={selectReviewExercise}
+      clarificationContext={kind === "clarify" && clarificationOrigin.current ? clarificationOrigin.current : undefined}
+      teachingPanel={teachingPanel} narration={narration} captions={captions} muted={!voiceEnabled} audioError={audioError}
+      caseFactsExpanded={caseFactsExpanded} onToggleCaseFacts={() => setCaseFactsState({context:caseFactsContext,expanded:!caseFactsExpanded})}
+      onToggleCaptions={() => setCaptions(v => { void setItemAsync("module0_captions", !v ? "1" : "0"); return !v; })}
+      onToggleMute={() => { setVoiceEnabled(v => !v); }}
+      isPaused={mentorSpeech.isPaused} onPause={() => void mentorSpeech.pause()}
+      onPlay={() => playNarration()}
+      textMode={!!pending || !screen || !hasApprovedChoices(activity,step,kind)} kind={kind} history={relevantHistory}
+      retryWait={retryWait} onRetry={() => void submit(true)} onRefresh={() => void load(true)} onChoose={(id,selectedStep,nextKind="required")=>{
+        const targetActivity=progressRef.current?.activities.find(a=>a.id === id);
+        const target=targetActivity?.steps.find(s=>s.id === (selectedStep || targetActivity.nextStepId || targetActivity.steps[0]?.id));
+        if(reviewNavigation.current && !target?.completed && !pending) reviewNavigation.current=null;
+        choose(id,selectedStep,nextKind);
+        if(screen === "review" && reviewNavigation.current) reviewNavigation.current.mode=nextKind === "practice" ? "practice" : null;
+      }}
+      navigationOpen={navigationOpen} onToggleNavigation={() => setNavigationOpen(v => !v)}
+      voiceEnabled={voiceEnabled} onToggleVoice={() => setVoiceEnabled(v => !v)}
+      transcribing={transcription.transcribing} micDisabled={!isFocused || sending || !!pending || transcription.transcribing || transcription.recordingBusy}
+      result={notice?.activityId === activity.id && notice.stepId === step.id ? notice : null}
+      selected={input} onSelect={setInput} busy={sending}
+      disabled={!isFocused || transcription.isRecording || transcription.transcribing}
+      error={error} isSpeaking={mentorSpeech.isSpeaking}
+      onContinue={() => {
+        if(screen === "feedback" && reviewNavigation.current?.mode && notice) {returnToReview();return;}
+        if (screen === "welcome") present("introduction");
+        else if (screen === "introduction") { setTeachingPanel(0); present(step.id === "organize-old-carts" ? "old-carts-teach" : "teach"); }
+        else if (screen === "old-carts-teach") { if (teachingPanel < oldCartsPanels.length-1) { void mentorSpeech.stop(); setTeachingPanel(v=>v+1); } else present("practice"); }
+        else if (screen === "exercise-transition") {
+          if (activity.nextStepId) {
+            const origin = { stepId: step.id, result: notice };
+            choose(activity.id, activity.nextStepId);
+            oldCartsOrigin.current = origin;
+            setInput(oldCartsDraft.current);
+          }
+        }
+        else if (screen === "teach") {
+          const panels=conceptPanelsFor(step);
+          if(teachingPanel < panels.length-1) {void mentorSpeech.stop();setTeachingPanel(v=>v+1);}
+          else present(hasApprovedChoices(activity, step, kind) ? "practice" : null);
+        }
+        else if (screen === "feedback") {
+          if (!notice || notice.activityId !== activity.id || notice.stepId !== step.id) return;
+          if (notice.kind === "required" && afterFeedback(progress, activity.id)) present("activity-complete");
+          else if (notice.kind === "required" && activity.nextStepId) { if (activity.id === "starting-the-encounter" && step.id === "open-the-interview") present("exercise-transition"); else choose(activity.id, activity.nextStepId); }
+          else choose(activity.id, step.id);
+        }
+        else if (screen === "activity-complete") {
+          if (progress.completed) present("module-complete");
+          else if (progress.next) choose(progress.next.activityId, progress.next.stepId);
+        }
+        else if (screen === "resume") {
+          if (progress.pending) choose(progress.pending.activityId, progress.pending.stepId, progress.pending.kind);
+          else if (progress.next) choose(progress.next.activityId, progress.next.stepId);
+          else present(progress.completed ? "module-complete" : null);
+        }
+        else if (screen === "module-complete") { boundary.invalidate(); void mentorSpeech.stop(); router.replace("/(tabs)/cases"); }
+        else if (step.completed && kind === "required" && notice) present("feedback");
+        else void submit();
+      }}
+      onBack={() => {
+        if (sending || pending || transcription.isRecording || transcription.transcribing) return;
+        if(screen === "review") {exitReview();return;}
+        if(reviewNavigation.current?.mode === "practice" && kind === "practice" && (screen === "practice" || screen === null)) {returnToReview();return;}
+        if(reviewNavigation.current?.mode && (screen === "teach" || screen === "old-carts-teach") && teachingPanel === 0) {returnToReview();return;}
+        if (screen === "old-carts-teach") {
+          if (teachingPanel > 0) { void mentorSpeech.stop(); setTeachingPanel(v=>v-1); }
+          else if (oldCartsOrigin.current) {
+            oldCartsDraft.current = input;
+            setStepId(oldCartsOrigin.current.stepId);
+            setNotice(oldCartsOrigin.current.result);
+            present("exercise-transition");
+          } else present("introduction");
+        }
+        else if (screen === "clarify") returnFromClarification();
+        else if (screen === "teach" && conceptPanelsFor(step).length) {
+          if(teachingPanel>0){void mentorSpeech.stop();setTeachingPanel(v=>v-1);}else present("resume");
+        }
+        else { const previous = previousScreen(screen || "practice", step.id === "organize-old-carts"); if (previous === "old-carts-teach" || previous === "teach" && conceptPanelsFor(step).length) setTeachingPanel(conceptPanelsFor(step).length-1); if (previous) present(previous); }
+      }} onLeave={() => { if(screen === "review"){exitReview();return;}if(reviewNavigation.current?.mode){if(sending){present("resume");return;}returnToReview();return;}clarificationOrigin.current=null;setNavigationOpen(false); present(progress.completed ? "module-complete" : progress.completedCount > 0 || pending || sending ? "resume" : "welcome"); }}
+      onReview={openReview}
+      onMicPress={() => { void mentorSpeech.stop(); void transcription.toggleRecording(); }} isRecording={transcription.isRecording}
+      onFreeText={() => present(null)}
+      onClarify={openClarification}
+      onListen={() => playNarration(true)}
+      onStopAudio={() => void mentorSpeech.stop()} />;
+  }
   return <SafeAreaView style={portfolioStyles.container}>
     <ScrollView contentContainerStyle={[portfolioStyles.scrollContent, styles.content]} keyboardShouldPersistTaps="handled">
       <View style={styles.row}>
@@ -219,6 +426,7 @@ function Module0Experience({ userId }: { userId: string }) {
       {progress && <>
         <Text style={styles.progress}>{progress.completed ? "Module 0 completed · Your completion is saved" : `${progress.completedCount} of ${progress.requiredCount} interactions complete`}</Text>
         <View style={styles.panel}>
+          {hasApprovedChoices(activity, step, kind) && !pending && <Pressable accessibilityRole="button" onPress={() => present("introduction")}><Text style={styles.link}>View approved opening lesson</Text></Pressable>}
           {progress.activities.map((a, i) => <Pressable key={a.id} accessibilityRole="button" accessibilityState={{ selected: a.id === activity?.id }} style={[styles.activity, a.id === activity?.id && styles.selected]} onPress={() => choose(a.id)}>
             <Text style={styles.body}>{a.completed ? "✓" : `${i + 1}.`} {a.title}</Text><Text style={styles.muted}>{a.completedCount}/{a.requiredCount} · {a.estimatedMinutesRange.join("–")} min</Text>
           </Pressable>)}
@@ -234,7 +442,7 @@ function Module0Experience({ userId }: { userId: string }) {
           <View style={styles.rowWrap}>{activity.steps.map((s, i) => <Pressable key={s.id} disabled={!s.completed && s.id !== activity.nextStepId} onPress={() => choose(activity.id, s.id)} style={styles.chip}><Text style={styles.link}>{s.completed ? "✓ Review" : "Exercise"} {i + 1}</Text></Pressable>)}</View>
           <View style={styles.panel}>
             <Text style={styles.body}>{step.teach}</Text>
-            <Pressable onPress={() => { const valid = boundary.capture(); void mentorSpeech.speak(`${step.teach} ${step.question}`, undefined, valid); }}><Text style={styles.link}>Listen to teaching and question</Text></Pressable>
+            <Pressable onPress={() => { const valid = boundary.capture(); void mentorSpeech.speak(module0SpeechText(`${step.teach} ${step.question}`), undefined, valid); }}><Text style={styles.link}>Listen to teaching and question</Text></Pressable>
             <Text style={styles.question}>{kind === "practice" ? step.optionalPracticeQuestion : step.question}</Text>
             <Text style={styles.muted}>{step.answerHint}</Text>
           </View>
@@ -259,6 +467,7 @@ function Module0Experience({ userId }: { userId: string }) {
           </View>
           {(!step.completed || kind !== "required") && <>
             <ClinicalsChatComposer value={input} onChangeText={setInput} onSubmit={() => void submit()} onMicPress={() => { void mentorSpeech.stop(); void transcription.toggleRecording(); }}
+              placeholderTextColor={module0Colors.placeholder}
               submitLabel={kind === "clarify" ? "Ask" : "Submit"} placeholder={kind === "clarify" ? "Ask about this concept…" : "A few focused sentences or labeled phrases…"}
               editable={isFocused && !sending && !pending} sending={sending} sendDisabled={sending || !!pending || !input.trim() || transcription.isRecording || transcription.transcribing}
               micDisabled={sending || !!pending || transcription.transcribing || transcription.recordingBusy} isRecording={transcription.isRecording} transcribing={transcription.transcribing}

@@ -14,11 +14,26 @@ function createAudioBlobUrl(audioBase64: string, mimeType: string) {
   return URL.createObjectURL(new Blob([bytes], { type: mimeType || "audio/mpeg" }));
 }
 
+function speechDiagnostic(stage: string, detail: Record<string, unknown> = {}) {
+  if (typeof __DEV__ !== "undefined" && __DEV__) console.warn("[Speech playback]", JSON.stringify({ stage, ...detail }));
+}
+function playbackFailure(error: any, stage: string) {
+  // Never log upstream messages, response bodies, narration, or session credentials.
+  const reason = error?.data?.reason;
+  const code = error?.name === "NotAllowedError" ? "PLAYBACK_BLOCKED"
+    : error?.status === 401 ? "AUTH_REQUIRED"
+    : ["key_model_access_denied", "model_unavailable"].includes(reason) ? "TTS_UNAVAILABLE"
+    : error?.code === "REQUEST_TIMEOUT" ? "TTS_TIMEOUT" : "PLAYBACK_FAILED";
+  speechDiagnostic(stage, { code, status: Number.isInteger(error?.status) ? error.status : undefined });
+  return Object.assign(new Error("Speech playback unavailable"), { code });
+}
+
 type SpeechPlaybackOptions = {
   voice?: string | null;
   speed?: number;
   channel?: "patient" | "mentor";
   enabled?: boolean;
+  muted?: boolean;
   exclusive?: boolean;
   scopeKey?: string;
   onStart?: () => void;
@@ -27,9 +42,11 @@ type SpeechPlaybackOptions = {
 };
 type PatientSpeech = { authorization: string; turnId: string; conversationId: string; caseId: string };
 
-export function useSpeechPlayback({ voice, speed, channel = "mentor", enabled = true, exclusive = enabled, scopeKey = "", onStart, onStop, onError }: SpeechPlaybackOptions = {}) {
+export function useSpeechPlayback({ voice, speed, channel = "mentor", enabled = true, muted = false, exclusive = enabled, scopeKey = "", onStart, onStop, onError }: SpeechPlaybackOptions = {}) {
   const { userId } = useAuth();
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const mutedRef = useRef(muted); mutedRef.current = muted;
   const soundRef = useRef<Audio.Sound | null>(null);
   const soundFilePathRef = useRef<string | null>(null);
   const webAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -60,7 +77,7 @@ export function useSpeechPlayback({ voice, speed, channel = "mentor", enabled = 
       if (sound) { try { sound.setOnPlaybackStatusUpdate(null); } catch { /* Already released. */ } await sound.stopAsync().catch(() => {}); await sound.unloadAsync().catch(() => {}); }
       if (file) await FileSystem.deleteAsync(file, { idempotent: true }).catch(() => {});
     })();
-    if (mountedRef.current) { setIsSpeaking(false); optionsRef.current.onStop?.(); }
+    if (mountedRef.current) { setIsSpeaking(false); setIsPaused(false); optionsRef.current.onStop?.(); }
     return released;
   }, []);
   const ownerRef = useRef<ReturnType<typeof createSpeechPlaybackOwner> | null>(null);
@@ -71,15 +88,17 @@ export function useSpeechPlayback({ voice, speed, channel = "mentor", enabled = 
     const inputText = String(text || "").trim();
     if (!mountedRef.current || !optionsRef.current.enabled || !inputText || contextRef.current.userId !== userId) return;
     if (channel === "patient" && !patientSpeech) return;
-    if (isApprovedTurnCurrent && !isApprovedTurnCurrent()) return;
+    if (isApprovedTurnCurrent && !isApprovedTurnCurrent()) { speechDiagnostic("stale-view"); return; }
     const speechScope = contextRef.current.scopeKey;
     const lease = ownerRef.current!.begin(patientSpeech?.turnId || `mentor-${++counterRef.current}`);
-    if (!lease) return;
+    if (!lease) { speechDiagnostic("owner-unavailable"); return; }
     const current = () => mountedRef.current && optionsRef.current.enabled && contextRef.current.userId === userId && contextRef.current.scopeKey === speechScope && lease.isCurrent();
+    let stage = "request";
     try {
       const assertSession = captureSession(userId);
       const assertCurrent = () => { assertSession(); if (!current()) throw new Error("Superseded speech"); };
       assertCurrent();
+      speechDiagnostic("request", { channel });
       const payload = channel === "patient"
         ? await api.speakPatientVoice({ authorization: patientSpeech!.authorization, conversationId: patientSpeech!.conversationId, caseId: patientSpeech!.caseId }, { expectedUserId: userId || "" })
         : await api.speakVoice({ text: inputText, ...(voice ? { voice } : {}), ...(speed ? { speed } : {}) }, { expectedUserId: userId || "" });
@@ -89,16 +108,20 @@ export function useSpeechPlayback({ voice, speed, channel = "mentor", enabled = 
       if (channel === "patient" && payload?.turnId !== patientSpeech!.turnId) throw new Error("Unexpected patient speech turn");
       const audioBase64 = String(payload?.audio_base64 || "").trim();
       const mimeType = String(payload?.mime_type || "audio/mpeg").toLowerCase();
-      if (!audioBase64) { lease.finish(); return; }
+      stage = "decode";
+      speechDiagnostic("response", { channel, mimeType, hasAudio: !!audioBase64 });
+      if (!audioBase64) { speechDiagnostic("empty-audio"); lease.finish(); optionsRef.current.onError?.(new Error("Narration audio unavailable")); return; }
       if (Platform.OS === "web") {
         const url = createAudioBlobUrl(audioBase64, mimeType);
         const audio = new window.Audio(url);
-        audio.volume = 1.0; audio.muted = false;
+        audio.volume = 1.0; audio.muted = mutedRef.current;
         webAudioUrlRef.current = url; webAudioRef.current = audio;
         audio.onended = () => { if (current()) lease.finish(); };
-        audio.onerror = () => { if (current()) { lease.finish(); optionsRef.current.onError?.(new Error("Audio playback failed")); } };
+        audio.onerror = () => { if (current()) { speechDiagnostic("media-error", { mediaCode: audio.error?.code }); lease.finish(); optionsRef.current.onError?.(new Error("Audio playback failed")); } };
         assertCurrent(); setIsSpeaking(true); optionsRef.current.onStart?.();
+        stage = "play";
         await audio.play(); assertCurrent();
+        speechDiagnostic("playing", { channel, muted: audio.muted });
         return;
       }
       const baseDir = FileSystem.cacheDirectory || FileSystem.documentDirectory;
@@ -109,9 +132,10 @@ export function useSpeechPlayback({ voice, speed, channel = "mentor", enabled = 
       await FileSystem.writeAsStringAsync(file, audioBase64, { encoding: FileSystem.EncodingType.Base64 });
       if (!current()) { await FileSystem.deleteAsync(file, { idempotent: true }).catch(() => {}); return; }
       soundFilePathRef.current = file; assertCurrent();
-      const { sound } = await Audio.Sound.createAsync({ uri: file }, { shouldPlay: false, volume: 1.0, isMuted: false });
+      const { sound } = await Audio.Sound.createAsync({ uri: file }, { shouldPlay: false, volume: 1.0, isMuted: mutedRef.current });
       if (!current()) { await sound.unloadAsync().catch(() => {}); return; }
       soundRef.current = sound; assertCurrent();
+      await sound.setIsMutedAsync(mutedRef.current); assertCurrent();
       sound.setOnPlaybackStatusUpdate(status => {
         if (!current()) return;
         if (!status.isLoaded && status.error) { lease.finish(); optionsRef.current.onError?.(new Error("Audio playback failed")); }
@@ -119,8 +143,15 @@ export function useSpeechPlayback({ voice, speed, channel = "mentor", enabled = 
       });
       setIsSpeaking(true); optionsRef.current.onStart?.();
       await sound.playAsync(); assertCurrent();
-    } catch {
-      if (current()) { lease.finish(); optionsRef.current.onError?.(new Error("Speech playback unavailable")); }
+    } catch (error: any) {
+      if (current()) {
+        // Keep decoded audio after an autoplay rejection. The next user gesture
+        // calls play() directly, without another asynchronous TTS request.
+        if (Platform.OS === "web" && error?.name === "NotAllowedError" && webAudioRef.current) {
+          setIsSpeaking(false); setIsPaused(true);
+        } else lease.finish();
+        optionsRef.current.onError?.(playbackFailure(error, stage));
+      }
     }
   }, [channel, speed, voice, userId, scopeKey]);
 
@@ -139,5 +170,25 @@ export function useSpeechPlayback({ voice, speed, channel = "mentor", enabled = 
     const speechScope = contextRef.current.scopeKey;
     return () => valid() && mountedRef.current && optionsRef.current.enabled && contextRef.current.userId === userId && contextRef.current.scopeKey === speechScope;
   }, [userId, scopeKey]);
-  return { isSpeaking, speak, stop, capture };
+  useEffect(() => {
+    if (webAudioRef.current) webAudioRef.current.muted = muted;
+    void soundRef.current?.setIsMutedAsync(muted).catch(() => {});
+  }, [muted]);
+  const pause = useCallback(async () => {
+    if (webAudioRef.current) webAudioRef.current.pause();
+    await soundRef.current?.pauseAsync().catch(() => {});
+    if (mountedRef.current) { setIsPaused(true); setIsSpeaking(false); }
+  }, []);
+  const resume = useCallback(async () => {
+    const valid = ownerRef.current!.capture();
+    const scope = contextRef.current.scopeKey;
+    const audio = webAudioRef.current; const sound = soundRef.current;
+    try {
+      if (audio) await audio.play();
+      else if (sound) await sound.playAsync();
+      else return;
+      if (mountedRef.current && valid() && scope === contextRef.current.scopeKey) { setIsPaused(false); setIsSpeaking(true); }
+    } catch (error) { if (mountedRef.current && valid() && scope === contextRef.current.scopeKey) optionsRef.current.onError?.(playbackFailure(error, "resume")); }
+  }, []);
+  return { isSpeaking, isPaused, speak, stop, capture, pause, resume };
 }

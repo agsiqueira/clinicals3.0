@@ -10,18 +10,18 @@ function compile(file, requireFn, globals = {}) {
   return exports;
 }
 function harness(platform = 'web') {
-  const requests = [], audios = [], files = [], sounds = []; let userId = 'user_A';
+  const requests = [], audios = [], files = [], sounds = []; let userId = 'user_A'; let blocked=false;
   const controller = compile('api/speechPlayback.js', () => ({}));
   const api = {};
-  for (const method of ['speakPatientVoice', 'speakVoice']) api[method] = (body, headers) => new Promise(resolve => requests.push({ method, body, headers, resolve }));
+  for (const method of ['speakPatientVoice', 'speakVoice']) api[method] = (body, headers) => new Promise((resolve,reject) => requests.push({ method, body, headers, resolve,reject }));
   class WebAudio {
     constructor() { this.plays = 0; this.pauses = 0; audios.push(this); }
-    async play() { this.plays++; }
+    async play() { this.plays++; if(blocked) throw Object.assign(new Error("Blocked"), {name:"NotAllowedError"}); }
     pause() { this.pauses++; }
   }
   const fileSystem = { cacheDirectory: '/synthetic/', EncodingType: { Base64: 'base64' }, writeAsStringAsync: async file => files.push(file), deleteAsync: async () => {} };
   const audio = { setAudioModeAsync: async () => {}, Sound: { createAsync: async () => {
-    const sound = { plays: 0, stops: 0, unloads: 0, setOnPlaybackStatusUpdate(callback) { this.callback = callback; }, async playAsync() { this.plays++; }, async stopAsync() { this.stops++; }, async unloadAsync() { this.unloads++; } }; sounds.push(sound); return { sound };
+    const sound = { plays: 0, stops: 0, unloads: 0, setOnPlaybackStatusUpdate(callback) { this.callback = callback; }, async pauseAsync() { this.pauses=(this.pauses || 0)+1; }, async setIsMutedAsync(value) { this.isMuted=value; }, async playAsync() { this.plays++; }, async stopAsync() { this.stops++; }, async unloadAsync() { this.unloads++; } }; sounds.push(sound); return { sound };
   } } };
   function hook(initial) {
     const slots = [], effects = []; let cursor = 0; let config = initial;
@@ -47,7 +47,7 @@ function harness(platform = 'web') {
   }
   const approval = id => ({ authorization: `approval-${id}`, turnId: id, conversationId: 'encounter_A', caseId: 'case_A' });
   const answer = (index, id) => requests[index].resolve({ audio_base64: 'c3ludGhldGlj', mime_type: 'audio/mpeg', turnId: id });
-  return { hook, requests, audios, sounds, files, audio, fileSystem, approval, answer, switchUser: () => { userId = 'user_B'; } };
+  return { blockPlayback:value=>{blocked=value;}, hook, requests, audios, sounds, files, audio, fileSystem, approval, answer, switchUser: () => { userId = 'user_B'; } };
 }
 test('patient TTS sends only approval context; duplicate turns play at most once', async () => {
   const h = harness(); const ui = h.hook({ channel: 'patient' }).render();
@@ -134,4 +134,40 @@ test('a briefing response received after entering and leaving an encounter remai
   await mentor.speak('outdated briefing'); assert.equal(h.requests.length, 0);
   patientHook.update({ enabled: false, exclusive: false });
   await mentor.speak('late briefing', undefined, beforeEncounter); assert.equal(h.requests.length, 0);
+});
+
+test('mentor mute preserves playback, pause resumes same audio, and replay restarts on web and native',async()=>{
+ for(const platform of ['web','ios']) {
+  const h=harness(platform);const hook=h.hook({channel:'mentor',voice:'configured-martinez'});let ui=hook.render();
+  const first=ui.speak('Exact instructional caption.');h.answer(0);await first;
+  const audio=platform==='web'?h.audios[0]:h.sounds[0];const plays=audio.plays;
+  ui=hook.update({muted:true});assert.equal(platform==='web'?audio.muted:audio.isMuted,true);assert.equal(audio.plays,plays);assert.equal(h.requests.length,1);
+  ui=hook.update({muted:false});assert.equal(audio.plays,plays);assert.equal(h.requests.length,1);
+  await ui.pause();ui=hook.render();assert.equal(ui.isPaused,true);await ui.resume();assert.equal(audio.plays,plays+1);assert.equal(h.requests.length,1);
+  const replay=ui.speak('Exact instructional caption.');h.answer(1);await replay;assert.equal(h.requests.length,2);assert.equal((platform==='web'?h.audios:h.sounds).length,2);await ui.stop();
+ }
+});
+test('blocked browser autoplay reports an error and explicit Play can retry',async()=>{
+ const h=harness();const errors=[];const hook=h.hook({onError:e=>errors.push(e.code)});let ui=hook.render();
+ h.blockPlayback(true);const pending=ui.speak('Introduction');h.answer(0);await pending;assert.deepEqual(errors,['PLAYBACK_BLOCKED']);ui=hook.render();assert.equal(ui.isSpeaking,false);assert.equal(ui.isPaused,true);h.blockPlayback(false);
+ await ui.resume();ui=hook.render();assert.equal(ui.isSpeaking,true);assert.equal(ui.isPaused,false);assert.equal(h.requests.length,1);assert.equal(h.audios.length,1);assert.equal(h.audios[0].plays,2);await ui.stop();
+});
+
+test('leaving after blocked autoplay releases prepared audio and prevents late resume',async()=>{
+ const h=harness();const hook=h.hook({scopeKey:'intro'});let ui=hook.render();h.blockPlayback(true);
+ const pending=ui.speak('Introduction');h.answer(0);await pending;
+ ui=hook.update({scopeKey:'practice'});h.blockPlayback(false);await ui.resume();assert.equal(h.audios[0].plays,1);assert.equal(hook.render().isPaused,false);
+});
+
+test('TTS failures distinguish authentication, provider access, and timeout without exposing upstream details',async()=>{
+ for(const [error,code] of [
+  [{status:401},'AUTH_REQUIRED'],
+  [{status:503,data:{reason:'key_model_access_denied'}},'TTS_UNAVAILABLE'],
+  [{code:'REQUEST_TIMEOUT'},'TTS_TIMEOUT'],
+  [{status:500},'PLAYBACK_FAILED']
+ ]) {
+  const h=harness();const errors=[];const hook=h.hook({onError:e=>errors.push(e)});const ui=hook.render();
+  const pending=ui.speak('Synthetic narration');h.requests[0].reject(Object.assign(new Error('private upstream content'),error));await pending;
+  assert.equal(errors.length,1);assert.equal(errors[0].code,code);assert.equal(errors[0].message,'Speech playback unavailable');assert.equal(h.audios.length,0);assert.equal(hook.render().isSpeaking,false);
+ }
 });

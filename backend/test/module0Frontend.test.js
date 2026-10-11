@@ -12,6 +12,119 @@ function compile(file, requireFn, globals = {}) {
   vm.runInNewContext(code,{exports,require:requireFn,process:{env:{}},AbortController,Date,Math,Set,setTimeout,clearTimeout,console,...globals});return exports;
 }
 const view=compile("src/api/module0View.js",()=>({}));
+const teaching=compile("src/components/module0/teaching.js",()=>compile("src/components/module0/presentation.js",()=>({})));
+const presentation=compile("src/components/module0/presentation.js",()=>({}));
+const approvedRequiredNarration = [
+ "Read the three openings and choose the one you would use to begin this encounter. Make your choice before checking the feedback.",
+ "Use the supplied Mr. Jones facts to write your OLD CARTS summary. Keep your response concise and avoid adding details that are not provided.",
+ "Place each supplied item in a SOAP section, then explain the distinction requested in the question. Use your own reasoning before checking the feedback.",
+ "Describe the history areas you would review, then choose two areas of daily-life context and explain why they matter for care planning.",
+ "Answer both parts of the question: explain the purpose of this history step and discuss where the supplied finding belongs. Use your own words.",
+ "Describe the examination information you would seek for this patient and explain how it would help your reasoning. Use the supplied history to guide your response.",
+ "Present a working possibility, an alternative, and your reasons for considering each. Finish with an uncertainty you would discuss with your preceptor.",
+ "Use the supplied case to give a brief SBAR presentation. Include your proposed next step and a question for your preceptor.",
+ "Use the supplied case to lead a concise SNAPPS presentation. Make your uncertainty clear and finish with a focused learning question."
+];
+const approvedOptionalNarration = [
+ "Rewrite the question shown on screen as an opening you would use with the patient. Submit your own wording when you are ready.",
+ "Identify the OLD CARTS categories that fit the two supplied descriptions. Explain your choice using only the information shown.",
+ "Classify the reported detail and explain your reasoning. Decide before checking the feedback.",
+ "Choose one of the circumstances named in the question and explain how it could affect a proposed plan.",
+ "Explain where you would document each of the two details shown. Make the distinction in your own words.",
+ "Compare the two sources of information named in the question and explain how each contributes to reasoning.",
+ "Explain the relationship between supporting evidence and the remaining uncertainty in this case. Give your reasoning rather than repeating the question.",
+ "Revise the facts-only report using just the two SBAR sections requested. Focus on your interpretation and proposed action.",
+ "Write only the Probe and Select parts requested here. Give one question for your preceptor and one focused question for further learning."
+];
+const approvedIllustrationAssignments = [
+ ["history-and-context",2,"history-medications-allergies"],
+ ["history-and-context",3,"history-surgical-family-context"],
+ ["history-and-context",4,"history-social-environmental-context"],
+ ["review-of-systems",2,"ros-systematic-symptom-questions"],
+ ["review-of-systems",4,"ros-symptoms-in-history"],
+ ["focused-examination",1,"focused-examination-purpose"],
+ ["focused-examination",2,"focused-examination-guided-by-history"],
+ ["focused-examination",4,"focused-findings-support-challenge-v2"],
+ ["evidence-and-differential",2,"clinical-reasoning-possibilities"]
+];
+test("approved required/optional scripts are exact, neutral, and preserve all 48 teaching panels",()=>{
+ const steps=catalog.activities.flatMap(a=>a.steps);
+ steps.forEach((step,i)=>{
+  assert.equal(teaching.narrationFor("practice",step,null,0,null,"required"),approvedRequiredNarration[i]);
+  assert.equal(teaching.narrationFor("practice",step,null,0,null,"practice"),approvedOptionalNarration[i]);
+  assert.notEqual(approvedRequiredNarration[i],approvedOptionalNarration[i]);
+ });
+ assert.equal(teaching.conceptPanelsFor(steps[0])[0].narration,"An opening question sets the tone for the encounter. Giving the patient room to describe their concern helps you understand their story before exploring the details.");
+ assert.notEqual(teaching.conceptPanelsFor(steps[0])[0].narration,approvedRequiredNarration[0]);
+ const preserved=steps.slice(1).flatMap(s=>teaching.conceptPanelsFor(s));assert.equal(preserved.length,47);
+ // Preserve the original baseline's non-art fields and all non-approved image assignments.
+ // Only the nine explicitly approved illustration references are excluded; tested below.
+ const allowedTitles=new Set(approvedIllustrationAssignments.map(([id,index])=>teaching.conceptPanelsFor({id})[index-1].title));
+ const unchanged=preserved.map(p=>{if(!allowedTitles.has(p.title))return p;const {illustration,...rest}=p;return rest;});
+ assert.equal(require("node:crypto").createHash("sha256").update(JSON.stringify(unchanged)).digest("hex"),"d77785f4700c50953d297676979e5e98cdb6f35e418b54580a2d70203f306a95");
+ for(const script of approvedRequiredNarration)assert.doesNotMatch(script,/pulmonary cause|cardiac possibility|belongs in Subjective|belongs in Objective|invites a story/);
+ for(const screen of ["welcome","activity-complete","resume","module-complete","review"])for(const activity of catalog.activities)assert.equal(teaching.narrationFor(screen,activity.steps[0],null,0,activity),"");
+});
+test("approved illustrations map exactly, load as original PNGs, and use unique scenes across Module 0",()=>{
+ const crypto=require("node:crypto");const imports=JSON.parse(fs.readFileSync(path.resolve(__dirname,"../../docs/module-0/approved-ui/illustration-integration/imported-assets.json"),"utf8"));
+ const renderer=fs.readFileSync(path.resolve(__dirname,"../../mobile/src/components/module0/ApprovedScreens.tsx"),"utf8");
+ for(const [id,index,asset] of approvedIllustrationAssignments){
+  assert.equal(teaching.conceptPanelsFor({id})[index-1].illustration,asset);
+  const record=imports.find(r=>r.filename===asset+".png");assert.ok(record);assert.equal(record.exerciseId,id);assert.equal(record.panelNumber,index);assert.ok(record.accessibleDescription);
+  const png=fs.readFileSync(path.resolve(__dirname,"../../mobile/assets/module0",asset+".png"));
+  assert.equal(png.subarray(0,8).toString("hex"),"89504e470d0a1a0a");assert.equal(crypto.createHash("sha256").update(png).digest("hex"),record.sha256);
+  assert.ok(renderer.includes('require("../../../assets/module0/'+asset+'.png")'));assert.ok(renderer.includes(record.accessibleDescription));
+ }
+ const all=catalog.activities.flatMap(a=>a.steps.flatMap(s=>teaching.conceptPanelsFor(s)));
+ const scenes=all.filter(p=>p.illustration);assert.equal(new Set(scenes.map(p=>p.illustration)).size,scenes.length);
+ const hashes=scenes.map(p=>crypto.createHash("sha256").update(fs.readFileSync(path.resolve(__dirname,"../../mobile/assets/module0",p.illustration+".png"))).digest("hex"));assert.equal(new Set(hashes).size,hashes.length);
+ const targets=all.filter(p=>catalog.activities.slice(1,3).flatMap(a=>a.steps).filter(s=>s.id!=="soap-and-data-types").flatMap(s=>teaching.conceptPanelsFor(s)).includes(p));
+ // Selector arrays are stable; the four target exercises contain 18 existing panels.
+ assert.equal(targets.length,18);assert.equal(targets.filter(p=>p.illustration).length,13);assert.equal(targets.filter(p=>!p.illustration).length,5);
+ assert.equal(teaching.conceptPanelsFor({id:"soap-and-data-types"})[2].illustration,"objective-exam-findings");
+ assert.equal(imports.find(r=>r.filename==="clinical-reasoning-possibilities.png").sourceEntry,"Clinicals3_Module0_Illustrations_Set02/04_clinical_reasoning_from_ideas_to_decisions.png");
+});
+test("response narration is the exact current feedback/reply and rejects mismatched identities",()=>{
+ for(const activity of catalog.activities)for(const step of activity.steps){
+  for(const label of ["Ready","Needs More Practice"]){
+   const result={activityId:activity.id,stepId:step.id,requestId:"returned-"+step.id,kind:"required",evaluation:{label,feedback:"Actual feedback for "+step.id+".\n\nKeep this paragraph."}};
+   assert.equal(teaching.narrationFor("feedback",step,result,0,activity),result.evaluation.feedback);
+   for(const wrong of [{...result,stepId:"other"},{...result,activityId:"other"},{...result,requestId:""},{...result,kind:"clarify"}])assert.equal(teaching.narrationFor("feedback",step,wrong,0,activity),"");
+  }
+  const result={activityId:activity.id,stepId:step.id,requestId:"reply-"+step.id,kind:"clarify",evaluation:{reply:"Actual answer for "+step.id+".",feedback:"Do not substitute this."}};
+  assert.equal(teaching.narrationFor("clarify",step,result,0,activity),result.evaluation.reply);
+  assert.equal(teaching.narrationFor("clarify",step,{...result,kind:"required"},0,activity),"");
+  assert.equal(teaching.narrationFor("clarify",step,{...result,activityId:"other"},0,activity),"");
+  for(const screen of ["feedback","clarify"])assert.equal(teaching.narrationFor(screen,step,null,0,activity),"");
+ }
+});
+test("returned-response audio eligibility uses transformed, trimmed backend character length",()=>{
+ for(const screen of ["feedback","clarify"]){
+  assert.equal(teaching.responseAudioTooLong(screen,"x".repeat(1200)),false);
+  assert.equal(teaching.responseAudioTooLong(screen,"x".repeat(1201)),true);
+  assert.equal(teaching.responseAudioTooLong(screen,"  "+"x".repeat(1200)+"  "),false);
+  assert.equal(teaching.responseAudioTooLong(screen,"SBAR "+"x".repeat(1194)),false);
+  assert.equal(teaching.responseAudioTooLong(screen,"SBAR "+"x".repeat(1195)),true);
+  assert.equal(teaching.responseAudioTooLong(screen,"😀".repeat(600)),false);
+  assert.equal(teaching.responseAudioTooLong(screen,"😀".repeat(601)),true);
+ }
+ assert.equal(teaching.responseAudioTooLong("teach","x".repeat(1201)),false);
+});
+test("complete teaching sequences have individual framework components and distinct companion narration",()=>{
+ const counts=[1,9,6,5,4,4,5,6,8];
+ const steps=catalog.activities.flatMap(a=>a.steps);
+ steps.forEach((step,i)=>{
+  const panels=teaching.conceptPanelsFor(step);assert.equal(panels.length,counts[i],step.id);
+  assert.equal(new Set(panels.map(p=>p.narration)).size,panels.length,step.id);
+  for(const p of panels){assert.ok(p.title && p.text && p.narration);assert.ok(p.icon);assert.notEqual(p.narration,p.text);}
+ });
+ for(const [id,components] of [["soap-and-data-types",["Subjective","Objective","Assessment","Plan"]],["sbar",["Situation","Background","Assessment","Recommendation"]],["snapps",["Summarize","Narrow","Analyze","Probe","Plan","Select"]]]){
+  const panels=teaching.conceptPanelsFor({id});for(const component of components)assert.equal(panels.filter(p=>p.title.startsWith(component+":")).length,1,component);
+ }
+ const mapping=JSON.parse(fs.readFileSync(path.resolve(__dirname,"../../docs/module-0/approved-ui/teaching-expansion/asset-mapping.json"),"utf8"));
+ for(const step of steps)for(const p of teaching.conceptPanelsFor(step))if(p.illustration)assert.ok(mapping[p.illustration] && fs.existsSync(path.resolve(__dirname,"../../mobile/assets/module0",p.illustration+".png")),p.illustration);
+ assert.equal(teaching.module0SpeechText("SBAR SOAP SNAPPS ACS SBARcode"),"s-bar SOAP SNAPPS ACS SBARcode");
+});
 function memoryService(evaluate, now) {
   const rows=new Map();
   const client={learnerModuleProgress:{
@@ -23,7 +136,7 @@ function memoryService(evaluate, now) {
 }
 function harness(file="app/module-0.tsx", params={}, options={}) {
   let slots=[],cursor=0,effects=[],dirty=false,root,instance;
-  let userId="A",focused=true;
+  let userId="A",focused=true,recordedText;
   let clock=Date.now(), evaluate, sessionValid=true;
   const timers=new Map();let timerId=0;
   const schedule=(fn,ms)=>{const id=++timerId;timers.set(id,{fn,at:clock+ms});return id;};
@@ -40,25 +153,32 @@ function harness(file="app/module-0.tsx", params={}, options={}) {
   };
   const jsx=(type,props,key)=>({type,props:props||{},key});
   const router={push:route=>navigation.push(route),replace:route=>navigation.push(route),back:()=>navigation.push("back"),canGoBack:()=>true};
-  const speech={isSpeaking:false,stop:async()=>{stops.push(true);},speak:async(text,_approval,valid)=>{speeches.push({text,valid});}};
+  const speech={isSpeaking:false,isPaused:false,pause:async()=>{speech.isSpeaking=false;speech.isPaused=true;},resume:async()=>{speech.isSpeaking=true;speech.isPaused=false;},stop:async()=>{stops.push(true);},speak:async(text,_approval,valid)=>{speeches.push({text,valid});}};
   const api={getModule0Progress:(headers,signal)=>get(headers,signal),submitModule0Interaction:(payload,headers,signal)=>post(payload,headers,signal),
     getToday:async()=>({identity:{},module0:{storageReady:true,completed:false,completedCount:0,requiredCount:9,activities:catalog.activities.map(a=>({id:a.id,title:a.title,completedCount:0,requiredCount:a.steps.length,completed:false}))},activeRotation:{id:"rotation1",sessions:[]}}),
     getLearningPaths:async()=>[{id:"path",title:"Path",units:[{id:"rotation1",sessions:[]}]}],
   };
   function requireFn(name){
+    if(name === "./teaching" || name.includes("module0/teaching")) return compile("src/components/module0/teaching.js",()=>compile("src/components/module0/presentation.js",()=>({})));
+    if(name.includes("module0/presentation") || name === "./presentation") return {...presentation, initialPresentation: options.approvedUI ? presentation.initialPresentation : () => null};
+    if(name.includes("module0/ApprovedScreens")) return compile("src/components/module0/ApprovedScreens.tsx",requireFn);
+    if(name === "./tokens" || name.includes("module0/tokens")) return compile("src/components/module0/tokens.ts",requireFn);
+    if(name === "expo-font") return {useFonts:()=>[true,null]};
+    if(name === "expo-image") return {Image:"Image"};
+    if(/\.(png|svg|ttf)$/.test(name)) return 1;
     if(name==="react")return react;
     if(name==="react/jsx-runtime")return{jsx,jsxs:jsx,Fragment:"Fragment"};
-    if(name==="react-native")return{View:"View",Text:"Text",TextInput:"TextInput",Pressable:"Pressable",ScrollView:"ScrollView",ActivityIndicator:"ActivityIndicator",RefreshControl:"RefreshControl",Modal:"Modal",StyleSheet:{create:x=>x},Animated:{Value:class{setValue(){}},sequence:()=>({start(){}}),timing:()=>({})},useWindowDimensions:()=>({width:800})};
-    if(name==="react-native-safe-area-context")return{SafeAreaView:"SafeAreaView"};
+    if(name==="react-native")return{View:"View",Text:"Text",TextInput:"TextInput",Pressable:"Pressable",ScrollView:"ScrollView",ActivityIndicator:"ActivityIndicator",RefreshControl:"RefreshControl",Modal:"Modal",Platform:{OS:"web"},StyleSheet:{create:x=>x},Animated:{Value:class{setValue(){}},sequence:()=>({start(){}}),timing:()=>({})},useWindowDimensions:()=>({width:390,height:844})};
+    if(name==="react-native-safe-area-context")return{SafeAreaView:"SafeAreaView",useSafeAreaInsets:()=>({top:0,bottom:0,left:0,right:0})};
     if(name==="@clerk/clerk-expo")return{useAuth:()=>({userId,sessionId:`session-${userId}`}),useUser:()=>({isLoaded:true,user:{id:userId}}),useClerk:()=>({signOut:async()=>{}})};
     if(name==="expo-router")return{useRouter:()=>router,useLocalSearchParams:()=>params};
     if(name==="@react-navigation/native")return{useIsFocused:()=>focused,useFocusEffect:fn=>react.useEffect(()=>fn(),[fn])};
     if(name.includes("module0View"))return view;
     if(name.includes("sessionToken"))return{captureSession:expected=>{if(!sessionValid)throw new Error("Session expired");const captured=userId;return()=>{if(!sessionValid||expected!==userId||captured!==userId)throw new Error("Account changed");};}};
     if(name.includes("api/client"))return{api};
-    if(name.includes("useVoicePreference"))return{useVoicePreference:()=>({voiceEnabled:true,setVoiceEnabled(){}})};
+    if(name.includes("useVoicePreference"))return{useVoicePreference:()=>{const [voiceEnabled,setVoiceEnabled]=react.useState(true);return {voiceEnabled,setVoiceEnabled};}};
     if(name.includes("useSpeechPlayback"))return{useSpeechPlayback:()=>speech};
-    if(name.includes("useEnglishSpeechTranscription"))return{useEnglishSpeechTranscription:()=>({isRecording:false,transcribing:false,recordingBusy:false,toggleRecording(){}})};
+    if(name.includes("useEnglishSpeechTranscription"))return{useEnglishSpeechTranscription:options=>{recordedText=options.onText;return{isRecording:false,transcribing:false,recordingBusy:false,toggleRecording(){}};}};
     if(name.includes("ClinicalsChatComposer"))return{ClinicalsChatComposer:"Composer"};
     if(name.includes("MentorAvatar"))return{MentorAvatar:"MentorAvatar"};
     if(name.includes("Module0Card"))return{Module0Card:"Module0Card"};
@@ -83,14 +203,35 @@ function harness(file="app/module-0.tsx", params={}, options={}) {
   function text(node){if(node===undefined||node===null||typeof node==="boolean")return"";if(Array.isArray(node))return node.map(text).join(" ");if(typeof node!=="object")return String(node);return typeof node.type==="function" ? text(node.type(node.props)) : text(node.props?.children);}
   return{render,settle,unmount,nodes,text,service,navigation,speeches,stops,
     input:()=>nodes().find(n=>n.type==="TextInput"),
+    dictate:text=>recordedText(text),
     advance:async ms=>{clock+=ms;for(const [id,timer] of [...timers])if(timer.at<=clock){timers.delete(id);timer.fn();}await settle();},
     setEvaluate:fn=>{evaluate=fn;}, expireSession:()=>{sessionValid=false;}, refreshSession:()=>{sessionValid=true;},
     setSpeaking:value=>{speech.isSpeaking=value;render();},
     setGet:fn=>{get=fn;},setPost:fn=>{post=fn;},setFocused:value=>{focused=value;render();},
     switchUser:value=>{unmount();userId=value;render();},
-    find:label=>nodes().find(n=>n.type==="Pressable"&&text(n).replace(/\s+/g," ").includes(label)),
+    find:label=>nodes().find(n=>n.type==="Pressable"&&(text(n).replace(/\s+/g," ").includes(label) || n.props.accessibilityLabel?.includes(label))),
     composer:()=>nodes().find(n=>n.type==="Composer"),
   };
+}
+
+async function continueFeedback(h) {
+  assert.ok(h.find("Continue →"), "saved feedback is visible before advancement");
+  assert.equal(h.input(), undefined, "next exercise input is not displayed on feedback");
+  h.find("Continue →").props.onPress(); h.render(); await h.settle();
+  await finishTeaching(h);
+}
+
+async function finishTeaching(h) {
+ if(h.render().props.screen === "introduction"){h.find("Begin").props.onPress();h.render();await h.settle();}
+ if (h.find("Learn OLD CARTS")) {h.find("Learn OLD CARTS").props.onPress();h.render();await h.settle();}
+ const panels=teaching.conceptPanelsFor(h.render().props.step);
+ for(let i=0;i<panels.length && ["old-carts-teach","teach"].includes(h.render().props.screen);i++){ (h.find("Practice with Mr. Jones") || h.find("Got it") || h.find("Practice →") || h.find("Continue →")).props.onPress();h.render();await h.settle();}
+}
+
+async function reviewOpening(h) {
+ if(!h.find("Activities and reviews")){h.find("Close lesson").props.onPress();h.render();await h.settle();}
+ if(!h.find("✓ Review 1") && !h.find("Review: Open the Interview")){h.find("Activities and reviews").props.onPress();h.render();await h.settle();}
+ (h.find("✓ Review 1") || h.find("Review: Open the Interview")).props.onPress();h.render();await h.settle();
 }
 
 test("frontend resume selection follows server next/pending state and completed work remains reviewable",()=>{
@@ -112,9 +253,10 @@ test("Module 0 opens the exact unfinished step, saves weak feedback, advances, a
   const h=harness();t.after(h.unmount);h.render();await h.settle();
   const c=h.composer();assert.ok(c);c.props.onChangeText("What brings you to the clinic today?");h.render();await h.settle();
   await h.composer().props.onSubmit();await h.settle();
-  assert.match(h.text(h.render()),/1 of 9 interactions complete/);assert.match(h.text(h.render()),/give one concise OLD CARTS summary/);
+  await continueFeedback(h);
+  assert.equal(h.render().props.progress.completedCount,1);assert.match(h.text(h.render()),/Practice OLD CARTS/);
   assert.equal((await h.service.getProgress("A")).completedCount,1);
-  h.find("✓ Review 1").props.onPress();h.render();await h.settle();assert.match(h.text(h.render()),/Your saved response/);assert.match(h.text(h.render()),/Optional targeted practice/);
+  await reviewOpening(h);assert.match(h.text(h.render()),/Your saved response/);assert.match(h.text(h.render()),/Optional targeted practice/);
   assert.equal((await h.service.getProgress("A")).completedCount,1);
 });
 test("independent activity navigation cancels delayed replies and their audio without losing server progress",async t=>{
@@ -122,14 +264,14 @@ test("independent activity navigation cancels delayed replies and their audio wi
   h.setPost(payload=>new Promise(resolve=>{finish=async()=>resolve(await h.service.submit("A",payload));}));
   h.composer().props.onChangeText("What brings you to the clinic today?");h.render();h.composer().props.onSubmit();
   await h.settle();const previousSpeech=h.speeches.at(-1);
-  h.find("Organizing Clinical Information").props.onPress();h.render();await h.settle();assert.equal(previousSpeech.valid(),false);
-  await finish();await h.settle();assert.match(h.text(h.render()),/Place each item in SOAP/);
+  h.find("Activities and reviews").props.onPress();h.render();await h.settle();h.find("Organizing Clinical Information").props.onPress();h.render();await h.settle();assert.equal(previousSpeech.valid(),false);
+  await finish();await h.settle();assert.match(h.text(h.render()),/SOAP and Data Types/);await finishTeaching(h);assert.match(h.text(h.render()),/Place each item in SOAP/);
   assert.equal((await h.service.getProgress("A")).completedCount,1);assert.ok(h.stops.length);
 });
 test("leaving and reopening resumes durable progress; account switching cannot display a previous learner response",async t=>{
   const h=harness();t.after(h.unmount);h.render();await h.settle();
   const p=await h.service.getProgress("A");await h.service.submit("A",{activityId:catalog.activities[2].id,stepId:catalog.activities[2].steps[0].id,kind:"required",response:"I would examine respiratory findings and vital signs.",requestId:"persisted-response",expectedRevision:p.revision});
-  h.unmount();h.render();await h.settle();assert.match(h.text(h.render()),/working possibility and an alternative/);
+  h.unmount();h.render();await h.settle();await finishTeaching(h);assert.match(h.text(h.render()),/working possibility and an alternative/);
   h.switchUser("B");await h.settle();assert.match(h.text(h.render()),/0 of 9 interactions complete/);assert.doesNotMatch(h.text(h.render()),/I would examine respiratory findings/);
 });
 test("storage setup failure is visible and never masquerades as completion",async t=>{
@@ -143,11 +285,14 @@ test("completed Module 0 opens review and optional practice never resets complet
   const before=await h.service.getProgress("A");h.render();await h.settle();assert.match(h.text(h.render()),/Module 0 completed/);assert.match(h.text(h.render()),/Your saved response/);
   h.find("Optional targeted practice").props.onPress();h.render();await h.settle();h.composer().props.onChangeText("What brings you to the clinic today?");h.render();h.composer().props.onSubmit();await h.settle();
   const after=await h.service.getProgress("A");assert.equal(after.completedCount,9);assert.deepEqual(after.completedAt,before.completedAt);
-  h.find("Presenting to the Preceptor").props.onPress();h.render();await h.settle();assert.match(h.text(h.render()),/Give a brief SBAR/);assert.match(h.text(h.render()),/Your saved response/);
+  await continueFeedback(h);
+  h.find("Activities and reviews").props.onPress();h.render();await h.settle();h.find("Presenting to the Preceptor").props.onPress();h.render();await h.settle();assert.match(h.text(h.render()),/Give a brief SBAR/);assert.match(h.text(h.render()),/Your saved response/);
 });
 test("completed-step clarification retains completion and returns to the same exercise",async t=>{
   const h=harness();t.after(h.unmount);await h.service.submit("A",{activityId:catalog.activities[0].id,stepId:catalog.activities[0].steps[0].id,kind:"required",response:"What brings you to the clinic today?",requestId:"saved-review-step",expectedRevision:0});
-  h.render();await h.settle();h.find("✓ Review 1").props.onPress();h.render();await h.settle();h.find("Ask for clarification").props.onPress();h.render();await h.settle();h.composer().props.onChangeText("How does an open question help?");h.render();h.composer().props.onSubmit();await h.settle();
+  h.render();await h.settle();await reviewOpening(h);h.find("Ask Dr. Martinez").props.onPress();h.render();await h.settle();h.input().props.onChangeText("How does an open question help?");h.render();h.nodes().find(n=>n.props?.accessibilityLabel==="Send clarification question").props.onPress();await h.settle();
+  assert.match(h.text(h.render()),/An open question invites/);
+  h.find("Back").props.onPress();h.render();await h.settle();
   assert.equal((await h.service.getProgress("A")).completedCount,1);assert.match(h.text(h.render()),/Write your opening question/);
 });
 test("Module 0 card navigates to start, independent activities, and completed review",()=>{
@@ -158,6 +303,7 @@ test("Module 0 card navigates to start, independent activities, and completed re
   const root=component.Module0Card({summary});const buttons=collect(root).filter(n=>n.type==="Pressable");buttons[0].props.onPress();buttons.at(-1).props.onPress();
   assert.equal(navigation[0].pathname,"/module-0");assert.equal(navigation[0].params.activityId,catalog.activities[0].id);assert.equal(navigation[1],"/module-0");
   const done=collect(component.Module0Card({summary:{...summary,completed:true,completedCount:9}}));assert.ok(done.some(n=>n.props.children==="Review Module 0"));
+  done.filter(n=>n.type==="Pressable").at(-1).props.onPress();assert.equal(navigation.at(-1).pathname,"/module-0");assert.equal(navigation.at(-1).params.mode,"review");
 });
 
 
@@ -185,7 +331,8 @@ test("real composer button dispatches once, displays processing and weak feedbac
   assert.match(h.text(h.render()),/Submitting your answer and preparing feedback/);
   assert.ok((await h.service.getProgress("A")).pending,"answer saved before evaluation");
   finish();await h.settle();assert.match(h.text(h.render()),/Needs More Practice/);
-  assert.match(h.text(h.render()),/1 of 9/);assert.equal(h.input().props.editable,true);
+  await continueFeedback(h);
+  assert.equal(h.render().props.progress.completedCount,1);assert.equal(h.input().props.editable,true);
 });
 
 test("failed evaluation restores its saved answer, explains retry delay and completes safely on retry",async t=>{
@@ -209,7 +356,8 @@ test("failed evaluation restores its saved answer, explains retry delay and comp
   h.find("Retry feedback").props.onPress();await h.settle();
   const after=await h.service.getProgress("A");assert.equal(after.completedCount,1);
   assert.equal(after.activities[0].steps[0].saved.requestId,before.pending.requestId);
-  assert.match(h.text(h.render()),/You invited the patient's narrative/);assert.equal(h.input().props.editable,true);
+  assert.match(h.text(h.render()),/You invited the patient's narrative/);
+  await continueFeedback(h);assert.equal(h.input().props.editable,true);
 });
 
 test("transport timeout refreshes authoritative pending state and polling recovers completed feedback",async t=>{
@@ -220,7 +368,8 @@ test("transport timeout refreshes authoritative pending state and polling recove
   assert.match(h.text(h.render()),/Feedback took longer than expected/);
   assert.match(h.text(h.render()),/Your answer is saved and awaiting feedback/);assert.equal(h.input().props.editable,false);
   finish();await worker;await h.advance(3000);
-  assert.match(h.text(h.render()),/1 of 9/);assert.match(h.text(h.render()),/Your question invites/);
+  assert.match(h.text(h.render()),/Your question invites/);
+  await continueFeedback(h);assert.equal(h.render().props.progress.completedCount,1);
   assert.equal(h.input().props.editable,true);assert.doesNotMatch(h.text(h.render()),/Feedback took longer/);
 });
 
@@ -239,7 +388,8 @@ test("leaving and returning during evaluation resumes the next unfinished step a
   h.input().props.onChangeText("What brings you to the clinic today?");h.render();h.find("Submit").props.onPress();await h.settle();
   h.setFocused(false);await h.settle();finish();await worker;await h.settle();
   h.setFocused(true);await h.settle();
-  assert.match(h.text(h.render()),/give one concise OLD CARTS summary/);assert.equal(h.input().props.editable,true);
+  await continueFeedback(h);
+  assert.match(h.text(h.render()),/Practice OLD CARTS/);assert.equal(h.input().props.editable,true);
   assert.equal((await h.service.getProgress("A")).completedCount,1);
 });
 
@@ -249,7 +399,7 @@ test("leaving and returning while evaluation remains pending shows recovery rath
   h.render();await h.settle();h.input().props.onChangeText("What brings you to the clinic today?");h.render();h.find("Submit").props.onPress();await h.settle();
   h.setFocused(false);await h.settle();h.setFocused(true);await h.settle();
   assert.equal(h.input().props.editable,false);assert.match(h.text(h.render()),/Your answer is saved and awaiting feedback/);
-  finish();await h.settle();await h.advance(3000);assert.equal(h.input().props.editable,true);
+  finish();await h.settle();await h.advance(3000);await continueFeedback(h);assert.equal(h.input().props.editable,true);
 });
 
 test("missing local session on submit is visible and cannot silently swallow the answer",async t=>{
@@ -268,9 +418,9 @@ test("expired API session reports an actionable error and preserves the draft",a
 test("completed-step review offers a direct return to the active exercise",async t=>{
   const h=harness();t.after(h.unmount);
   await h.service.submit("A",{activityId:catalog.activities[0].id,stepId:catalog.activities[0].steps[0].id,kind:"required",response:"What brings you to the clinic today?",requestId:"review-completed",expectedRevision:0});
-  h.render();await h.settle();h.find("✓ Review 1").props.onPress();h.render();await h.settle();
-  assert.equal(h.input(),undefined);h.find("Continue to the next unfinished exercise").props.onPress();h.render();await h.settle();
-  assert.equal(h.input().props.editable,true);assert.match(h.text(h.render()),/give one concise OLD CARTS summary/);
+  h.render();await h.settle();await reviewOpening(h);
+  assert.equal(h.input(),undefined);h.find("Continue to the next unfinished exercise").props.onPress();h.render();await h.settle();await finishTeaching(h);
+  assert.equal(h.input().props.editable,true);assert.match(h.text(h.render()),/Practice OLD CARTS/);
 });
 
 test("polling cannot replace newer saved progress with an older read",async t=>{
@@ -282,7 +432,8 @@ test("polling cannot replace newer saved progress with an older read",async t=>{
   let post;h.setPost(payload=>new Promise(resolve=>{post=async()=>resolve(await h.service.submit("A",payload));}));
   h.find("Submit").props.onPress();h.render();await h.settle();await h.advance(3000);
   await post();await h.settle();read();await h.settle();
-  assert.match(h.text(h.render()),/1 of 9/);assert.equal(h.input().props.editable,true);
+  await continueFeedback(h);
+  assert.equal(h.render().props.progress.completedCount,1);assert.equal(h.input().props.editable,true);
 });
 
 test("leaving before submission and reopening keeps the unanswered input editable without creating progress",async t=>{
@@ -309,10 +460,10 @@ test("account switching during submission discards old UI feedback and audio whi
 test("a completed activity has an obvious continue action and reopening does not trap the learner in review",async t=>{
   const h=harness();t.after(h.unmount);let revision=0;
   for(const step of catalog.activities[0].steps)revision=(await h.service.submit("A",{activityId:catalog.activities[0].id,stepId:step.id,kind:"required",response:"A concise synthetic attempted response",requestId:`activity-done-${step.id}`,expectedRevision:revision})).progress.revision;
-  h.render();await h.settle();h.find("Starting the Encounter").props.onPress();h.render();await h.settle();
+  h.render();await h.settle();if(!h.find("Activities and reviews")){h.find("Close lesson").props.onPress();h.render();await h.settle();}h.find("Activities and reviews").props.onPress();h.render();await h.settle();(h.find("Starting the Encounter") || h.find("Review: Open the Interview")).props.onPress();h.render();await h.settle();
   assert.match(h.text(h.render()),/Activity complete/);assert.equal(h.input(),undefined);
   h.find("Continue to the next unfinished activity").props.onPress();h.render();await h.settle();
-  assert.equal(h.input().props.editable,true);assert.match(h.text(h.render()),/Place each item in SOAP/);
+  await finishTeaching(h);assert.equal(h.input().props.editable,true);assert.match(h.text(h.render()),/Place each item in SOAP/);
   h.setFocused(false);await h.settle();h.setFocused(true);await h.settle();assert.equal(h.input().props.editable,true);
   assert.equal((await h.service.getProgress("A")).completedCount,2);
 });
@@ -342,5 +493,489 @@ test("expired evaluating lease stops automatic GET checks and exposes retry with
   assert.equal(reads,before);assert.match(h.text(h.render()),/Automatic checks have stopped/);
   assert.equal(h.find("Retry feedback").props.disabled,false);
   finish();await worker;
-  h.find("Refresh saved progress").props.onPress();await h.settle();assert.match(h.text(h.render()),/1 of 9/);
+  h.find("Refresh saved progress").props.onPress();await h.settle();await continueFeedback(h);assert.equal(h.render().props.progress.completedCount,1);
+});
+
+async function openingPractice(h) {
+  h.render();await h.settle();
+  for(const label of ["Let's start","Begin","Got it"]){h.find(label).props.onPress();h.render();await h.settle();}
+}
+function selectChoice(h, choice) { h.nodes().find(n=>n.type==="Pressable"&&n.props.accessibilityLabel===choice).props.onPress(); }
+test("approved flow submits provisional text through unchanged grading and holds feedback before advancing",async t=>{
+  const h=harness("app/module-0.tsx",{}, {approvedUI:true});t.after(h.unmount);await openingPractice(h);
+  assert.equal(h.find("Check answer").props.disabled,true);selectChoice(h,"Is your chest hurting?");h.render();await h.settle();
+  let submitted;h.setPost(payload=>{submitted=payload;return h.service.submit("A",payload);});
+  h.find("Check answer").props.onPress();await h.settle();
+  assert.equal(submitted.response,"Is your chest hurting?");assert.equal(submitted.stepId,"open-the-interview");assert.equal(submitted.kind,"required");
+  assert.match(h.text(h.render()),/Needs More Practice/);assert.equal((await h.service.getProgress("A")).completedCount,1);
+  await continueFeedback(h);assert.match(h.text(h.render()),/Practice OLD CARTS/);assert.ok(h.composer());
+});
+test("approved choices preserve drafts when returning to free text without saving presentation navigation",async t=>{
+  const h=harness("app/module-0.tsx",{}, {approvedUI:true});t.after(h.unmount);await openingPractice(h);
+  selectChoice(h,"What brings you in today?");h.render();assert.equal(h.find("Use free text"),undefined);
+  assert.equal(h.nodes().find(n=>n.props?.accessibilityLabel === "What brings you in today?").props.accessibilityState.checked,true);assert.equal((await h.service.getProgress("A")).completedCount,0);
+  assert.equal((await h.service.getProgress("A")).pending,null);
+  for(const a of catalog.activities)for(const step of a.steps)assert.equal(presentation.hasApprovedChoices(a,{...step,completed:false}),step.id==="open-the-interview");
+});
+test("approved choice evaluation failure returns to durable recovery without losing the answer",async t=>{
+  const h=harness("app/module-0.tsx",{}, {approvedUI:true,fakeTimers:true});t.after(h.unmount);h.setEvaluate(()=>{throw new Error("synthetic failure");});await openingPractice(h);
+  selectChoice(h,"What brings you in today?");h.render();h.find("Check answer").props.onPress();await h.settle();
+  const saved=await h.service.getProgress("A");assert.equal(saved.pending.response,"What brings you in today?");assert.equal(saved.completedCount,0);
+  assert.match(h.text(h.render()),/Your answer is saved and awaiting feedback/);assert.ok(h.find("Retry feedback"));
+});
+test("Feedback stays on the submitted exercise through focus refresh with companion narration",async t=>{
+  const h=harness();t.after(h.unmount);h.render();await h.settle();
+  h.setEvaluate(({response})=>({label:"Ready",feedback:"Exact first-exercise feedback.",evidence:[response]}));
+  h.input().props.onChangeText("Synthetic first attempt");h.render();h.find("Submit").props.onPress();await h.settle();
+  assert.match(h.text(h.render()),/Exact first-exercise feedback/);assert.doesNotMatch(h.text(h.render()),/Practice OLD CARTS/);
+  assert.equal(h.render().props.narration,"Exact first-exercise feedback.");
+  h.find("Play narration").props.onPress();assert.equal(h.speeches.at(-1).text,"Exact first-exercise feedback.");const oldAudio=h.speeches.at(-1);
+  h.setFocused(false);await h.settle();assert.equal(oldAudio.valid(),false);h.setFocused(true);await h.settle();
+  assert.match(h.text(h.render()),/Exact first-exercise feedback/);assert.equal(h.input(),undefined);
+  await continueFeedback(h);assert.match(h.text(h.render()),/Practice OLD CARTS/);
+});
+test("Clarify uses the submitted question and server reply, retains draft, and never advances required progress",async t=>{
+  const h=harness("app/module-0.tsx",{}, {approvedUI:true});t.after(h.unmount);await openingPractice(h);
+  selectChoice(h,"Is your chest hurting?");h.render();h.find("Ask Dr. Martinez").props.onPress();h.render();await h.settle();
+  h.input().props.onChangeText("A synthetic question about this concept?");h.render();h.nodes().find(n=>n.props?.accessibilityLabel==="Send clarification question").props.onPress();await h.settle();
+  assert.match(h.text(h.render()),/A synthetic question about this concept/);assert.match(h.text(h.render()),/An open question invites the patient narrative/);
+  assert.equal((await h.service.getProgress("A")).completedCount,0);assert.equal(h.render().props.narration,"An open question invites the patient narrative.");
+  h.find("Play narration").props.onPress();assert.equal(h.speeches.at(-1).text,teaching.narrationFor("clarify",h.render().props.step,h.render().props.result));
+  h.find("Back").props.onPress();h.render();await h.settle();
+  assert.equal(h.nodes().find(n=>n.props?.accessibilityLabel==="Is your chest hurting?").props.accessibilityState.checked,true);
+});
+test("Resume shows actual server count and next exercise without creating progress",async t=>{
+  const h=harness("app/module-0.tsx",{}, {approvedUI:true});t.after(h.unmount);
+  await h.service.submit("A",{activityId:catalog.activities[0].id,stepId:catalog.activities[0].steps[0].id,kind:"required",response:"Synthetic opening attempt",requestId:"resume-server",expectedRevision:0});
+  const before=await h.service.getProgress("A");h.render();await h.settle();
+  assert.match(h.text(h.render()),/1\s+of\s+9\s+complete/);assert.match(h.text(h.render()),/Organize OLD CARTS/);assert.equal(h.input(),undefined);
+  h.find("Resume →").props.onPress();h.render();await h.settle();assert.equal(h.render().props.screen,"old-carts-teach");await finishTeaching(h);assert.match(h.text(h.render()),/Practice OLD CARTS/);assert.ok(h.composer());
+  assert.equal((await h.service.getProgress("A")).revision,before.revision);
+});
+test("all nine free-text submissions show feedback before activity and module completion; completion remains reviewable",async t=>{
+  const h=harness();t.after(h.unmount);h.render();await h.settle();let count=0;
+  for(const activity of catalog.activities){
+    for(const step of activity.steps){
+      await finishTeaching(h);assert.ok(h.composer(),step.id);h.input().props.onChangeText("Synthetic attempted response for "+step.id);h.render();h.find("Submit").props.onPress();await h.settle();
+      count++;assert.equal((await h.service.getProgress("A")).completedCount,count);assert.match(h.text(h.render()),/Needs More Practice/);
+      assert.equal(h.render().props.result.activityId,activity.id);assert.equal(h.render().props.result.stepId,step.id);
+      assert.doesNotMatch(h.text(h.render()),/Activity complete!|Module 0 Complete!/);await continueFeedback(h);
+    }
+    assert.match(h.text(h.render()),/Activity complete!/);assert.equal(h.input(),undefined);
+    if(count<9){h.find("Next activity").props.onPress();h.render();await h.settle();}
+  }
+  const before=await h.service.getProgress("A");h.find("View module completion").props.onPress();h.render();await h.settle();
+  assert.match(h.text(h.render()),/Module 0 Complete!/);assert.match(h.text(h.render()),/4 activities/);assert.match(h.text(h.render()),/9 exercises/);
+  h.find("Review completed exercises").props.onPress();h.render();await h.settle();assert.match(h.text(h.render()),/Review & Practice/);h.find("Review: Open the Interview").props.onPress();h.render();await h.settle();await finishTeaching(h);assert.match(h.text(h.render()),/Your saved response/);assert.ok(h.find("Optional targeted practice"));
+  assert.equal((await h.service.getProgress("A")).revision,before.revision);
+});
+test("completed landing uses server completion and routes to the existing roadmap",async t=>{
+  const h=harness("app/module-0.tsx",{}, {approvedUI:true});t.after(h.unmount);let revision=0;
+  for(const a of catalog.activities)for(const step of a.steps)revision=(await h.service.submit("A",{activityId:a.id,stepId:step.id,kind:"required",response:"Synthetic completion attempt",requestId:"landing-"+step.id,expectedRevision:revision})).progress.revision;
+  h.render();await h.settle();assert.match(h.text(h.render()),/Module 0 Complete!/);assert.equal(h.input(),undefined);
+  h.find("Continue to Rotation 1").props.onPress();assert.equal(h.navigation.at(-1),"/(tabs)/cases");
+});
+
+
+test("a reply for another request cannot become Feedback; recovery uses the exact saved submission",async t=>{
+  const h=harness();t.after(h.unmount);h.render();await h.settle();
+  h.setPost(async payload=>{const saved=await h.service.submit("A",payload);return {...saved,result:{...saved.result,requestId:"wrong-request",stepId:"organize-old-carts",evaluation:{label:"Ready",feedback:"Wrong exercise feedback"}}};});
+  h.input().props.onChangeText("Synthetic exact answer");h.render();h.find("Submit").props.onPress();await h.settle();
+  assert.doesNotMatch(h.text(h.render()),/Wrong exercise feedback/);assert.match(h.text(h.render()),/Your response is an attempt/);
+  assert.equal(h.input(),undefined);await continueFeedback(h);assert.match(h.text(h.render()),/Practice OLD CARTS/);
+});
+
+test("free-text exercises and saved review use the approved presentation instead of the legacy page",async t=>{
+  const h=harness();t.after(h.unmount);h.render();await h.settle();
+  assert.equal(h.render().type.name,"ApprovedScreens");assert.equal(h.render().props.textMode,true);
+  h.input().props.onChangeText("What brings you to the clinic today?");h.render();h.find("Submit").props.onPress();await h.settle();
+  await continueFeedback(h);assert.equal(h.render().type.name,"ApprovedScreens");assert.equal(h.render().props.step.id,"organize-old-carts");assert.ok(h.composer());
+  await reviewOpening(h);assert.equal(h.render().type.name,"ApprovedScreens");assert.match(h.text(h.render()),/Your saved response/);
+});
+test("failed-answer recovery uses approved styling while preserving request identity and disabled input",async t=>{
+  const h=harness("app/module-0.tsx",{}, {fakeTimers:true});t.after(h.unmount);h.setEvaluate(()=>{throw new Error("synthetic failure");});h.render();await h.settle();
+  h.input().props.onChangeText("What brings you to the clinic today?");h.render();h.find("Submit").props.onPress();await h.settle();
+  const before=await h.service.getProgress("A");assert.equal(h.render().type.name,"ApprovedScreens");assert.equal(h.render().props.textMode,true);
+  assert.equal(h.input().props.editable,false);assert.match(h.text(h.render()),/Your answer is saved and awaiting feedback/);
+  await h.advance(6000);h.setEvaluate(({response})=>({label:"Ready",feedback:"You invited a narrative.",evidence:[response]}));h.find("Retry feedback").props.onPress();await h.settle();
+  const after=await h.service.getProgress("A");assert.equal(after.activities[0].steps[0].saved.requestId,before.pending.requestId);assert.ok(h.find("Continue →"));
+});
+
+test("manual corrections preserve transition, captions, mute, Back draft and pending evaluation",async t=>{
+ const h=harness("app/module-0.tsx",{}, {approvedUI:true});t.after(h.unmount);h.render();await h.settle();
+ h.find("Let's start").props.onPress();h.render();await h.settle();assert.match(h.speeches.at(-1).text,/Welcome to Starting the Encounter/);
+ const count=h.speeches.length;h.find("Show captions").props.onPress();h.render();await h.settle();assert.match(h.text(h.render()),/Welcome to Starting the Encounter/);
+ h.find("Mute").props.onPress();h.render();await h.settle();assert.equal(h.speeches.length,count);h.find("Unmute").props.onPress();h.render();await h.settle();assert.equal(h.speeches.length,count);
+ h.find("Replay").props.onPress();assert.equal(h.speeches.length,count+1);assert.equal(h.speeches.at(-1).text,h.speeches.at(-2).text);
+ h.find("Begin").props.onPress();h.render();await h.settle();h.find("Got it").props.onPress();h.render();await h.settle();
+ selectChoice(h,"What brings you in today?");h.render();h.find("Check answer").props.onPress();await h.settle();
+ h.find("Continue →").props.onPress();h.render();await h.settle();assert.match(h.text(h.render()),/Exercise\s+1\s+complete!/);assert.doesNotMatch(h.text(h.render()),/Activity complete!/);
+ const saved=await h.service.getProgress("A");h.find("Back").props.onPress();h.render();await h.settle();assert.match(h.text(h.render()),/Needs More Practice/);assert.equal((await h.service.getProgress("A")).revision,saved.revision);
+ await continueFeedback(h);h.input().props.onChangeText("Synthetic OLD CARTS draft");h.render();h.find("Back").props.onPress();h.render();await h.settle();assert.match(h.text(h.render()),/Patient words to clinical qualifiers/);h.find("Practice with Mr. Jones").props.onPress();h.render();await h.settle();assert.equal(h.input().props.value,"Synthetic OLD CARTS draft");
+ let finish;h.setEvaluate(({response})=>new Promise(resolve=>{finish=()=>resolve({label:"Ready",feedback:"Synthetic feedback",evidence:[response]});}));h.find("Submit").props.onPress();await h.settle();assert.equal(h.find("Back").props.disabled,true);finish();await h.settle();await continueFeedback(h);assert.match(h.text(h.render()),/Activity complete!/);
+});
+
+test("refined controls have accessible states and captions use only companion narration",async t=>{
+ const h=harness("app/module-0.tsx",{}, {approvedUI:true});t.after(h.unmount);await openingPractice(h);
+ const play=h.find("Play narration");assert.equal(play.props.accessibilityState.disabled,false);const size=play.props.style({pressed:false})[0];assert.ok(size.width>=44&&size.height>=44);
+ h.find("Show captions").props.onPress();h.render();await h.settle();const caption=h.nodes().find(n=>n.props.accessibilityLabel==="Narration captions");assert.equal(h.text(caption),h.render().props.narration);assert.notEqual(h.text(caption),h.render().props.step.teach+" "+h.render().props.step.question);
+ h.setSpeaking(true);h.find("Pause narration").props.onPress();h.render();assert.ok(h.find("Play narration").props.accessibilityState.selected);h.find("Play narration").props.onPress();h.render();assert.ok(h.find("Pause narration"));
+ h.find("Mute narration").props.onPress();h.render();assert.ok(h.find("Unmute narration").props.accessibilityState.selected);assert.ok(h.find("Hide captions").props.accessibilityState.selected);
+});
+test("Close returns to resume and completed review remains in overview without progress writes",async t=>{
+ const h=harness("app/module-0.tsx",{}, {approvedUI:true});t.after(h.unmount);await h.service.submit("A",{activityId:catalog.activities[0].id,stepId:catalog.activities[0].steps[0].id,kind:"required",response:"Synthetic saved opening",requestId:"refined-review",expectedRevision:0});h.render();await h.settle();
+ h.find("Resume →").props.onPress();h.render();await h.settle();assert.equal(h.render().props.screen,"old-carts-teach");assert.equal(h.find("✓ Review 1"),undefined);const before=await h.service.getProgress("A");const audio=h.speeches.at(-1);
+ h.find("Close lesson").props.onPress();h.render();await h.settle();assert.equal(h.render().props.screen,"resume");assert.equal(audio.valid(),false);assert.equal(h.navigation.length,0);await reviewOpening(h);assert.match(h.text(h.render()),/Synthetic saved opening/);assert.equal((await h.service.getProgress("A")).revision,before.revision);
+});
+test("Close during a saved pending evaluation preserves recovery and disables audio controls",async t=>{
+ const h=harness("app/module-0.tsx",{}, {approvedUI:true,fakeTimers:true});t.after(h.unmount);h.setEvaluate(()=>{throw new Error("isolated failed evaluation")});await openingPractice(h);selectChoice(h,"What brings you in today?");h.render();h.find("Check answer").props.onPress();await h.settle();
+ const before=await h.service.getProgress("A");assert.ok(before.pending);assert.equal(h.find("Replay narration").props.disabled,true);assert.equal(h.find("Back").props.disabled,true);h.find("Close lesson").props.onPress();h.render();await h.settle();assert.equal(h.render().props.screen,"resume");h.find("Resume →").props.onPress();h.render();await h.settle();assert.equal(h.render().props.screen,"practice");assert.equal((await h.service.getProgress("A")).pending.requestId,before.pending.requestId);assert.equal((await h.service.getProgress("A")).revision,before.revision);
+});
+test("exercise numbering follows curriculum order across activity boundaries",()=>{
+ const activities=catalog.activities.map(a=>({...a,steps:a.steps}));const progress={activities,requiredCount:9,completedCount:2};const second=presentation.lessonPosition(progress,activities[0],activities[0].steps[1]);assert.deepEqual(JSON.parse(JSON.stringify(second)),{activityNumber:1,activityTotal:4,exerciseNumber:2,exerciseTotal:9,completedCount:2});
+ const next=presentation.lessonPosition(progress,activities[1],activities[1].steps[0]);assert.equal(next.exerciseNumber,3);assert.equal(next.activityNumber,2);
+ const changed={activities:activities.slice(0,2),requiredCount:5,completedCount:1};assert.equal(presentation.lessonPosition(changed,activities[1],activities[1].steps[2]).exerciseTotal,5);
+});
+test("Back from the first teaching panel returns to its exercise transition",async t=>{
+ const h=harness("app/module-0.tsx",{}, {approvedUI:true});t.after(h.unmount);await openingPractice(h);selectChoice(h,"What brings you in today?");h.render();h.find("Check answer").props.onPress();await h.settle();h.find("Continue →").props.onPress();h.render();await h.settle();h.find("Learn OLD CARTS").props.onPress();h.render();await h.settle();assert.equal(h.render().props.screen,"old-carts-teach");h.find("Back").props.onPress();h.render();await h.settle();assert.equal(h.render().props.screen,"exercise-transition");h.find("Back").props.onPress();h.render();await h.settle();assert.equal(h.render().props.screen,"feedback");assert.ok(h.render().props.result);assert.equal((await h.service.getProgress("A")).completedCount,1);
+});
+
+test("Close while submission is evaluating discards stale UI replies without repeating the answer",async t=>{
+ const h=harness("app/module-0.tsx",{}, {approvedUI:true,fakeTimers:true});t.after(h.unmount);let finish,posts=0;
+ h.setPost(payload=>{posts++;return h.service.submit("A",payload);});h.setEvaluate(({response})=>new Promise(resolve=>{finish=()=>resolve({label:"Ready",feedback:"Synthetic accepted feedback",evidence:[response]});}));
+ await openingPractice(h);selectChoice(h,"What brings you in today?");h.render();h.find("Check answer").props.onPress();await h.settle();assert.equal(h.render().props.busy,true);h.find("Close lesson").props.onPress();h.render();await h.settle();assert.equal(h.render().props.screen,"resume");assert.ok((await h.service.getProgress("A")).pending);const requestId=(await h.service.getProgress("A")).pending.requestId;
+ finish();await h.settle();h.find("Resume →").props.onPress();h.render();await h.settle();await h.advance(3000);assert.equal(posts,1);const saved=await h.service.getProgress("A");assert.equal(saved.activities[0].steps[0].saved.requestId,requestId);assert.equal(saved.completedCount,1);assert.equal(h.navigation.length,0);
+});
+
+
+test("introduction omits duplicate mentor portrait; OLD CARTS uses only panel progress",async t=>{
+ const h=harness("app/module-0.tsx",{}, {approvedUI:true});t.after(h.unmount);h.render();await h.settle();h.find("Let's start").props.onPress();h.render();await h.settle();
+ assert.equal(h.nodes().filter(n=>n.props.accessibilityLabel==="Dr. Martinez").length,0);assert.ok(h.find("Play narration"));assert.ok(h.find("Begin"));
+ h.find("Begin").props.onPress();h.render();await h.settle();h.find("Got it").props.onPress();h.render();await h.settle();selectChoice(h,"What brings you in today?");h.render();h.find("Check answer").props.onPress();await h.settle();h.find("Continue →").props.onPress();h.render();await h.settle();h.find("Learn OLD CARTS").props.onPress();h.render();await h.settle();
+ const before=await h.service.getProgress("A");let bars=h.nodes().filter(n=>n.props.accessibilityRole==="progressbar");assert.equal(bars.length,1);assert.equal(bars[0].props.accessibilityLabel,"Teaching panel progress");assert.equal(bars[0].props.accessibilityValue.now,1);assert.equal(bars[0].props.accessibilityValue.max,teaching.oldCartsPanels.length);assert.doesNotMatch(h.text(h.render()),/Activity.*of.*Exercise/);
+ const illustration=h.nodes().find(n=>n.type==="Image"&&n.props.style?.width>200);assert.ok(illustration);
+ h.find("Continue →").props.onPress();h.render();await h.settle();bars=h.nodes().filter(n=>n.props.accessibilityRole==="progressbar");assert.equal(bars[0].props.accessibilityValue.now,2);assert.equal((await h.service.getProgress("A")).revision,before.revision);
+ await finishTeaching(h);const root=h.render();assert.equal(root.props.step.question,catalog.activities[0].steps[1].question);assert.match(h.text(root),/Practice OLD CARTS/);assert.doesNotMatch(h.text(root),/Using the visible Mr. Jones facts/);
+ const card=h.nodes().find(n=>n.type==="View"&&h.text(n).startsWith("Mr. Jones · Case facts"));assert.ok(card);const renderedFacts=card.props.children[1].props.children[0].map(n=>h.text(n)).join(" ");assert.equal(renderedFacts,root.props.progress.scenario.text);assert.ok(h.input());assert.ok(h.find("Start microphone recording"));assert.equal(h.nodes().filter(n=>n.props.accessibilityRole==="progressbar").length,0);
+});
+
+
+test("Ask from a teaching panel sends its context and returns to the exact panel with draft and navigation intact",async t=>{
+ const h=harness("app/module-0.tsx",{}, {approvedUI:true});t.after(h.unmount);
+ await h.service.submit("A",{activityId:catalog.activities[0].id,stepId:catalog.activities[0].steps[0].id,kind:"required",response:"Existing opening",requestId:"concept-teach-origin",expectedRevision:0});h.render();await h.settle();h.find("Resume →").props.onPress();h.render();await h.settle();
+ const index=teaching.oldCartsPanels.findIndex(p=>p.title==="Describe the symptom");for(let i=0;i<index;i++){h.find("Continue →").props.onPress();h.render();await h.settle();}
+ h.render().props.onSelect("Unsubmitted summary draft");h.render();h.render().props.onToggleNavigation();h.render();const before=h.render().props;const speech=h.speeches.at(-1);let request;
+ h.setPost(payload=>{request=payload;return h.service.submit("A",payload);});h.find("Ask Dr. Martinez").props.onPress();h.render();await h.settle();assert.equal(speech.valid(),false);assert.equal(h.render().props.screen,"clarify");assert.equal(h.render().props.clarificationContext.panelTitle,"Describe the symptom");assert.equal(h.render().props.clarificationContext.activityId,before.activity.id);assert.equal(h.render().props.clarificationContext.stepId,before.step.id);
+ h.input().props.onChangeText("What does pleuritic mean?");h.render();h.find("Send clarification question").props.onPress();await h.settle();assert.equal(request.kind,"clarify");assert.equal(request.activityId,before.activity.id);assert.equal(request.stepId,before.step.id);assert.match(request.response,/Describe the symptom/);assert.match(request.response,/What does pleuritic mean/);assert.deepEqual(Object.keys(request).sort(),["activityId","expectedRevision","kind","requestId","response","stepId"]);
+ h.find("Back").props.onPress();h.render();await h.settle();const after=h.render().props;assert.equal(after.screen,before.screen);assert.equal(after.teachingPanel,index);assert.equal(after.selected,before.selected);assert.equal(after.navigationOpen,true);assert.equal(after.kind,before.kind);assert.equal(after.narration,teaching.oldCartsPanels[index].narration);assert.equal(after.progress.completedCount,1);assert.equal(after.progress.activities[0].steps[0].saved.requestId,"concept-teach-origin");
+});
+
+test("Ask from Practice preserves its response draft and does not mix narration controls with clarification",async t=>{
+ const h=harness("app/module-0.tsx",{}, {approvedUI:true});t.after(h.unmount);await openingPractice(h);selectChoice(h,"Is your chest hurting?");h.render();const before=h.render().props;const count=h.speeches.length;
+ h.find("Mute narration").props.onPress();h.render();assert.equal(h.render().props.screen,"practice");assert.equal(h.speeches.length,count);assert.doesNotMatch(h.text(h.render()),/Narration is muted/);h.find("Unmute narration").props.onPress();h.render();h.find("Show captions").props.onPress();h.render();assert.equal(h.render().props.screen,"practice");assert.equal(h.speeches.length,count);
+ const ask=h.find("Ask Dr. Martinez");assert.equal(ask.props.accessibilityState.disabled,false);const style=ask.props.style({pressed:false})[0];assert.ok(style.minHeight>=44);assert.equal(h.nodes().filter(n=>n.type==="Pressable"&&n.props.accessibilityLabel==="Ask Dr. Martinez").length,1);
+ ask.props.onPress();h.render();await h.settle();assert.equal(h.render().props.screen,"clarify");h.find("Back").props.onPress();h.render();await h.settle();assert.equal(h.render().props.screen,before.screen);assert.equal(h.render().props.selected,before.selected);assert.equal((await h.service.getProgress("A")).completedCount,0);
+});
+
+test("Ask from Feedback returns to the same saved submission even though server next has advanced",async t=>{
+ const h=harness("app/module-0.tsx",{}, {approvedUI:true});t.after(h.unmount);await openingPractice(h);selectChoice(h,"What brings you in today?");h.render();h.find("Check answer").props.onPress();await h.settle();const before=h.render().props;assert.equal(before.screen,"feedback");assert.ok(before.result);const savedId=before.result.requestId;
+ h.find("Ask Dr. Martinez").props.onPress();h.render();await h.settle();h.input().props.onChangeText("How can I improve this opening?");h.render();h.find("Send clarification question").props.onPress();await h.settle();assert.equal(h.render().props.result.kind,"clarify");h.find("Back").props.onPress();h.render();await h.settle();const after=h.render().props;assert.equal(after.screen,"feedback");assert.equal(after.step.id,before.step.id);assert.equal(after.result.requestId,savedId);assert.equal(after.kind,"required");assert.equal(after.progress.completedCount,1);assert.equal(after.progress.next.stepId,"organize-old-carts");assert.ok(h.find("Continue →"));
+});
+
+test("history teaching panels keep all curriculum domains and navigate without progress writes",async t=>{
+ const activity=catalog.activities[1];const h=harness("app/module-0.tsx",{activityId:activity.id},{approvedUI:true});t.after(h.unmount);
+ await h.service.submit("A",{activityId:activity.id,stepId:activity.steps[0].id,kind:"required",response:"Synthetic SOAP answer",requestId:"history-source",expectedRevision:0});h.render();await h.settle();assert.equal(h.render().props.screen,"introduction");h.find("Begin").props.onPress();h.render();await h.settle();assert.equal(h.render().props.screen,"teach");assert.equal(h.render().props.step.id,"history-and-context");assert.match(h.text(h.render()),/Why history matters/);const before=await h.service.getProgress("A");
+ h.find("Continue →").props.onPress();h.render();await h.settle();assert.equal(h.render().props.teachingPanel,1);h.find("Ask Dr. Martinez").props.onPress();h.render();await h.settle();assert.equal(h.render().props.clarificationContext.panelTitle,"Review medical history");h.find("Back").props.onPress();h.render();await h.settle();assert.equal(h.render().props.teachingPanel,1);
+ const text=teaching.historyPanels.map(p=>p.text).join(" ");for(const domain of ["medications","allergies","immunizations","medical","surgical","family","social","substance use","occupation","living situation","financial security","support","diet","activity","cultural","spiritual"])assert.match(text.toLowerCase(),new RegExp(domain));await finishTeaching(h);assert.ok(h.input());assert.equal(h.render().props.step.question,activity.steps[1].question);assert.equal((await h.service.getProgress("A")).revision,before.revision);
+});
+
+test("clinical example italics distinguish patient and clinical text without restyling quoted feedback",async t=>{
+ const all=teaching.oldCartsPanels.flatMap(p=>p.rows);assert.ok(all.some(r=>r.label==="C · Character"&&r.patient.includes("stabbing knife")&&r.clinical.includes("pleuritic")));
+ for(const category of ["O ·","L ·","D ·","C ·","A ·","R ·","T ·","S ·"])assert.ok(all.some(r=>r.label.includes(category)),category);
+ const h=harness("app/module-0.tsx",{}, {approvedUI:true});t.after(h.unmount);await openingPractice(h);selectChoice(h,"What brings you in today?");h.render();h.find("Check answer").props.onPress();await h.settle();h.find("Continue →").props.onPress();h.render();await h.settle();h.find("Learn OLD CARTS").props.onPress();h.render();await h.settle();
+ const index=teaching.oldCartsPanels.findIndex(p=>p.title==="Describe the symptom");for(let i=0;i<index;i++){h.find("Continue →").props.onPress();h.render();await h.settle();}const row=teaching.oldCartsPanels[index].rows[0];const quote=h.nodes().find(n=>n.type==="Text"&&h.text(n)===row.patient);assert.ok(quote.props.style.some(s=>s.fontStyle==="italic"));const clinical=h.nodes().find(n=>n.type==="Text"&&h.text(n)===row.clinical);assert.equal(clinical.props.style.fontStyle,"italic");
+ await finishTeaching(h);const feedback='This “quoted feedback” keeps its ordinary typography.';h.setEvaluate(()=>({label:"Ready",feedback,evidence:[]}));h.input().props.onChangeText("Synthetic clinical summary");h.render();h.find("Submit").props.onPress();await h.settle();const displayed=h.nodes().find(n=>n.type==="Text"&&h.text(n)===feedback);assert.ok(displayed);assert.notEqual(displayed.props.style.fontStyle,"italic");
+});
+
+
+test("failed clarification keeps its context through durable retry and restores the source draft",async t=>{
+ const h=harness("app/module-0.tsx",{}, {approvedUI:true,fakeTimers:true});t.after(h.unmount);await openingPractice(h);selectChoice(h,"What brings you in today?");h.render();h.find("Ask Dr. Martinez").props.onPress();h.render();await h.settle();
+ h.setEvaluate(()=>{throw new Error("synthetic guidance failure")});h.input().props.onChangeText("Why is an open question useful?");h.render();h.find("Send clarification question").props.onPress();await h.settle();const before=await h.service.getProgress("A");assert.equal(before.pending.kind,"clarify");assert.equal(h.find("Back").props.disabled,true);assert.equal(h.find("Ask Dr. Martinez").props.disabled,true);
+ await h.advance(6000);h.setEvaluate(()=>({reply:"It lets the patient describe their concern."}));h.find("Retry feedback").props.onPress();await h.settle();assert.equal(h.render().props.screen,"clarify");assert.equal(h.render().props.result.requestId,before.pending.requestId);h.find("Back").props.onPress();h.render();await h.settle();assert.equal(h.render().props.screen,"practice");assert.equal(h.render().props.selected,"What brings you in today?");assert.equal((await h.service.getProgress("A")).completedCount,0);
+});
+test("Module 0 speech changes only the exact OLD CARTS and SBAR phrases and leaves captions and clinical acronyms intact",()=>{
+ const source="Use OLD CARTS, then SOAP, SBAR, SNAPPs and OLD CARTS-like summaries.";
+ assert.equal(teaching.module0SpeechText(source),"Use old carts, then SOAP, s-bar, SNAPPs and old carts-like summaries.");
+ assert.equal(teaching.module0SpeechText("BOLD CARTS OLD CARTScase old carts"),"BOLD CARTS OLD CARTScase old carts");
+ assert.equal(teaching.module0SpeechText("Old CARTS and SOAP"),"old carts and SOAP");
+ assert.match(teaching.exerciseNarration?.["organize-old-carts"] || teaching.oldCartsPanels.map(p=>p.narration).join(" "),/OLD CARTS/);
+});
+
+test("shared lesson composer gives microphone and submission separate accessible actions and guards recording",()=>{
+ const jsx=(type,props)=>({type,props:props || {}});
+ const Composer=compile("src/components/ClinicalsChatComposer.tsx",name=>name==="react/jsx-runtime"?{jsx,jsxs:jsx}:name==="react-native"?{View:"View",Text:"Text",TextInput:"TextInput",Pressable:"Pressable",StyleSheet:{create:x=>x}}:name==="@expo/vector-icons"?{MaterialCommunityIcons:"Icon"}:{}).ClinicalsChatComposer;
+ const flatten=(n)=>!n?[]:Array.isArray(n)?n.flatMap(flatten):typeof n!=="object"?[]:[n,...flatten(n.props?.children)];
+ let sent=0,mics=0;
+ const props={lesson:true,value:"Editable dictated draft",onChangeText(){},onSubmit(){sent++;},onMicPress(){mics++;},submitLabel:"Submit",placeholder:"Your clinical summary"};
+ let nodes=flatten(Composer(props));const mic=nodes.find(n=>n.props.accessibilityLabel==="Start microphone recording");
+ mic.props.onPress();assert.equal(mics,1);assert.equal(sent,0);assert.equal(mic.props.style({pressed:false})[0].width,44);assert.equal(mic.props.style({pressed:false})[0].height,44);
+ const input=nodes.find(n=>n.type==="TextInput");assert.equal(input.props.placeholder,"Your clinical summary");assert.equal(input.props.editable,true);
+ nodes.find(n=>n.props.accessibilityLabel==="Submit").props.onPress();assert.equal(sent,1);
+ for(const state of [{isRecording:true},{transcribing:true},{sendDisabled:true},{value:"  "}]){nodes=flatten(Composer({...props,...state}));nodes.find(n=>n.type==="TextInput").props.onSubmitEditing();nodes.find(n=>n.props.accessibilityLabel==="Submit").props.onPress();assert.equal(sent,1);}
+ nodes=flatten(Composer({...props,submitLabel:"Send",submitAccessibilityLabel:"Send clarification question",placeholder:"Ask Dr. Martinez a question…"}));assert.ok(nodes.find(n=>n.props.accessibilityLabel==="Send clarification question"));
+});
+test("dictated mentor question stays editable before Send and OLD CARTS response uses unchanged grading request",async t=>{
+ const h=harness("app/module-0.tsx",{}, {approvedUI:true});t.after(h.unmount);
+ const p=await h.service.getProgress("A");await h.service.submit("A",{activityId:p.next.activityId,stepId:p.next.stepId,kind:"required",response:"What brings you in today?",requestId:"shared-input-origin",expectedRevision:p.revision});
+ h.render();await h.settle();h.find("Resume →").props.onPress();h.render();await h.settle();await finishTeaching(h);assert.match(h.text(h.render()),/Practice OLD CARTS/);assert.doesNotMatch(h.text(h.render()),/Answer exercise/);
+ h.input().props.onChangeText("Preserved clinical summary draft");h.render();h.find("Ask Dr. Martinez").props.onPress();h.render();await h.settle();
+ const before=await h.service.getProgress("A");h.dictate("A dictated conceptual question");h.render();assert.equal(h.input().props.value,"A dictated conceptual question");assert.equal((await h.service.getProgress("A")).revision,before.revision);
+ h.input().props.onChangeText("An edited dictated conceptual question");h.render();h.find("Send clarification question").props.onPress();await h.settle();assert.equal(h.render().props.result.response,"An edited dictated conceptual question");
+ h.find("Back").props.onPress();h.render();await h.settle();assert.equal(h.input().props.value,"Preserved clinical summary draft");
+ let request;h.setPost(async payload=>{request=payload;return h.service.submit("A",payload);});
+ h.dictate("An editable dictated clinical summary");h.render();assert.equal(h.input().props.value,"Preserved clinical summary draft An editable dictated clinical summary");h.input().props.onChangeText("Edited clinical summary for grading");h.render();h.find("Submit").props.onPress();await h.settle();
+ assert.equal(request.kind,"required");assert.equal(request.response,"Edited clinical summary for grading");assert.equal(request.stepId,"organize-old-carts");assert.deepEqual(Object.keys(request).sort(),["activityId","expectedRevision","kind","requestId","response","stepId"]);
+ assert.equal(h.render().props.screen,"feedback");assert.match(h.text(h.render()),/Needs More Practice/);assert.match(h.text(h.render()),/Your response is an attempt. Connect it to the visible facts./);
+});
+test("Needs More Practice presentation preserves exact server paragraphs and uses readable left aligned feedback",async t=>{
+ const h=harness("app/module-0.tsx",{}, {approvedUI:true});t.after(h.unmount);await openingPractice(h);
+ const feedback="Your response is an attempt.\n\nConnect it to the visible facts.\nUse the patient information shown above.";
+ h.setEvaluate(({response})=>({label:"Needs More Practice",feedback,evidence:[response]}));selectChoice(h,"What brings you in today?");h.render();h.find("Check answer").props.onPress();await h.settle();
+ assert.equal(h.render().props.result.evaluation.feedback,feedback);assert.match(h.text(h.render()),/Needs More Practice/);
+ for(const paragraph of feedback.split(/\n\s*\n/)){const node=h.nodes().find(n=>n.type==="Text"&&n.props.children===paragraph);assert.ok(node);assert.equal(node.props.style.textAlign,"left");assert.equal(node.props.style.lineHeight,30);}
+ assert.doesNotMatch(h.text(h.render()),/Synthetic learner response/);assert.ok(h.find("Continue →"));assert.ok(h.find("Ask Dr. Martinez"));
+});
+test("all four activity introductions and nine teaching mappings follow authoritative curriculum IDs",async()=>{
+ assert.deepEqual(Object.keys(presentation.exerciseTitles),catalog.activities.flatMap(a=>a.steps.map(s=>s.id)));
+ assert.deepEqual(Object.keys(presentation.activityIntroductions),catalog.activities.map(a=>a.id));
+ for(const activity of catalog.activities){
+  const h=harness("app/module-0.tsx",{activityId:activity.id},{approvedUI:true});
+  try{h.render();await h.settle();assert.equal(h.render().props.screen,"introduction");assert.equal(h.render().props.activity.id,activity.id);
+   assert.match(h.text(h.render()),new RegExp(presentation.activityIntroductions[activity.id].replace(/[.*+?^${}()|[\]\\]/g,"\\$&")));
+   const titles=activity.steps.map(s=>presentation.exerciseTitle(s,activity));assert.deepEqual(h.nodes().filter(n=>n.type==="Text"&&titles.includes(n.props.children)).map(n=>n.props.children),titles);
+   if(activity.id!==catalog.activities[0].id)assert.doesNotMatch(h.text(h.render()),/Organize OLD CARTS|open a patient interview/);
+   h.find("Begin").props.onPress();h.render();await h.settle();assert.equal(h.render().props.step.id,activity.steps[0].id);assert.equal(h.render().props.screen,"teach");
+   for(const step of activity.steps){const panels=teaching.conceptPanelsFor(step);assert.ok(panels.length,step.id);assert.equal(teaching.conceptTitle(step,activity),presentation.exerciseTitle(step,activity));
+    if(step.id!=="organize-old-carts")assert.notEqual(panels,teaching.oldCartsPanels);
+    for(let i=0;i<panels.length;i++)assert.equal(teaching.narrationFor("teach",step,null,i,activity),panels[i].narration);
+   }
+   assert.equal((await h.service.getProgress("A")).revision,0);
+  }finally{h.unmount();}
+ }
+ const ros=teaching.conceptPanelsFor(catalog.activities[1].steps[2])[0];assert.deepEqual(ros.text.split("\n\n"),["The review of systems asks about patient-reported symptoms that may have been overlooked.","It adds context to the history; it is not a physical examination or a diagnostic test."]);
+ assert.equal(teaching.conceptPanelsFor({id:"unrecognized",teach:"Unknown"}).length,0);
+});
+
+test("Activity 1 completion enters Activity 2 introduction and SOAP teaching with matching requests and feedback",async t=>{
+ const h=harness("app/module-0.tsx",{}, {approvedUI:true});t.after(h.unmount);await openingPractice(h);selectChoice(h,"What brings you in today?");h.render();h.find("Check answer").props.onPress();await h.settle();await continueFeedback(h);
+ assert.equal(h.render().props.step.id,"organize-old-carts");assert.equal(teaching.oldCartsPanels.length,9);
+ h.input().props.onChangeText("Synthetic OLD CARTS summary");h.render();h.find("Submit").props.onPress();await h.settle();assert.equal(h.render().props.result.stepId,"organize-old-carts");h.find("Continue →").props.onPress();h.render();await h.settle();assert.equal(h.render().props.screen,"activity-complete");assert.equal(h.render().props.progress.next.stepId,"soap-and-data-types");
+ h.find("Next activity").props.onPress();h.render();await h.settle();assert.equal(h.render().props.screen,"introduction");assert.equal(h.render().props.activity.id,"organizing-clinical-information");assert.doesNotMatch(h.text(h.render()),/OLD CARTS/);
+ h.find("Begin").props.onPress();h.render();await h.settle();assert.equal(h.render().props.screen,"teach");assert.match(h.text(h.render()),/SOAP means Subjective/);await finishTeaching(h);
+ let request;h.setPost(async payload=>{request=payload;return h.service.submit("A",payload);});h.input().props.onChangeText("Synthetic SOAP response");h.render();h.find("Submit").props.onPress();await h.settle();assert.equal(request.activityId,"organizing-clinical-information");assert.equal(request.stepId,"soap-and-data-types");assert.equal(h.render().props.result.stepId,request.stepId);assert.equal(h.render().props.progress.completedCount,3);
+});
+test("completed OLD CARTS review restores only its teaching and leaves authoritative progress unchanged",async t=>{
+ const h=harness("app/module-0.tsx",{}, {approvedUI:true});t.after(h.unmount);let revision=0;
+ for(const step of catalog.activities[0].steps)revision=(await h.service.submit("A",{activityId:catalog.activities[0].id,stepId:step.id,kind:"required",response:"Synthetic saved answer",requestId:"review-mapping-"+step.id,expectedRevision:revision})).progress.revision;
+ h.render();await h.settle();h.find("Activities and reviews").props.onPress();h.render();await h.settle();h.find("Review: Organize OLD CARTS").props.onPress();h.render();await h.settle();assert.equal(h.render().props.step.id,"organize-old-carts");h.find("Back").props.onPress();h.render();await h.settle();assert.equal(h.render().props.screen,"old-carts-teach");assert.equal(h.render().props.teachingPanel,teaching.oldCartsPanels.length-1);assert.match(h.text(h.render()),/Sharp and pleuritic/);assert.equal((await h.service.getProgress("A")).revision,revision);
+ const p=await h.service.getProgress("A");assert.equal(view.module0Selection(p).step.id,"soap-and-data-types");assert.equal(view.module0Selection(p,"organizing-clinical-information","organize-old-carts").step.id,"soap-and-data-types");
+});
+async function completedReviewHarness(t,params={}) {
+ const h=harness("app/module-0.tsx",params,{approvedUI:true});t.after(h.unmount);let revision=0;
+ for(const a of catalog.activities)for(const step of a.steps)revision=(await h.service.submit("A",{activityId:a.id,stepId:step.id,kind:"required",response:"Original saved response for "+step.id,requestId:"review-original-"+step.id,expectedRevision:revision})).progress.revision;
+ return h;
+}
+test("every Practice entry selects its required or targeted optional task narration",async t=>{
+ const h=await completedReviewHarness(t,{mode:"review"});h.render();await h.settle();const before=await h.service.getProgress("A");
+ for(const activity of catalog.activities)for(const step of activity.steps){
+  for(const optional of [false,true]){
+   h.find((optional ? "Practice Again: " : "Review: ")+presentation.exerciseTitle(step,activity)).props.onPress();h.render();await h.settle();
+   assert.equal(h.render().props.teachingPanel,0);
+   assert.equal(h.render().props.screen,optional ? "practice" : step.id === "organize-old-carts" ? "old-carts-teach" : "teach");
+   if(!optional)await finishTeaching(h);
+   assert.equal(h.render().props.kind,optional ? "practice" : "required");
+   assert.equal(h.render().props.narration,(optional ? teaching.optionalPracticeNarration : teaching.requiredPracticeNarration)[step.id]);
+   assert.equal(h.render().props.caseFactsExpanded,false);
+   if(optional){
+    assert.match(h.text(h.render()),new RegExp(step.optionalPracticeQuestion.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")));
+    assert.equal(h.input().props.placeholder,"Answer here");assert.equal(h.input().props.accessibilityLabel,"Your exercise response");
+    assert.equal(h.nodes().filter(n=>n.type==="Text"&&h.text(n)===step.answerHint).length,1);
+    assert.equal(h.find("What brings you in today?"),undefined);
+   }else assert.equal(h.input(),undefined);
+   h.find("Close lesson").props.onPress();h.render();await h.settle();assert.equal(h.render().props.screen,"review");
+  }
+ }
+ assert.deepEqual(await h.service.getProgress("A"),before);
+});
+test("returned Feedback and Clarify are manual-only, retain controls, captions, identity and drafts",async t=>{
+ for(const outcome of ["Ready","Needs More Practice","clarify"]){
+  const h=harness("app/module-0.tsx",{}, {approvedUI:true});t.after(h.unmount);await openingPractice(h);
+  const returned="Returned SBAR response.\n\nThis is the actual second paragraph.";
+  let evaluations=0;h.setEvaluate(()=>{evaluations++;return outcome === "clarify" ? {reply:returned} : {label:outcome,feedback:returned};});
+  selectChoice(h,"Is your chest hurting?");h.render();
+  const count=h.speeches.length;
+  if(outcome === "clarify"){
+   h.find("Ask Dr. Martinez").props.onPress();h.render();await h.settle();assert.equal(h.render().props.narration,"");assert.equal(h.speeches.length,count);
+   h.input().props.onChangeText("Synthetic question");h.render();h.find("Send clarification question").props.onPress();
+  }else h.find("Check answer").props.onPress();
+  await h.settle();assert.equal(evaluations,1);assert.equal(h.speeches.length,count);assert.equal(h.render().props.narration,returned);
+  const submission=h.render().props.result.requestId;const saved=await h.service.getProgress("A");
+  h.find("Show captions").props.onPress();h.render();assert.equal(h.text(h.nodes().find(n=>n.props.accessibilityLabel==="Narration captions")),returned);
+  h.find("Play narration").props.onPress();assert.equal(h.speeches.length,count+1);assert.equal(h.speeches.at(-1).text,teaching.module0SpeechText(returned));
+  h.setSpeaking(true);h.find("Pause narration").props.onPress();h.render();assert.ok(h.find("Play narration"));h.find("Play narration").props.onPress();h.render();assert.ok(h.find("Pause narration"));assert.equal(h.speeches.length,count+1);
+  h.find("Replay narration").props.onPress();assert.equal(h.speeches.length,count+2);assert.equal(h.speeches.at(-1).text,teaching.module0SpeechText(returned));
+  h.find("Mute narration").props.onPress();h.render();h.find("Unmute narration").props.onPress();h.render();assert.equal(h.speeches.length,count+2);
+  assert.equal(h.render().props.result.requestId,submission);assert.equal(evaluations,1);
+  const audio=h.speeches.at(-1);const stops=h.stops.length;
+  h.find(outcome === "clarify" ? "Back" : "Close lesson").props.onPress();h.render();await h.settle();assert.equal(audio.valid(),false);assert.ok(h.stops.length>stops);
+  if(outcome === "clarify")assert.equal(h.render().props.selected,"Is your chest hurting?");
+  assert.deepEqual(await h.service.getProgress("A"),saved);
+ }
+});
+test("oversized returned text remains complete with disabled Play/Replay and an accessible limit explanation",async t=>{
+ for(const outcome of ["Ready","clarify"])for(const oversized of [false,true]){
+  const h=harness("app/module-0.tsx",{}, {approvedUI:true});t.after(h.unmount);await openingPractice(h);
+  // Raw lengths are 1,199/1,200; pronunciation expands SBAR by one character.
+  const returned="SBAR "+"x".repeat(oversized ? 1195 : 1194);
+  h.setEvaluate(()=>outcome === "clarify" ? {reply:returned} : {label:outcome,feedback:returned});
+  selectChoice(h,"What brings you in today?");h.render();const count=h.speeches.length;
+  if(outcome === "clarify"){
+   h.find("Ask Dr. Martinez").props.onPress();h.render();await h.settle();h.input().props.onChangeText("Synthetic length check");h.render();h.find("Send clarification question").props.onPress();
+  }else h.find("Check answer").props.onPress();
+  await h.settle();assert.equal(h.speeches.length,count);assert.equal(h.render().props.narration,returned);assert.ok(h.text(h.render()).includes(returned));
+  const saved=await h.service.getProgress("A");
+  for(const label of ["Play narration","Replay narration"]){const control=h.find(label);assert.equal(control.props.disabled,oversized);assert.equal(control.props.accessibilityState.disabled,oversized);}
+  const explanation=h.nodes().find(n=>n.type==="Text" && h.text(n)==="Audio playback is unavailable because this response is too long.");
+  assert.equal(!!explanation,oversized);if(explanation){assert.equal(explanation.props.accessibilityRole,"alert");assert.equal(explanation.props.accessibilityLiveRegion,"polite");}
+  h.find("Show captions").props.onPress();h.render();assert.equal(h.text(h.nodes().find(n=>n.props.accessibilityLabel==="Narration captions")),returned);
+  // Even direct handler calls cannot bypass the disabled controls or truncate input.
+  h.render().props.onPlay();h.render().props.onListen();assert.equal(h.speeches.length,count+(oversized ? 0 : 2));
+  if(!oversized)assert.equal(h.speeches.at(-1).text,teaching.module0SpeechText(returned));
+  assert.equal(h.render().props.result.evaluation[outcome === "clarify" ? "reply" : "feedback"],returned);
+  assert.deepEqual(await h.service.getProgress("A"),saved);
+ }
+});
+test("every concept preserves Back, mentor origin, and completed records",async t=>{
+ const h=await completedReviewHarness(t,{mode:"review"});h.render();await h.settle();
+ const before=await h.service.getProgress("A");
+ for(const activity of catalog.activities)for(const step of activity.steps){
+  h.find("Review: "+presentation.exerciseTitle(step,activity)).props.onPress();h.render();await h.settle();
+  const panels=teaching.conceptPanelsFor(step);
+  for(let i=0;i<panels.length;i++){
+   assert.equal(h.render().props.teachingPanel,i);assert.equal(h.render().props.narration,panels[i].narration);
+   assert.equal(h.render().props.activity.id,activity.id);assert.equal(h.render().props.step.id,step.id);
+   if(i>0){h.find("Back").props.onPress();h.render();await h.settle();assert.equal(h.render().props.teachingPanel,i-1);h.find("Continue →").props.onPress();h.render();await h.settle();}
+   h.find("Ask Dr. Martinez").props.onPress();h.render();await h.settle();
+   assert.equal(h.render().props.clarificationContext.panelTitle,panels[i].title);
+   assert.equal(h.render().props.clarificationContext.exerciseTitle,presentation.exerciseTitle(step,activity));
+   h.find("Back").props.onPress();h.render();await h.settle();assert.equal(h.render().props.teachingPanel,i);
+   if(i<panels.length-1){h.find("Continue →").props.onPress();h.render();await h.settle();}
+  }
+  h.find("Close lesson").props.onPress();h.render();await h.settle();assert.equal(h.render().props.screen,"review");
+ }
+ assert.deepEqual(await h.service.getProgress("A"),before);
+});
+test("Review & Practice opens from both completed entry points and keeps all nine exercises selectable",async t=>{
+ const h=await completedReviewHarness(t);h.render();await h.settle();assert.equal(h.render().props.screen,"module-complete");const before=await h.service.getProgress("A");
+ h.find("Review completed exercises").props.onPress();h.render();await h.settle();assert.equal(h.render().props.screen,"review");
+ assert.deepEqual(h.nodes().filter(n=>n.type==="Pressable"&&n.props.accessibilityLabel?.startsWith("Review:")).map(n=>n.props.accessibilityLabel),catalog.activities.flatMap(a=>a.steps.map(s=>"Review: "+presentation.exerciseTitle(s,a))));
+ assert.equal(h.nodes().filter(n=>n.type==="Pressable"&&n.props.accessibilityLabel?.startsWith("Practice Again:")).length,9);
+ h.find("Back").props.onPress();h.render();await h.settle();assert.equal(h.render().props.screen,"module-complete");assert.deepEqual(await h.service.getProgress("A"),before);
+ const route=await completedReviewHarness(t,{mode:"review"});route.render();await route.settle();assert.equal(route.render().props.screen,"review");route.find("Close lesson").props.onPress();assert.equal(route.navigation.at(-1),"back");
+});
+test("Review & Practice review traverses existing teaching and saved feedback without any submission",async t=>{
+ const h=await completedReviewHarness(t,{mode:"review"});h.render();await h.settle();const before=await h.service.getProgress("A");let posts=0;h.setPost(async()=>{posts++;throw new Error("Review must not submit")});
+ for(const a of catalog.activities)for(const step of a.steps){
+  h.find("Review: "+presentation.exerciseTitle(step,a)).props.onPress();h.render();await h.settle();assert.equal(h.render().props.step.id,step.id);assert.equal(h.render().props.screen,step.id === "organize-old-carts" ? "old-carts-teach" : "teach");
+  await finishTeaching(h);assert.match(h.text(h.render()),new RegExp("Original saved response for "+step.id));assert.match(h.text(h.render()),/Your response is an attempt/);
+  assert.equal(h.find("Submit"),undefined);h.find("Return to feedback").props.onPress();h.render();await h.settle();assert.equal(h.render().props.result.requestId,"review-original-"+step.id);
+  h.find("Continue →").props.onPress();h.render();await h.settle();assert.equal(h.render().props.screen,"review");
+ }
+ assert.equal(posts,0);assert.deepEqual(await h.service.getProgress("A"),before);
+});
+test("Review & Practice supplementary attempts preserve required answers, completion and every earlier attempt",async t=>{
+ const h=await completedReviewHarness(t,{mode:"review"});h.render();await h.settle();const before=await h.service.getProgress("A");let requests=[];h.setPost(async payload=>{requests.push(payload);return h.service.submit("A",payload)});
+ for(let attempt=0;attempt<2;attempt++){
+  h.find("Practice Again: Organize OLD CARTS").props.onPress();h.render();await h.settle();assert.equal(h.render().props.kind,"practice");assert.equal(h.render().props.screen,"practice");
+  assert.match(h.text(h.render()),new RegExp(catalog.activities[0].steps[1].optionalPracticeQuestion.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")));
+  h.input().props.onChangeText("Supplementary response attempt "+attempt);h.render();h.find("Submit").props.onPress();await h.settle();assert.equal(h.render().props.result.kind,"practice");h.find("Continue →").props.onPress();h.render();await h.settle();assert.equal(h.render().props.screen,"review");
+ }
+ const after=await h.service.getProgress("A");assert.equal(after.completed,true);assert.equal(after.completedCount,9);assert.equal(after.next,null);assert.deepEqual(after.activities,before.activities);assert.equal(after.history.length,before.history.length+2);assert.notEqual(requests[0].requestId,requests[1].requestId);assert.ok(requests.every(r=>r.kind==="practice"));assert.equal(after.history.at(-2).response,"Supplementary response attempt 0");assert.equal(after.history.at(-1).response,"Supplementary response attempt 1");
+});
+test("Review & Practice Back and Close return to selection and normal partial Resume remains unchanged",async t=>{
+ const h=await completedReviewHarness(t,{mode:"review"});h.render();await h.settle();h.find("Practice Again: SOAP and Data Types").props.onPress();h.render();await h.settle();h.find("Back").props.onPress();h.render();await h.settle();assert.equal(h.render().props.screen,"review");
+ h.find("Review: SNAPPS").props.onPress();h.render();await h.settle();h.find("Close lesson").props.onPress();h.render();await h.settle();assert.equal(h.render().props.screen,"review");
+ const partial=harness("app/module-0.tsx",{}, {approvedUI:true});t.after(partial.unmount);await partial.service.submit("A",{activityId:catalog.activities[0].id,stepId:catalog.activities[0].steps[0].id,kind:"required",response:"An original completed opening",requestId:"review-normal-resume",expectedRevision:0});partial.render();await partial.settle();assert.equal(partial.render().props.screen,"resume");partial.find("Resume →").props.onPress();partial.render();await partial.settle();assert.equal(partial.render().props.step.id,"organize-old-carts");assert.equal(partial.render().props.screen,"old-carts-teach");
+});
+test("required Practice has correct disclosure defaults, complete facts and one helper per editable field",async t=>{
+ for(const activity of catalog.activities)for(let index=0;index<activity.steps.length;index++){
+  const step=activity.steps[index];const h=harness("app/module-0.tsx",{activityId:activity.id},{approvedUI:true});t.after(h.unmount);
+  let revision=0;for(let i=0;i<index;i++)revision=(await h.service.submit("A",{activityId:activity.id,stepId:activity.steps[i].id,kind:"required",response:"Earlier synthetic response",requestId:"required-default-"+i,expectedRevision:revision})).progress.revision;
+  h.render();await h.settle();if(h.find("Begin")){h.find("Begin").props.onPress();h.render();await h.settle();}await finishTeaching(h);
+  assert.equal(h.render().props.step.id,step.id);
+  if(step.id === "open-the-interview"){assert.equal(h.input(),undefined);assert.equal(h.find("Mr. Jones · Case facts"),undefined);continue;}
+  assert.equal(h.input().props.placeholder,"Answer here");assert.equal(h.input().props.accessibilityLabel,"Your exercise response");
+  assert.equal(h.nodes().filter(n=>n.type==="Text"&&h.text(n)===step.answerHint).length,1);
+  const initiallyExpanded=step.id === "organize-old-carts";assert.equal(h.render().props.caseFactsExpanded,initiallyExpanded);
+  const button=h.find("Mr. Jones · Case facts");assert.equal(button.props.accessibilityRole,"button");assert.equal(button.props.accessibilityState.expanded,initiallyExpanded);
+  assert.ok(button.props.style({pressed:false})[0].minHeight>=44);assert.equal(button.props.style({pressed:false,focused:true})[1].outlineWidth,2);
+  const saved=await h.service.getProgress("A");const speechCount=h.speeches.length;let reads=0;h.setGet(async()=>{reads++;return saved;});
+  h.input().props.onChangeText("An unsubmitted draft");h.render();
+  if(!initiallyExpanded){button.props.onPress();h.render();await h.settle();}
+  const card=h.nodes().find(n=>n.type==="View"&&h.text(n).startsWith("Mr. Jones · Case facts"));
+  const facts=card.props.children[1].props.children[0].map(n=>h.text(n));assert.equal(facts.join(initiallyExpanded ? " " : ""),catalog.sharedScenario.text);
+  assert.equal(h.text(card.props.children[1].props.children[1]),catalog.sharedScenario.purpose);
+  h.find("Mr. Jones · Case facts").props.onPress();h.render();await h.settle();assert.equal(h.render().props.caseFactsExpanded,false);
+  assert.equal(h.render().props.selected,"An unsubmitted draft");assert.equal(h.speeches.length,speechCount);assert.equal(reads,0);
+  assert.deepEqual(await h.service.getProgress("A"),saved);
+ }
+});
+test("optional disclosure toggles and Ask return preserve every exercise's draft, origin and local state",async t=>{
+ const h=await completedReviewHarness(t,{mode:"review"});h.render();await h.settle();const before=await h.service.getProgress("A");
+ for(const activity of catalog.activities)for(const step of activity.steps){
+  h.find("Practice Again: "+presentation.exerciseTitle(step,activity)).props.onPress();h.render();await h.settle();
+  assert.equal(h.render().props.screen,"practice");assert.equal(h.render().props.caseFactsExpanded,false);
+  h.input().props.onChangeText("Draft for "+step.id);h.render();const speechCount=h.speeches.length;const panel=h.render().props.teachingPanel;
+  for(const expanded of [true,false]){
+   h.find("Mr. Jones · Case facts").props.onPress();h.render();await h.settle();assert.equal(h.render().props.caseFactsExpanded,expanded);
+   assert.equal(h.render().props.teachingPanel,panel);assert.equal(h.render().props.selected,"Draft for "+step.id);
+  }
+  assert.equal(h.speeches.length,speechCount);
+  h.find("Mr. Jones · Case facts").props.onPress();h.render();await h.settle();
+  h.find("Ask Dr. Martinez").props.onPress();h.render();await h.settle();assert.equal(h.render().props.clarificationContext.panelTitle,null);
+  h.input().props.onChangeText("An unsubmitted question");h.render();h.find("Back").props.onPress();h.render();await h.settle();
+  const restored=h.render().props;assert.equal(restored.screen,"practice");assert.equal(restored.kind,"practice");assert.equal(restored.activity.id,activity.id);assert.equal(restored.step.id,step.id);
+  assert.equal(restored.selected,"Draft for "+step.id);assert.equal(restored.caseFactsExpanded,true);assert.equal(restored.teachingPanel,panel);
+  h.find("Back").props.onPress();h.render();await h.settle();assert.equal(h.render().props.screen,"review");
+  h.find("Practice Again: "+presentation.exerciseTitle(step,activity)).props.onPress();h.render();await h.settle();assert.equal(h.render().props.caseFactsExpanded,false);
+  h.find("Close lesson").props.onPress();h.render();await h.settle();assert.equal(h.render().props.screen,"review");
+ }
+ assert.deepEqual(await h.service.getProgress("A"),before);
+});
+test("optional Feedback Back returns to optional Practice then selection without new attempts",async t=>{
+ const h=await completedReviewHarness(t,{mode:"review"});h.render();await h.settle();h.find("Practice Again: SOAP and Data Types").props.onPress();h.render();await h.settle();
+ h.input().props.onChangeText("Synthetic optional answer");h.render();h.find("Submit").props.onPress();await h.settle();assert.equal(h.render().props.screen,"feedback");
+ const saved=await h.service.getProgress("A");const id=h.render().props.result.requestId;
+ h.find("Back").props.onPress();h.render();await h.settle();assert.equal(h.render().props.screen,"practice");assert.equal(h.render().props.kind,"practice");assert.equal(h.render().props.result.requestId,id);
+ assert.equal(h.render().props.narration,teaching.optionalPracticeNarration["soap-and-data-types"]);
+ h.find("Back").props.onPress();h.render();await h.settle();assert.equal(h.render().props.screen,"review");assert.deepEqual(await h.service.getProgress("A"),saved);
+});
+test("returned mentor reply restores expanded optional facts and draft without altering required records",async t=>{
+ const h=await completedReviewHarness(t,{mode:"review"});h.render();await h.settle();const before=await h.service.getProgress("A");
+ h.find("Practice Again: Organize OLD CARTS").props.onPress();h.render();await h.settle();h.input().props.onChangeText("Preserved targeted draft");h.render();
+ h.find("Mr. Jones · Case facts").props.onPress();h.render();await h.settle();h.find("Ask Dr. Martinez").props.onPress();h.render();await h.settle();
+ h.input().props.onChangeText("A synthetic question about these case facts");h.render();h.find("Send clarification question").props.onPress();await h.settle();assert.equal(h.render().props.result.kind,"clarify");
+ h.find("Back").props.onPress();h.render();await h.settle();const restored=h.render().props;
+ assert.equal(restored.screen,"practice");assert.equal(restored.kind,"practice");assert.equal(restored.step.id,"organize-old-carts");assert.equal(restored.selected,"Preserved targeted draft");assert.equal(restored.caseFactsExpanded,true);
+ const after=await h.service.getProgress("A");assert.deepEqual(after.activities,before.activities);assert.equal(after.completed,true);assert.equal(after.completedCount,9);assert.equal(after.history.length,before.history.length+1);assert.equal(after.history.at(-1).kind,"clarify");
+});
+test("Review & Practice pending supplementary feedback resumes the same request without overwriting completion",async t=>{
+ const h=await completedReviewHarness(t,{mode:"review"});h.render();await h.settle();const original=await h.service.getProgress("A");
+ h.find("Practice Again: Organize OLD CARTS").props.onPress();h.render();await h.settle();await finishTeaching(h);h.setEvaluate(()=>{throw new Error("Controlled practice failure")});h.input().props.onChangeText("A preserved supplementary response");h.render();h.find("Submit").props.onPress();await h.settle();
+ const pending=(await h.service.getProgress("A")).pending;assert.equal(pending.kind,"practice");h.find("Close lesson").props.onPress();h.render();await h.settle();assert.equal(h.render().props.screen,"review");assert.equal(h.find("Practice Again: Organize OLD CARTS").props.disabled,true);
+ h.find("Resume saved request").props.onPress();h.render();await h.settle();assert.match(h.text(h.render()),/A preserved supplementary response/);await h.advance(6000);h.setEvaluate(()=>({label:"Ready",feedback:"Controlled supplementary feedback."}));h.find("Retry feedback").props.onPress();await h.settle();assert.equal(h.render().props.result.requestId,pending.requestId);h.find("Continue →").props.onPress();h.render();await h.settle();assert.equal(h.render().props.screen,"review");const after=await h.service.getProgress("A");assert.deepEqual(after.activities,original.activities);assert.equal(after.completed,true);assert.equal(after.history.length,1);
+});
+test("Review & Practice can return a partially completed learner to normal progression without blocking required submission",async t=>{
+ const h=harness("app/module-0.tsx",{mode:"review"},{approvedUI:true});t.after(h.unmount);await h.service.submit("A",{activityId:catalog.activities[0].id,stepId:catalog.activities[0].steps[0].id,kind:"required",response:"An original completed opening",requestId:"review-partial-original",expectedRevision:0});h.render();await h.settle();
+ h.find("Review: Open the Interview").props.onPress();h.render();await h.settle();await finishTeaching(h);h.find("Continue to the next unfinished exercise").props.onPress();h.render();await h.settle();assert.equal(h.render().props.kind,"required");assert.equal(h.render().props.step.id,"organize-old-carts");await finishTeaching(h);h.input().props.onChangeText("A normal required OLD CARTS response");h.render();h.find("Submit").props.onPress();await h.settle();const after=await h.service.getProgress("A");assert.equal(after.completedCount,2);assert.equal(after.activities[0].steps[0].saved.requestId,"review-partial-original");assert.equal(h.render().props.result.kind,"required");
 });

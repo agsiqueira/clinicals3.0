@@ -6,7 +6,8 @@ import {
   TextInput,
   View,
 } from "react-native";
-import type { StyleProp, ViewStyle } from "react-native";
+import type { StyleProp, TextStyle, ViewStyle } from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 type ClinicalsChatComposerProps = {
   value: string;
@@ -15,7 +16,9 @@ type ClinicalsChatComposerProps = {
   onSubmit?: () => void;
   onMicPress: () => void;
   placeholder?: string;
+  placeholderTextColor?: string;
   submitLabel?: string;
+  submitAccessibilityLabel?: string;
   editable?: boolean;
   sendDisabled?: boolean;
   micDisabled?: boolean;
@@ -27,6 +30,9 @@ type ClinicalsChatComposerProps = {
   microphoneAccessibilityLabel?: string;
   showMicrophoneControl?: boolean;
   compact?: boolean;
+  inputStyle?: StyleProp<TextStyle>;
+  showSendControl?: boolean;
+  lesson?: boolean;
 };
 
 export function ClinicalsChatComposer({
@@ -36,7 +42,9 @@ export function ClinicalsChatComposer({
   onSubmit,
   onMicPress,
   placeholder = "Type a message...",
+  placeholderTextColor,
   submitLabel = "Send",
+  submitAccessibilityLabel,
   editable = true,
   sendDisabled = false,
   micDisabled = false,
@@ -48,22 +56,27 @@ export function ClinicalsChatComposer({
   microphoneAccessibilityLabel,
   showMicrophoneControl = true,
   compact = false,
+  inputStyle,
+  showSendControl = true,
+  lesson = false,
 }: ClinicalsChatComposerProps) {
   const submit = onSubmit || onSend || (() => {});
+  const safelySubmit = () => { if (!sendDisabled && editable && !sending && !transcribing && !isRecording && value.trim()) submit(); };
 
-  return (
-    <View style={[styles.container, compact && styles.compactContainer, containerStyle]}>
+  const field = (
+    <View style={[styles.container, compact && styles.compactContainer, lesson && styles.lessonContainer, containerStyle]}>
       <TextInput
         accessibilityLabel={inputAccessibilityLabel}
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
-        style={[styles.input, compact && styles.compactInput]}
+        placeholderTextColor={placeholderTextColor}
+        style={[styles.input, compact && styles.compactInput, lesson && styles.lessonInput, inputStyle]}
         editable={editable}
         returnKeyType="send"
-        onSubmitEditing={submit}
+        onSubmitEditing={lesson ? safelySubmit : submit}
       />
-      {showMicrophoneControl ? <Pressable
+      {showMicrophoneControl && !lesson ? <Pressable
         accessibilityRole="button"
         accessibilityLabel={
           microphoneAccessibilityLabel ||
@@ -79,22 +92,37 @@ export function ClinicalsChatComposer({
       >
         <Text style={styles.buttonText}>{transcribing ? "..." : isRecording ? "⏹️" : "🎤"}</Text>
       </Pressable> : null}
-      <Pressable
-        onPress={submit}
-        disabled={sendDisabled}
+      {showSendControl && <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={submitAccessibilityLabel || submitLabel}
+        accessibilityState={{disabled:sendDisabled || lesson && (isRecording || transcribing),busy:sending}}
+        onPress={lesson ? safelySubmit : submit}
+        disabled={sendDisabled || lesson && (isRecording || transcribing)}
         style={({ pressed }) => [
           styles.sendButton,
-          sendDisabled && styles.disabled,
+          lesson && styles.lessonSend,
+          (sendDisabled || lesson && (isRecording || transcribing)) && styles.disabled,
           pressed && !sendDisabled && styles.pressed,
         ]}
       >
-        <Text style={styles.sendButtonText}>{sending ? "..." : submitLabel}</Text>
-      </Pressable>
+        <Text style={[styles.sendButtonText,lesson && styles.lessonSendText]}>{sending ? "..." : submitLabel}</Text>
+      </Pressable>}
     </View>
   );
+  if (!lesson) return field;
+  return <View style={styles.lessonWrapper}>
+    {showMicrophoneControl && <Pressable accessibilityRole="button" accessibilityLabel={microphoneAccessibilityLabel || (isRecording ? "Stop microphone recording" : transcribing ? "Transcribing audio" : "Start microphone recording")} accessibilityState={{disabled:micDisabled,busy:transcribing,selected:isRecording}} onPress={onMicPress} disabled={micDisabled} style={({pressed})=>[styles.lessonMic,micDisabled && styles.disabled,pressed && styles.pressed]}><MaterialCommunityIcons name={isRecording ? "stop" : transcribing ? "progress-clock" : "microphone-outline"} size={24} color="#6150ed" /></Pressable>}
+    {field}
+  </View>;
 }
 
 const styles = StyleSheet.create({
+  lessonWrapper:{width:"100%",paddingTop:4},
+  lessonMic:{alignSelf:"center",width:44,height:44,alignItems:"center",justifyContent:"center",borderRadius:22,backgroundColor:"#f3f1ff",marginBottom:8},
+  lessonContainer:{marginHorizontal:0,marginTop:0,padding:6,borderRadius:16,backgroundColor:"#ffffff",minHeight:64},
+  lessonInput:{borderWidth:0,fontFamily:"Module0Inter",fontWeight:"normal",fontSize:16,lineHeight:24,minHeight:52},
+  lessonSend:{minWidth:64,minHeight:44,borderWidth:0,borderRadius:12,backgroundColor:"#6150ed",justifyContent:"center"},
+  lessonSendText:{fontFamily:"Module0InterSemiBold",fontWeight:"normal",color:"#ffffff",fontSize:14},
   container: {
     marginHorizontal: 12,
     marginTop: 4,

@@ -21,7 +21,7 @@ export function Module0Card({ summary }: { summary?: Module0Summary | null }) {
       : summary.entryBlocked ? <Text style={styles.small}>Complete all nine interactions to unlock Rotation 1. No passing score is required.</Text>
       : summary.completed ? <Text style={styles.small}>Your completion is saved. Review or practice without resetting it.</Text>
       : <Text style={styles.small}>Existing encounters remain available during validation.</Text>}
-    <Pressable accessibilityRole="button" style={styles.button} onPress={() => router.push("/module-0")}><Text style={styles.buttonText}>{module0Action(summary)}</Text></Pressable>
+    <Pressable accessibilityRole="button" style={styles.button} onPress={() => router.push(summary.completed ? { pathname: "/module-0", params: { mode: "review" } } : "/module-0")}><Text style={styles.buttonText}>{module0Action(summary)}</Text></Pressable>
   </View>;
 }
 const styles = StyleSheet.create({

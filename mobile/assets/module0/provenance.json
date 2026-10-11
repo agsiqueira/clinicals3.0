@@ -1,0 +1,114 @@
+{
+  "fileKey": "vV5enBSlqxmmvRtsDyMSY2",
+  "frames": [
+    "6:2",
+    "6:3",
+    "6:4",
+    "6:5",
+    "6:6",
+    "6:7",
+    "6:8",
+    "6:9",
+    "6:10"
+  ],
+  "assets": [
+    {
+      "file": "b0c87.png",
+      "sourceName": "imgFriendlyDoctorInModernClinic1"
+    },
+    {
+      "file": "ef2e9.svg",
+      "sourceName": "imgIconBook"
+    },
+    {
+      "file": "6b92c.svg",
+      "sourceName": "imgIconList"
+    },
+    {
+      "file": "b9b5b.svg",
+      "sourceName": "imgIconClock"
+    },
+    {
+      "file": "b698e.png",
+      "sourceName": "imgFriendlyDoctorPatientConsultation1"
+    },
+    {
+      "file": "54086.svg",
+      "sourceName": "imgIconBack"
+    },
+    {
+      "file": "603c6.svg",
+      "sourceName": "imgIconActivityNumber1"
+    },
+    {
+      "file": "be7a8.svg",
+      "sourceName": "imgIconActivityNumber2"
+    },
+    {
+      "file": "60b41.png",
+      "sourceName": "imgFriendlyDoctorAvatarInBlueTie1"
+    },
+    {
+      "file": "2a5ba.svg",
+      "sourceName": "imgOpenConversationIllustration"
+    },
+    {
+      "file": "97c37.svg",
+      "sourceName": "imgIconClose"
+    },
+    {
+      "file": "d187d.svg",
+      "sourceName": "imgEllipse1"
+    },
+    {
+      "file": "26572.svg",
+      "sourceName": "imgGroup"
+    },
+    {
+      "file": "afbee.svg",
+      "sourceName": "imgEllipse"
+    },
+    {
+      "file": "eac06.svg",
+      "sourceName": "imgEllipse1"
+    },
+    {
+      "file": "a89ed.svg",
+      "sourceName": "imgIconMessage"
+    },
+    {
+      "file": "8f4ba.svg",
+      "sourceName": "imgCelebratoryPositiveFeedbackIllustration"
+    },
+    {
+      "file": "42c63.svg",
+      "sourceName": "imgEllipse"
+    },
+    {
+      "file": "96175.svg",
+      "sourceName": "imgIconSend"
+    },
+    {
+      "file": "06da8.png",
+      "sourceName": "imgGoldenTrophyCelebrationBadge1"
+    },
+    {
+      "file": "67307.svg",
+      "sourceName": "imgIconCheck"
+    },
+    {
+      "file": "7386f.svg",
+      "sourceName": "imgModuleCompletionIllustration"
+    }
+  ],
+  "fonts": {
+    "release": "https://github.com/rsms/inter/releases/tag/v3.19",
+    "files": [
+      "Inter-Regular.ttf",
+      "Inter-Medium.ttf",
+      "Inter-SemiBold.ttf",
+      "Inter-Bold.ttf"
+    ],
+    "license": "Inter-LICENSE.txt"
+  }
+}
