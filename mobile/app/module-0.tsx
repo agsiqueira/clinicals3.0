@@ -504,7 +504,6 @@ function Module0Experience({ userId }: { userId: string }) {
         </View>}
 
           <View style={styles.rowWrap}>
-            {!step.completed && <Pressable style={styles.chip} onPress={() => choose(activity.id, step.id, "required")}><Text style={styles.link}>Answer exercise</Text></Pressable>}
             <Pressable style={styles.chip} onPress={() => choose(activity.id, step.id, "clarify")}><Text style={styles.link}>Ask for clarification</Text></Pressable>
             {step.completed && <Pressable style={styles.chip} onPress={() => choose(activity.id, step.id, "practice")}><Text style={styles.link}>Optional targeted practice</Text></Pressable>}
           </View>

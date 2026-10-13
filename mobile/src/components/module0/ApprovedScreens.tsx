@@ -120,7 +120,7 @@ function MentorAudio(p: Props & { compact?: boolean }) {
  const askAvailable=["teach","old-carts-teach","practice","feedback"].includes(p.screen);
  if (!p.narration && !askAvailable) return null;
  const ask = askAvailable && <Pressable accessibilityRole="button" accessibilityLabel="Ask Dr. Martinez" accessibilityState={{disabled:unavailable}} disabled={unavailable} onPress={p.onClarify} style={({pressed})=>[s.askMentor,p.compact && s.compactAsk,unavailable && s.iconDisabled,pressed && s.pressed]}>
-   <Image source={artwork.avatar} contentFit="contain" style={p.compact ? s.compactAvatar : s.stripAvatar} accessibilityElementsHidden importantForAccessibility="no"/><Text style={[s.askMentorText,p.compact && s.compactMentorText]}>Ask Dr. Martinez</Text>
+   <Image source={artwork.avatar} contentFit="contain" style={p.compact ? s.compactAvatar : s.stripAvatar} accessibilityElementsHidden importantForAccessibility="no"/><Text numberOfLines={p.compact ? 1 : undefined} style={[s.askMentorText,p.compact && s.compactMentorText]}>Ask Dr. Martinez</Text>
   </Pressable>;
  const controls = !!p.narration && <View style={[s.narrationControls,narrow && s.narrowNarrationControls]}>
    <IconControl label={p.isSpeaking ? "Pause narration" : "Play narration"} icon={p.isSpeaking ? "pause" : "play"} onPress={p.isSpeaking ? p.onPause : p.onPlay || p.onListen} active={p.isSpeaking || p.isPaused} disabled={unavailable || (!p.isSpeaking && responseTooLong)}/>
@@ -280,7 +280,7 @@ export function ApprovedScreens(props: Props) {
           </Pressable>)}
         </View>
       </View>
-      {dock(<View style={s.practiceDock}><MentorAudio {...p} compact/>{p.error && <Text accessibilityRole="alert" style={s.error}>{p.error}</Text>}<Button label={p.busy ? "Preparing feedback…" : "Check answer →"} onPress={p.onContinue} disabled={p.disabled || p.busy || !p.selected}/></View>)}
+      {dock(<View style={[s.practiceDock,width<360 && s.narrowPracticeDock]}><MentorAudio {...p} compact/>{p.error && <Text accessibilityRole="alert" style={s.error}>{p.error}</Text>}<Button label={p.busy ? "Preparing feedback…" : "Check answer →"} onPress={p.onContinue} disabled={p.disabled || p.busy || !p.selected}/></View>)}
     </>}
     {p.screen === "practice" && p.textMode && <>
       <View style={s.practiceBody}>
@@ -305,7 +305,7 @@ export function ApprovedScreens(props: Props) {
         {p.activity.completed && <><Text style={s.lessonHint}>Activity complete. Review or practice without repeating required work.</Text>{p.progress?.next && <Pressable accessibilityRole="button" onPress={() => p.onChoose?.(p.progress!.next!.activityId,p.progress!.next!.stepId)} style={s.control}><Text style={s.controlText}>Continue to the next unfinished activity</Text></Pressable>}</>}
       </View>
       
-      {dock(<View style={s.practiceDock}><MentorAudio {...p} compact/>
+      {dock(<View style={[s.practiceDock,width<360 && s.narrowPracticeDock]}><MentorAudio {...p} compact/>
         {(!p.step.completed || p.kind !== "required" || p.progress?.pending) ? <ClinicalsChatComposer key={p.step.id+":"+p.kind} practice compact
               value={p.selected} onChangeText={p.onSelect} onSubmit={p.onContinue} onMicPress={p.onMicPress || (()=>{})}
               placeholder="Answer here" inputAccessibilityLabel="Your exercise response" submitLabel="Submit" showSendControl={!p.progress?.pending}
@@ -393,10 +393,11 @@ const s = StyleSheet.create({
   exitDialog:{width:"100%",maxWidth:420,alignSelf:"center",backgroundColor:c.background,borderRadius:16,padding:20,gap:16},
   practiceBody:{paddingHorizontal:24,paddingTop:24,gap:18},
   practiceDock:{paddingHorizontal:24,paddingTop:12,borderTopWidth:1,borderTopColor:c.track,gap:10},
+  narrowPracticeDock:{paddingHorizontal:16},
   practiceReference:{backgroundColor:c.lavender,borderRadius:14,paddingHorizontal:16},
   practiceReferenceLabel:{flex:1,fontFamily:"Module0InterSemiBold",fontSize:14,lineHeight:20,color:c.ink},
   practiceFacts:{paddingBottom:16,gap:12},practiceCopy:{fontFamily:"Module0Inter",fontSize:14,lineHeight:21,color:c.body},
-  narrowMentorRow:{columnGap:4},narrowNarrationControls:{gap:0,flexShrink:0},
+  narrowMentorRow:{columnGap:8},narrowNarrationControls:{gap:0,flexShrink:0},
   compactMentorRow:{flexDirection:"row",alignItems:"center",backgroundColor:c.lavender,borderRadius:12},
   compactAsk:{flex:1,minWidth:0,gap:4,paddingLeft:6},compactAvatar:{width:24,height:30},compactMentorText:{flex:1,fontSize:12,lineHeight:16},
   caseFactsHeader:{minHeight:44,flexDirection:"row",alignItems:"center",justifyContent:"space-between",gap:12},caseFactsBody:{gap:12},caseFactsFocus:{outlineWidth:2,outlineStyle:"solid",outlineColor:c.primary,outlineOffset:3},
