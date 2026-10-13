@@ -5,11 +5,13 @@ import { Image } from "expo-image";
 import { useFonts } from "expo-font";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { LessonActivity, LessonStep, LessonProgress, LessonResult } from "../../types/clinicalReadiness";
-import { oldCartsPanels, conceptPanelsFor, conceptTitle, responseAudioTooLong } from "./teaching";
+import { oldCartsPanels, conceptPanelsFor, conceptTitle, responseAudioTooLong, activityCompletionText } from "./teaching";
 import { lessonPosition, exerciseTitle, activityIntroductions, provisionalOpeningChoices } from "./presentation";
 import { module0Colors as c } from "./tokens";
 import { ClinicalsChatComposer } from "../ClinicalsChatComposer";
 import { PracticeTask } from "./PracticeTask";
+import { SoapClassification } from "./SoapClassification";
+import { soapResponseComplete } from "./soap";
 
 export type ApprovedScreen = "review" | "exercise-transition" | "old-carts-teach" | "welcome" | "introduction" | "teach" | "practice" | "feedback" | "clarify" | "activity-complete" | "resume" | "module-complete";
 const artwork = {
@@ -37,6 +39,15 @@ const artwork = {
   sendBackground: require("../../../assets/module0/42c63.svg"),
 };
 const conceptArtwork = {
+  "old-carts-onset": require("../../../assets/module0/old-carts/02_O_Onset.webp"),
+  "old-carts-location": require("../../../assets/module0/old-carts/03_L_Location.webp"),
+  "old-carts-duration": require("../../../assets/module0/old-carts/04_D_Duration.webp"),
+  "old-carts-character": require("../../../assets/module0/old-carts/05_C_Character.webp"),
+  "old-carts-factors": require("../../../assets/module0/old-carts/06_A_Aggravating_Alleviating.webp"),
+  "old-carts-radiation": require("../../../assets/module0/old-carts/07_R_Radiation.webp"),
+  "old-carts-temporal": require("../../../assets/module0/old-carts/08_T_Temporal_Factors.webp"),
+  "old-carts-severity": require("../../../assets/module0/old-carts/09_S_Severity.webp"),
+  "old-carts-qualifiers": require("../../../assets/module0/old-carts/10_Closing_Qualifiers.webp"),
   "soap-overview": require("../../../assets/module0/soap-overview.png"),
   "subjective-patient-report": require("../../../assets/module0/subjective-patient-report.png"),
   "objective-exam-findings": require("../../../assets/module0/objective-exam-findings.png"),
@@ -62,6 +73,15 @@ const conceptArtwork = {
   "clinical-reasoning-possibilities": require("../../../assets/module0/clinical-reasoning-possibilities.png"),
 };
 const conceptArtworkDescriptions = {
+  "old-carts-onset":"General concept illustration of symptom onset, with calendar, morning and clock symbols; not a portrait of Mr. Jones.",
+  "old-carts-location":"General concept illustration identifying the anterior chest area; not additional case findings.",
+  "old-carts-duration":"General concept illustration of the duration of bounded symptom episodes.",
+  "old-carts-character":"General concept illustration of sharp or stabbing chest discomfort, without establishing a diagnosis.",
+  "old-carts-factors":"General concept illustration of inspiration aggravating pain. Mr. Jones has no alleviating factors; no relief with rest is shown.",
+  "old-carts-radiation":"General concept illustration of localized chest discomfort without spread. Mr. Jones reports no radiation to the arm, neck or jaw.",
+  "old-carts-temporal":"General concept illustration of changing symptom patterns over time.",
+  "old-carts-severity":"General concept illustration of discussing pain intensity with a scale.",
+  "old-carts-qualifiers":"General concept illustration of translating patient descriptions into clinical notes. The pictured symptom examples are not new Mr. Jones findings.",
   "history-medications-allergies": "A clinician discusses medication and allergy history with an older patient, alongside medicine and allergy symbols.",
   "history-surgical-family-context": "A clinician asks an older patient about prior surgery and family health, with surgical and family-tree motifs.",
   "history-social-environmental-context": "A clinician and older patient discuss daily life, with home, work, and social-support symbols.",
@@ -189,8 +209,8 @@ export function ApprovedScreens(props: Props) {
   </View>);
   const hasHeader = true;
   const header = hasHeader && <>
-    <View style={s.navigationBar}><IconControl label="Back" icon="arrow-left" onPress={p.onBack} disabled={p.busy || p.disabled || !!p.progress?.pending}/><Text numberOfLines={2} style={s.lessonIdentifier}>{p.screen === "review" ? "Review & Practice" : p.screen === "introduction" || p.screen === "activity-complete" ? p.activity.title : conceptTitle(p.step,p.activity)}</Text><IconControl label="Close lesson" icon="close" onPress={p.onLeave}/></View>
-    <View style={s.lessonProgress}><View accessibilityRole="progressbar" accessibilityLabel={conceptScreen ? "Teaching panel progress" : "Saved exercise progress"} accessibilityValue={conceptScreen ? {min:1,max:panels.length,now:lessonPanel+1} : {min:0,max:position.exerciseTotal,now:position.completedCount}} style={[s.track,{marginTop:0}]}><View style={[s.fill,{width:((conceptScreen ? (lessonPanel+1)/panels.length : position.exerciseTotal ? Math.min(1,position.completedCount/position.exerciseTotal) : 0)*100 + "%") as `${number}%`}]} /></View><Text style={s.panelCount}>{conceptScreen ? lessonPanel+1 : position.exerciseNumber}/{conceptScreen ? panels.length : position.exerciseTotal}</Text></View>
+    <View style={s.navigationBar}><IconControl label="Back" icon="arrow-left" onPress={p.onBack} disabled={p.busy || p.disabled || !!p.progress?.pending}/><Text numberOfLines={2} style={s.lessonIdentifier}>{p.screen === "module-complete" ? "Module 0 Complete" : p.screen === "welcome" ? "Clinical Readiness" : p.screen === "resume" ? "Resume Module 0" : p.screen === "review" ? "Review & Practice" : p.screen === "exercise-transition" ? "Next: Organize OLD CARTS" : p.screen === "activity-complete" ? "Activity Complete" : p.screen === "clarify" ? "Dr. Martinez" : p.screen === "introduction" ? p.activity.title : conceptTitle(p.step,p.activity)}</Text><IconControl label="Close lesson" icon="close" onPress={p.onLeave}/></View>
+    <View style={s.lessonProgress}><View accessibilityRole="progressbar" accessibilityLabel={conceptScreen ? "Teaching panel progress" : "Saved exercise progress"} accessibilityValue={conceptScreen ? {min:1,max:panels.length,now:lessonPanel+1} : {min:0,max:position.exerciseTotal,now:position.completedCount}} style={[s.track,{marginTop:0}]}><View style={[s.fill,{width:((conceptScreen ? (lessonPanel+1)/panels.length : position.exerciseTotal ? Math.min(1,position.completedCount/position.exerciseTotal) : 0)*100 + "%") as `${number}%`}]} /></View><Text style={s.panelCount}>{conceptScreen ? lessonPanel+1 : p.screen === "module-complete" ? position.exerciseTotal : position.exerciseNumber}/{conceptScreen ? panels.length : position.exerciseTotal}</Text></View>
   </>;
   const caseFacts = p.progress?.scenario && <View style={[s.practiceReference,["history-and-context","review-of-systems"].includes(p.step.id) && {backgroundColor:c.reply}]}>
     <Pressable accessibilityRole="button" accessibilityLabel="Mr. Jones · Case facts" accessibilityState={{expanded:!!p.caseFactsExpanded}} aria-expanded={!!p.caseFactsExpanded} onPress={p.onToggleCaseFacts}
@@ -216,14 +236,14 @@ export function ApprovedScreens(props: Props) {
         </View>)}
       </View>)}
     </View>}
-    {!oldCarts && !conceptScreen && ["feedback","exercise-transition"].includes(p.screen) && <View style={s.lessonHierarchy}>
+    {!oldCarts && !conceptScreen && p.screen === "exercise-transition" && <View style={s.lessonHierarchy}>
      <Text style={s.activityLabel}>Activity {position.activityNumber} of {position.activityTotal} — {p.activity.title}</Text>
      <Text style={s.exerciseHierarchy}>Exercise {position.exerciseNumber} of {position.exerciseTotal} — {exerciseTitle(p.step,p.activity)}</Text>
     </View>}
     {p.screen === "exercise-transition" && <><View style={s.teach}><Art source={artwork.check} width={72} height={72}/><Text style={s.teachTitle}>Exercise {position.exerciseNumber} complete!</Text><Text style={s.teachBody}>You’ve practiced opening the interview.</Text><View style={[s.lessonCard,{marginTop:24}]}><Text style={s.activityLabel}>NEXT: EXERCISE {position.exerciseNumber+1} OF {position.exerciseTotal}</Text><Text style={s.responseTitle}>Organize OLD CARTS</Text><Text style={s.lessonText}>Learn the framework, then organize Mr. Jones’s symptoms.</Text></View></View>{footer("Learn OLD CARTS →")}</>}
     {conceptScreen && panel && <>
       <View style={s.conceptContent}>
-       <View style={s.conceptIllustration}>{panel.illustration ? <Image source={conceptArtwork[panel.illustration as keyof typeof conceptArtwork]} contentFit="contain" accessibilityLabel={conceptArtworkDescriptions[panel.illustration as keyof typeof conceptArtworkDescriptions] || panel.title} style={{width:illustrationWidth,height:illustrationWidth}}/> : <Art source={artwork[panel.icon as "conversation" | "clock" | "list" | "book"]} width={panel.icon === "conversation" ? illustrationWidth : Math.min(180,illustrationWidth)} height={panel.icon === "conversation" ? illustrationWidth*233/258 : Math.min(180,illustrationWidth)}/>}</View>
+       <View style={s.conceptIllustration}>{panel.illustration ? <Image source={conceptArtwork[panel.illustration as keyof typeof conceptArtwork]} contentFit="contain" accessibilityLabel={conceptArtworkDescriptions[panel.illustration as keyof typeof conceptArtworkDescriptions] || panel.title} style={{width:illustrationWidth,height:illustrationWidth}}/> : artwork[panel.icon as keyof typeof artwork] ? <Art source={artwork[panel.icon as keyof typeof artwork]} width={panel.icon === "conversation" ? illustrationWidth : Math.min(180,illustrationWidth)} height={panel.icon === "conversation" ? illustrationWidth*233/258 : Math.min(180,illustrationWidth)}/> : <MaterialCommunityIcons accessibilityLabel={panel.title} name={panel.icon as IconName} size={Math.min(150,illustrationWidth)} color={c.primary}/>}</View>
        <View style={s.conceptCopy}><Text accessibilityRole="header" style={s.conceptTitle}>{panel.title}</Text>{panel.text.split(/\n\s*\n/).map((paragraph:string,i:number)=><Text key={i} style={s.conceptExplanation}>{paragraph}</Text>)}</View>
        {panel.rows.length > 0 && <View style={s.clinicalExamples}>{panel.rows.map((row: {label:string;patient:string;clinical:string;detail:string})=><View key={row.label} style={s.clinicalExample}>
         <Text style={s.lessonHeading}>{row.label}</Text>
@@ -235,7 +255,7 @@ export function ApprovedScreens(props: Props) {
       {footer(lessonPanel === panels.length-1 ? oldCarts ? "Practice with Mr. Jones →" : opening ? "Got it →" : "Practice →" : "Continue →")}
     </>}
     {p.screen === "welcome" && <>
-      <Image source={artwork.welcome} contentFit="cover" style={s.welcomeArt} accessibilityLabel="Dr. Martinez, your clinical preceptor" />
+      <View style={s.welcomeHero}><Image source={artwork.welcome} contentFit="cover" style={s.welcomeArt} accessibilityLabel="Dr. Martinez, your clinical preceptor" /></View>
       <View style={s.welcomePanel}>
         <Text style={s.eyebrow}>Module 0</Text>
         <Text accessibilityRole="header" style={s.welcomeTitle}>Clinical Readiness</Text>
@@ -285,6 +305,7 @@ export function ApprovedScreens(props: Props) {
     {p.screen === "practice" && p.textMode && <>
       <View style={s.practiceBody}>
         <PracticeTask step={p.step} optional={p.kind === "practice"} caseFacts={caseFacts}/>
+        {p.step.id === "soap-and-data-types" && p.kind === "required" && !p.step.completed && <SoapClassification value={p.selected} onChange={p.onSelect} disabled={p.busy || p.disabled || !!p.progress?.pending}/>}
         <View style={s.responseTools}><Pressable accessibilityRole="button" onPress={p.onToggleNavigation} style={s.control}><Text style={s.controlText}>Activities and reviews</Text></Pressable></View>
         {p.navigationOpen && <View style={s.lessonCard}>{p.progress?.activities.map((a,i) => <Pressable key={a.id} accessibilityRole="button" onPress={() => p.onChoose?.(a.id)} style={s.control}><Text style={s.lessonText}>{a.completed ? "✓" : `${i + 1}.`} {a.title} · {a.completedCount}/{a.requiredCount}</Text></Pressable>)}</View>}
         {p.navigationOpen && <View style={s.responseTools}>{p.activity.steps.map((step,i) => <Pressable key={step.id} accessibilityRole="button" disabled={!step.completed && step.id !== p.activity.nextStepId} onPress={() => p.onChoose?.(p.activity.id,step.id)} style={s.control}><Text style={s.controlText}>{step.completed ? "✓ Review" : "Exercise"} {i + 1}</Text></Pressable>)}</View>}
@@ -306,7 +327,7 @@ export function ApprovedScreens(props: Props) {
       </View>
       
       {dock(<View style={[s.practiceDock,width<360 && s.narrowPracticeDock]}><MentorAudio {...p} compact/>
-        {(!p.step.completed || p.kind !== "required" || p.progress?.pending) ? <ClinicalsChatComposer key={p.step.id+":"+p.kind} practice compact
+        {p.step.id === "soap-and-data-types" && p.kind === "required" ? ((!p.step.completed || p.progress?.pending) ? <Button label={p.busy ? "Preparing feedback…" : "Submit"} onPress={p.onContinue} disabled={p.busy || p.disabled || !!p.progress?.pending || !soapResponseComplete(p.selected)}/> : p.result && <Button label="Return to feedback →" onPress={p.onContinue} disabled={p.busy || p.disabled}/>) : (!p.step.completed || p.kind !== "required" || p.progress?.pending) ? <ClinicalsChatComposer key={p.step.id+":"+p.kind} practice compact
               value={p.selected} onChangeText={p.onSelect} onSubmit={p.onContinue} onMicPress={p.onMicPress || (()=>{})}
               placeholder="Answer here" inputAccessibilityLabel="Your exercise response" submitLabel="Submit" showSendControl={!p.progress?.pending}
               editable={!p.busy && !p.progress?.pending && !p.disabled} sending={p.busy}
@@ -320,7 +341,7 @@ export function ApprovedScreens(props: Props) {
     {p.screen === "feedback" && p.result && <>
       <View style={[s.feedbackContent,height < 700 && {marginTop:16,gap:20}]}>
         {height < 700 && feedbackHeading}
-        <View style={s.feedbackArt}><Art source={artwork.feedback} width={feedbackWidth} height={feedbackWidth*240/274} /></View>
+        <View style={s.feedbackArt}>{p.result.evaluation.label !== "Ready" ? <View accessibilityLabel="Revision suggested" style={s.revisionArt}><MaterialCommunityIcons name="file-document-edit-outline" size={Math.min(110,feedbackWidth*.6)} color={c.body}/></View> : <Art source={artwork.feedback} width={feedbackWidth} height={feedbackWidth*240/274} />}</View>
         {height >= 700 && feedbackHeading}
         <View accessibilityLiveRegion="polite" style={s.feedbackCopy}>{String(p.result.evaluation.feedback || p.result.evaluation.reply || "").split(/\n\s*\n/).filter(Boolean).map((paragraph,i)=><Text key={i} selectable style={s.feedbackBody}>{paragraph}</Text>)}</View>
       </View>
@@ -351,7 +372,7 @@ export function ApprovedScreens(props: Props) {
       <View style={s.activityCompletion}>
         <Art source={artwork.trophy} width={trophySize} height={trophySize} />
         <Text accessibilityRole="header" style={s.activityCompletionTitle}>Activity complete!</Text>
-        <Text style={s.completionBody}>{p.activity.id === "starting-the-encounter" ? "You've practiced opening the interview and organizing symptoms." : `You've practiced ${p.activity.title.toLowerCase()}.`}</Text>
+        <Text style={s.completionBody}>{activityCompletionText(p.activity)}</Text>
         <Checklist labels={completedSteps.map(step => exerciseTitle(step, p.activity) === p.activity.title ? step.question : exerciseTitle(step, p.activity))} />
       </View>
       {footer(p.progress?.completed ? "View module completion →" : "Next activity →")}
@@ -417,8 +438,10 @@ const s = StyleSheet.create({
   loading: { flex: 1, alignItems: "center", justifyContent: "center" },
   status: { position: "absolute", zIndex: 2, top: 15, left: 25, right: 22, flexDirection: "row", justifyContent: "space-between" },
   statusText: { fontFamily: "Module0InterSemiBold", fontSize: 12,  color: c.ink },
+  welcomeHero:{height:318,overflow:"hidden"},
   welcomeArt: { position: "absolute", top: -63, left: -2, width: "101%", height: 693 },
-  welcomePanel: { marginTop: 290, paddingTop: 36, paddingHorizontal: 24, backgroundColor: c.background, borderTopLeftRadius: 28, borderTopRightRadius: 28 },
+  welcomePanel: { marginTop:-28,paddingTop: 36,paddingBottom:24, paddingHorizontal: 24, backgroundColor: c.background,overflow:"hidden", borderTopLeftRadius: 28, borderTopRightRadius: 28 },
+  revisionArt:{width:"100%",minHeight:140,alignItems:"center",justifyContent:"center",backgroundColor:c.lavender,borderRadius:16},
   eyebrow: { fontFamily: "Module0InterSemiBold", fontSize: 12,  lineHeight: 16.2, color: c.body },
   welcomeTitle: { fontFamily: "Module0InterBold", fontSize: 27,  lineHeight: 36.45, color: c.ink, marginTop: 10 },
   welcomeBody: { maxWidth: 333, fontFamily: "Module0Inter", fontSize: 20, lineHeight: 21.6, color: c.body, marginTop: 18 },

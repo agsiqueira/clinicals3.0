@@ -99,11 +99,11 @@
         {
           "id": "soap-and-data-types",
           "teach": "SOAP means Subjective, Objective, Assessment, and Plan. Patient-reported symptoms belong in Subjective. Observed or measured examination findings belong in Objective. Your clinical interpretation and proposed next steps belong in Assessment and Plan.",
-          "question": "Place each item in SOAP: the patient reports pain with inspiration; you hear crackles; you consider a pulmonary cause; you propose a chest X-ray. Explain the difference between the first two items.",
+          "question": "For each statement, select the correct SOAP category: 1. Patient reports pain with inspiration. 2. You hear crackles during examination. 3. You consider a pulmonary cause. 4. You propose a chest X-ray.",
           "responseType": "short-text",
           "evaluationCriteria": [
-            "Maps the four supplied items to S/O/A/P",
-            "Distinguishes reported symptoms from observed findings"
+            "Classifies item 1 as S — Subjective, item 2 as O — Objective, item 3 as A — Assessment, and item 4 as P — Plan",
+            "Assess only the four classifications; do not require a written explanation"
           ],
           "optionalPracticeQuestion": "Is a patient’s report of shortness of breath subjective or objective? Explain.",
           "sourceRefs": {
@@ -117,7 +117,7 @@
               1
             ]
           },
-          "answerHint": "A few focused sentences or labeled phrases are enough. Longer valid answers are welcome."
+          "answerHint": "Select one SOAP category for each of the four statements."
         },
         {
           "id": "history-and-context",

@@ -1,7 +1,7 @@
 export const requiredPracticeNarration = {
  "open-the-interview":"Read the three openings and choose the one you would use to begin this encounter. Make your choice before checking the feedback.",
  "organize-old-carts":"Use the supplied Mr. Jones facts to write your OLD CARTS summary. Keep your response concise and avoid adding details that are not provided.",
- "soap-and-data-types":"Place each supplied item in a SOAP section, then explain the distinction requested in the question. Use your own reasoning before checking the feedback.",
+ "soap-and-data-types":"For each statement, select the correct SOAP category. Select all four categories before submitting to check your classifications.",
  "history-and-context":"Describe the history areas you would review, then choose two areas of daily-life context and explain why they matter for care planning.",
  "review-of-systems":"Answer both parts of the question: explain the purpose of this history step and discuss where the supplied finding belongs. Use your own words.",
  "focused-examination":"Describe the examination information you would seek for this patient and explain how it would help your reasoning. Use the supplied history to guide your response.",
@@ -25,7 +25,7 @@ export const introductionNarration = "Welcome to Starting the Encounter. We'll p
 // Only these explicitly authored examples receive patient/clinical typography.
 // Never infer semantics from quotation marks elsewhere in the application.
 function example(label, patient="", clinical="", detail="") { return {label,patient,clinical,detail}; }
-export const oldCartsPanels = [
+const originalOldCartsPanels = [
  {narration:"A patient's story gives us a starting point. OLD CARTS helps us gather the details we need to describe that story clearly. Explore the framework before you try your own summary.", title:"Organize the patient's story", icon:"conversation", text:"OLD CARTS is a checklist for describing a symptom. It helps you gather the details and turn the patient's story into a clear clinical summary.", rows:[]},
  {narration:"The start of a symptom and the length of each episode answer different questions. First, notice how the patient's description helps us describe the onset more precisely.", title:"When did it begin?", icon:"clock", text:"Onset tells us when a symptom began. Keep the starting point specific.", rows:[example("O · Onset","“Yesterday morning”","Acute onset.")]},
  {narration:"Now consider each episode on its own. The length of an episode is different from when the symptom first started or its pattern over the day.",title:"How long does it last?",icon:"clock",text:"Duration tells us how long an episode lasts. Keep this separate from onset and the pattern over time.",rows:[example("D · Duration","","Episodes lasting 10–15 minutes.")]},
@@ -36,6 +36,22 @@ export const oldCartsPanels = [
  {narration:"Ask the patient to describe the intensity in their own terms. A rating gives us a shared reference point while keeping their experience at the center of the description.",title:"How intense is it?",icon:"conversation",text:"Severity describes intensity. Keep the patient's own rating in your summary.",rows:[example("S · Severity","“6 out of 10”","Moderate, rated 6/10.")]},
  {narration:"A useful clinical qualifier keeps the patient's meaning intact. Compare the patient's description with sharp and pleuritic, then use the same approach when you organize Mr. Jones's facts.", title:"Patient words to clinical qualifiers", icon:"conversation", text:"Listen first, then choose a precise qualifier that preserves the patient's meaning. In practice, include all eight OLD CARTS categories. Short labeled phrases are enough.", rows:[example("Patient language → clinical description","“Stabbing knife when I take a breath”","Sharp and pleuritic.")]}
 ];
+// Keep the original examples while teaching one category per page in acronym order.
+export const oldCartsPanels = [
+ {...originalOldCartsPanels[0],illustration:"patient-data-to-summary"},
+ originalOldCartsPanels[1],
+ {title:"Where does it occur?",icon:"map-marker-radius-outline",text:"Location identifies where the symptom occurs.",narration:"First identify where the pain occurs. Keep this location separate from whether the pain travels elsewhere.",rows:[example("L · Location","“Middle of my chest”","Anterior chest; localized.")]},
+ {...originalOldCartsPanels[2],icon:"timer-sand"},
+ {...originalOldCartsPanels[4],icon:"lightning-bolt-outline"},
+ {...originalOldCartsPanels[5],icon:"arrow-up-down"},
+ {title:"Does the pain travel?",icon:"arrow-expand-horizontal",text:"Radiation describes whether the symptom travels elsewhere. Preserve pertinent negatives.",narration:"Now ask whether the pain travels. Mr. Jones reports no radiation to the arm, neck, or jaw. Keep that negative in your symptom summary, separate from the anterior chest location.",rows:[example("R · Radiation","“Does not go to my arm, neck, or jaw”","No radiation to the arm, neck, or jaw.")]},
+ {...originalOldCartsPanels[6],icon:"clock-time-eight-outline"},
+ {...originalOldCartsPanels[7],icon:"gauge"},
+ originalOldCartsPanels[8]
+];
+// Approved final package: imagery only; preserve every authored teaching field.
+const oldCartsIllustrations=["old-carts-onset","old-carts-location","old-carts-duration","old-carts-character","old-carts-factors","old-carts-radiation","old-carts-temporal","old-carts-severity","old-carts-qualifiers"];
+oldCartsIllustrations.forEach((illustration,index)=>{oldCartsPanels[index+1].illustration=illustration;});
 // Teaching presentation only. Source: clinicalReadiness.json; Mod 0.pptx
 // slides 2, 5–11, 13–29; Presentation Script.docx sections 1, 2–6.
 // Preserve the curriculum's corrections to the source management examples.
@@ -98,6 +114,17 @@ export const expandedConcepts = {
 };
 
 export const historyPanels = expandedConcepts["history-and-context"];
+// Distinct existing artwork with a meaning appropriate to each teaching concept.
+const visualAssignments = {
+ "soap-and-data-types": {3:"assessment-clinical-reasoning",4:"plan-next-steps",5:"patient-data-to-summary"},
+ sbar: {0:"mentor-consultation",1:"subjective-patient-report",2:"history-medications-allergies",3:"assessment-clinical-reasoning",4:"plan-next-steps",5:"patient-data-to-summary"},
+ snapps: {3:"assessment-clinical-reasoning"}
+};
+for(const [id,assignments] of Object.entries(visualAssignments)) for(const [index,illustration] of Object.entries(assignments)) expandedConcepts[id][index].illustration=illustration;
+export function activityCompletionText(activity) {
+ return activity?.id === "starting-the-encounter" ? "You've practiced opening the interview and organizing symptoms. Keep building on those skills in the next activity."
+ : `You've practiced ${activity?.title?.toLowerCase() || "this activity"}. Keep building on those skills as you continue your clinical learning.`;
+}
 export function conceptPanelsFor(step) {
  if(!step) return [];
  if(step.id === "organize-old-carts") return oldCartsPanels;
@@ -106,6 +133,7 @@ export function conceptPanelsFor(step) {
 }
 export function conceptTitle(step, activity) { return exerciseTitle(step,activity); }
 export function narrationFor(screen, step, result, panel=0, activity, kind="required") {
+ if(screen === "activity-complete") return activityCompletionText(activity);
  if(screen === "introduction") return activity?.id === "starting-the-encounter" ? introductionNarration : activityIntroductions[activity?.id] || "";
  if(screen === "exercise-transition") return "You've practiced inviting the patient's story. Next, we'll explore how OLD CARTS organizes symptom details before you try Mr. Jones's summary.";
  if(screen === "old-carts-teach" || screen === "teach") return conceptPanelsFor(step)[panel]?.narration || "";

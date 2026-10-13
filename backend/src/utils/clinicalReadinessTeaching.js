@@ -23,7 +23,8 @@ async function evaluateLesson({ catalog, step, response, kind }) {
     kind === "practice" ? "Evaluate only the targeted practice question. Do not require unrelated parts of the full required exercise." : "Evaluate only the current exercise; do not demand unrelated clinical knowledge.",
     `Current teaching: ${step.teach}`,
     `Current exercise: ${kind === "practice" ? step.optionalPracticeQuestion : step.question}`,
-    `Private evaluation criteria: ${JSON.stringify(step.evaluationCriteria)}`,
+    `Private evaluation criteria: ${JSON.stringify(step.id === "soap-and-data-types" && kind === "practice" ? ["Classify the reported shortness of breath as subjective and explain that it is patient-reported"] : step.evaluationCriteria)}`,
+    step.id === "soap-and-data-types" && kind === "required" ? "Evaluate only the four classifications: 1=S, 2=O, 3=A, 4=P. The numbered response is a set of dropdown selections. Never require explanations. Legacy prose answers may express the same classifications and must remain evaluable without a new explanation requirement." : "",
     `Visible instructional example: ${catalog.sharedScenario.text}`,
   ].join("\n");
   // One formatting repair at most; the entire operation stays below the UI's 45s budget.

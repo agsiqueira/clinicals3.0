@@ -20,6 +20,7 @@ import { afterFeedback, hasApprovedChoices, initialPresentation, isSubmissionRes
 import { module0SpeechText, responseAudioTooLong, exerciseEntry, narrationFor, oldCartsPanels, previousScreen, conceptPanelsFor, conceptTitle } from "../src/components/module0/teaching";
 import { getItemAsync, setItemAsync } from "../src/utils/storage";
 import { module0Colors } from "../src/components/module0/tokens";
+import { soapResponseComplete } from "../src/components/module0/soap";
 
 const MENTOR_TTS_VOICE = process.env.EXPO_PUBLIC_NAVIGATOR_MENTOR_TTS_VOICE || "am_adam";
 function errorMessage(code?: string) {
@@ -100,6 +101,11 @@ function Module0Experience({ userId }: { userId: string }) {
   const activeSubmission = useRef<AbortController | null>(null);
   const progressRef = useRef<LessonProgress | null>(null);
   const spoken = useRef("");
+  const freshResults = useRef(new Set<string>());
+  const narratedResults = useRef(new Set<string>());
+  const freshCompletions = useRef(new Map<string,string>());
+  const narratedCompletions = useRef(new Set<string>());
+  const completionArrival = useRef<string | null>(null);
   const { voiceEnabled, setVoiceEnabled } = useVoicePreference();
   const transcription = useEnglishSpeechTranscription({
     enabled: isFocused, scopeKey: scope,
@@ -219,6 +225,10 @@ function Module0Experience({ userId }: { userId: string }) {
       const result = recover && previous && previous.activityId === activity?.id && previous.stepId === step?.id
         ? data.activities.flatMap(a => a.steps).map(s => s.saved).find(r => isSubmissionResult(r, previous))
           || data.history.find(r => isSubmissionResult(r, previous)) : undefined;
+      if(result && previous && !notice) {
+        freshResults.current.add(result.requestId);
+        if(result.kind === "required" && !activity?.completed && data.activities.find(a=>a.id===result.activityId)?.completed) freshCompletions.current.set(result.activityId,result.requestId);
+      }
       setLoading(false);
       applySaved(data, result || undefined);
       if (!recover) setError(null);
@@ -277,8 +287,19 @@ function Module0Experience({ userId }: { userId: string }) {
     else { const valid = boundary.capture(); void mentorSpeech.speak(module0SpeechText(narration), undefined, valid); }
   };
   useEffect(() => {
-    // Returned feedback and mentor answers are read only on the learner's request.
-    if (screen === "feedback" || screen === "clarify") return;
+    // Only results received in this mounted session qualify for one automatic read.
+    // Consume the arrival even when muted; enabling voice on a revisit is not a new result.
+    if(screen === "clarify") return;
+    if(screen === "feedback") {
+      if(!currentResult || !freshResults.current.has(currentResult.requestId) || narratedResults.current.has(currentResult.requestId)) return;
+      narratedResults.current.add(currentResult.requestId);
+      if(responseAudioBlocked) return;
+    }
+    if(screen === "activity-complete") {
+      const arrival=completionArrival.current;
+      if(!arrival || narratedCompletions.current.has(arrival)) return;
+      completionArrival.current=null;narratedCompletions.current.add(arrival);
+    }
     if (progress?.pending || sending || !isFocused || !voiceEnabled || !step || !activity || transcription.isRecording || !narration) return;
     const latest = notice?.activityId === activity.id && notice.stepId === step.id ? notice : null;
     const key = `${scope}:${latest?.requestId || "teach"}`;
@@ -295,6 +316,7 @@ function Module0Experience({ userId }: { userId: string }) {
     let current: () => boolean;
     try { current = guard(); } catch { setError("Your session expired. Sign in again to resume your saved progress."); return; }
     const savedPending = progress.pending;
+    if(!pending && kind === "required" && step.id === "soap-and-data-types" && !soapResponseComplete(input)) return;
     if ((!pending && savedPending) || (!pending && (!input.trim() || transcription.isRecording || transcription.transcribing))) return;
     const old = retrySubmission.current;
     // Existing clarification contract accepts a question in response. Add only
@@ -318,6 +340,10 @@ function Module0Experience({ userId }: { userId: string }) {
       if (data.status === "saved" && !isSubmissionResult(data.result, payload)) {
         setError("The returned feedback did not match this answer. Refreshing your saved response.");
         void load(true); return;
+      }
+      if(data.status === "saved") {
+        freshResults.current.add(data.result.requestId);
+        if(data.result.kind === "required" && !activity.completed && data.progress.activities.find((a:LessonActivity)=>a.id===activity.id)?.completed) freshCompletions.current.set(activity.id,data.result.requestId);
       }
       applySaved(data.progress, data.status === "saved" ? data.result : undefined);
     } catch (err: any) {
@@ -400,7 +426,7 @@ function Module0Experience({ userId }: { userId: string }) {
         }
         else if (screen === "feedback") {
           if (!notice || notice.activityId !== activity.id || notice.stepId !== step.id) return;
-          if (notice.kind === "required" && afterFeedback(progress, activity.id)) present("activity-complete");
+          if (notice.kind === "required" && afterFeedback(progress, activity.id)) {completionArrival.current=freshCompletions.current.get(activity.id) === notice.requestId ? notice.requestId : null;freshCompletions.current.delete(activity.id);present("activity-complete");}
           else if (notice.kind === "required" && activity.nextStepId) { if (activity.id === "starting-the-encounter" && step.id === "open-the-interview") present("exercise-transition"); else choose(activity.id, activity.nextStepId); }
           else choose(activity.id, step.id);
         }
@@ -419,6 +445,7 @@ function Module0Experience({ userId }: { userId: string }) {
       }}
       onBack={() => {
         if (sending || pending || transcription.isRecording || transcription.transcribing) return;
+        freshCompletions.current.clear();completionArrival.current=null;
         if(screen === "review") {exitReview();return;}
         if(reviewNavigation.current?.mode === "practice" && kind === "practice" && (screen === "practice" || screen === null)) {returnToReview();return;}
         if(reviewNavigation.current?.mode && (screen === "teach" || screen === "old-carts-teach") && teachingPanel === 0) {returnToReview();return;}

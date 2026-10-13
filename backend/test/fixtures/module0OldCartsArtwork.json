@@ -1,0 +1,101 @@
+[
+  {
+    "page": 2,
+    "topic": "O \u2014 Onset",
+    "file": "02_O_Onset.webp",
+    "sha256": "83001ddc7131f0c42565341d779b5c784a639d2fdb647d4a2bc9c3e93a5c688f",
+    "bytes": 1346666,
+    "originalPngSha256": "d83110116ef6b2c54505f1f0e50fa4495dda9bf985d2cca2f2c43b263ac06ff6",
+    "width": 1254,
+    "height": 1254,
+    "format": "lossless-webp"
+  },
+  {
+    "page": 3,
+    "topic": "L \u2014 Location",
+    "file": "03_L_Location.webp",
+    "sha256": "45c053e336ef38a223e20199fe9e803fb9674ef0d49714a859575ed7819eb47e",
+    "bytes": 1333810,
+    "originalPngSha256": "826aa5390d2dfe38f837d1bc736d320de72af375a88267ad2491888fa4fc49e4",
+    "width": 1254,
+    "height": 1254,
+    "format": "lossless-webp"
+  },
+  {
+    "page": 4,
+    "topic": "D \u2014 Duration",
+    "file": "04_D_Duration.webp",
+    "sha256": "a0b41a726e27942c82726e1716d05ed3c3e8cfc3b5445b862e8ccd5d7a5f1c3d",
+    "bytes": 1298416,
+    "originalPngSha256": "f9e63ed01e7d5144c7149061648ecf1299a2dd2e75ff3254cceca2076e2aa243",
+    "width": 1254,
+    "height": 1254,
+    "format": "lossless-webp"
+  },
+  {
+    "page": 5,
+    "topic": "C \u2014 Character",
+    "file": "05_C_Character.webp",
+    "sha256": "38c0c7f91a50e5b8e51dd060c53b7d9bacf659a211760b2b81263d85c3837bf2",
+    "bytes": 1303722,
+    "originalPngSha256": "45d8186aa406a8177ff1713a02c5f8ffad84c83199ac4b80681837e782626fb6",
+    "width": 1254,
+    "height": 1254,
+    "format": "lossless-webp"
+  },
+  {
+    "page": 6,
+    "topic": "A \u2014 Aggravating / Alleviating",
+    "file": "06_A_Aggravating_Alleviating.webp",
+    "sha256": "dadd2f12b9079d6c2ba1b2a41a7b09e09dbfa0254b201205ba59bf5b0d4b6aab",
+    "bytes": 1362058,
+    "originalPngSha256": "4a039ede4f632e72c5f81fdfb69993ad1b9493ed9eb613ab7b177000e7bd5181",
+    "width": 1254,
+    "height": 1254,
+    "format": "lossless-webp"
+  },
+  {
+    "page": 7,
+    "topic": "R \u2014 Radiation",
+    "file": "07_R_Radiation.webp",
+    "sha256": "c99de31f67377b5ac7656863676fdcb451ba2551b51520a056c6edfafdca636e",
+    "bytes": 1296298,
+    "originalPngSha256": "7151696e4369eeddd08dadf051430004efa1d73742a4b821da4370c22041845f",
+    "width": 1254,
+    "height": 1254,
+    "format": "lossless-webp"
+  },
+  {
+    "page": 8,
+    "topic": "T \u2014 Temporal Factors",
+    "file": "08_T_Temporal_Factors.webp",
+    "sha256": "5262c0cf81cd90e246748ef05c83954c762f8a9dcef0db058eb4b598d72e4065",
+    "bytes": 1356542,
+    "originalPngSha256": "d5db90b6e749cfc6d160f7026ba406740eb886b84674358872d60d83dc32d8ab",
+    "width": 1254,
+    "height": 1254,
+    "format": "lossless-webp"
+  },
+  {
+    "page": 9,
+    "topic": "S \u2014 Severity",
+    "file": "09_S_Severity.webp",
+    "sha256": "e94701f6bc3b0e4070e8876b0cd15cfd3ee0ad41f489b1efe3cfd2f369a6c3a9",
+    "bytes": 1361228,
+    "originalPngSha256": "231bcc67a5e6ad8a169ee3131edd5413541b5628cbfcaa16d2026d17f54d0689",
+    "width": 1254,
+    "height": 1254,
+    "format": "lossless-webp"
+  },
+  {
+    "page": 10,
+    "topic": "Closing \u2014 Clinical qualifiers",
+    "file": "10_Closing_Qualifiers.webp",
+    "sha256": "133d60307968070052fcc037c038d5fc3f28a6686b42211fb2627d7b71c942d4",
+    "bytes": 1371268,
+    "originalPngSha256": "0f638d1475e2f4698046dc0b37aee3c06b9bbd0061331e5f1a7bc56d019e3191",
+    "width": 1254,
+    "height": 1254,
+    "format": "lossless-webp"
+  }
+]

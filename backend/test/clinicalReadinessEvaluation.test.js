@@ -167,3 +167,9 @@ test("diagnostics are development-only, opt-in, allowlisted and contain no learn
   assert.deepEqual(logs[3], ["[Module0 evaluation]", { code: "INVALID_OBJECT", attempt: 1 }]);
   assert.equal(JSON.stringify(logs).includes(answer), false);assert.equal(JSON.stringify(logs).includes("sensitive canary"), false);
 });
+
+test('required SOAP grading assesses classifications only while optional SOAP still asks for reasoning',async t=>{
+ const step=catalog.activities[1].steps[0];let prompts=[];navigator(t,async(_url,options)=>{prompts.push(JSON.parse(options.body).messages[0].content);return provider(JSON.stringify({label:'Ready',feedback:'Synthetic classification feedback.'}))});
+ await evaluateLesson({catalog,step,response:'1: S\n2: O\n3: A\n4: P',kind:'required'});assert.match(prompts[0],/Evaluate only the four classifications: 1=S, 2=O, 3=A, 4=P/);assert.match(prompts[0],/Never require explanations/);assert.doesNotMatch(step.question,/Explain the difference/);
+ await evaluateLesson({catalog,step,response:'Shortness of breath is subjective because the patient reports it.',kind:'practice'});assert.match(prompts[1],/Is a patient’s report of shortness of breath subjective or objective\? Explain/);assert.doesNotMatch(prompts[1],/Evaluate only the four classifications/);
+});
