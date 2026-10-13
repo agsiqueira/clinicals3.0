@@ -13,8 +13,10 @@
   ],
   "assets": [
     {
-      "file": "b0c87.png",
-      "sourceName": "imgFriendlyDoctorInModernClinic1"
+      "file": "b0c87.webp",
+      "sourceName": "imgFriendlyDoctorInModernClinic1",
+      "originalFile": "b0c87.png",
+      "optimization": "pixel-identical lossless WebP"
     },
     {
       "file": "ef2e9.svg",
@@ -29,8 +31,10 @@
       "sourceName": "imgIconClock"
     },
     {
-      "file": "b698e.png",
-      "sourceName": "imgFriendlyDoctorPatientConsultation1"
+      "file": "b698e.webp",
+      "sourceName": "imgFriendlyDoctorPatientConsultation1",
+      "originalFile": "b698e.png",
+      "optimization": "pixel-identical lossless WebP"
     },
     {
       "file": "54086.svg",
@@ -45,8 +49,10 @@
       "sourceName": "imgIconActivityNumber2"
     },
     {
-      "file": "60b41.png",
-      "sourceName": "imgFriendlyDoctorAvatarInBlueTie1"
+      "file": "60b41.webp",
+      "sourceName": "imgFriendlyDoctorAvatarInBlueTie1",
+      "originalFile": "60b41.png",
+      "optimization": "pixel-identical lossless WebP"
     },
     {
       "file": "2a5ba.svg",
@@ -89,8 +95,10 @@
       "sourceName": "imgIconSend"
     },
     {
-      "file": "06da8.png",
-      "sourceName": "imgGoldenTrophyCelebrationBadge1"
+      "file": "06da8.webp",
+      "sourceName": "imgGoldenTrophyCelebrationBadge1",
+      "originalFile": "06da8.png",
+      "optimization": "pixel-identical lossless WebP"
     },
     {
       "file": "67307.svg",

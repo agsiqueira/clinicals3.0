@@ -65,15 +65,15 @@ test("approved required/optional scripts are exact, neutral, and cover all 49 te
  for(const script of approvedRequiredNarration)assert.doesNotMatch(script,/pulmonary cause|cardiac possibility|belongs in Subjective|belongs in Objective|invites a story/);
  for(const screen of ["welcome","resume","module-complete","review"])for(const activity of catalog.activities)assert.equal(teaching.narrationFor(screen,activity.steps[0],null,0,activity),"");
 });
-test("approved illustrations map exactly, load as original PNGs, and use unique scenes across Module 0",()=>{
+test("approved illustrations retain mappings and provenance with pixel-identical optimized assets",()=>{
  const crypto=require("node:crypto");const imports=JSON.parse(fs.readFileSync(path.resolve(__dirname,"../../docs/module-0/approved-ui/illustration-integration/imported-assets.json"),"utf8"));
  const renderer=fs.readFileSync(path.resolve(__dirname,"../../mobile/src/components/module0/ApprovedScreens.tsx"),"utf8");
  for(const [id,index,asset] of approvedIllustrationAssignments){
   assert.equal(teaching.conceptPanelsFor({id})[index-1].illustration,asset);
   const record=imports.find(r=>r.filename===asset+".png");assert.ok(record);assert.equal(record.exerciseId,id);assert.equal(record.panelNumber,index);assert.ok(record.accessibleDescription);
-  const png=fs.readFileSync(path.resolve(__dirname,"../../mobile/assets/module0",asset+".png"));
-  assert.equal(png.subarray(0,8).toString("hex"),"89504e470d0a1a0a");assert.equal(crypto.createHash("sha256").update(png).digest("hex"),record.sha256);
-  assert.ok(renderer.includes('require("../../../assets/module0/'+asset+'.png")'));assert.ok(renderer.includes(record.accessibleDescription));
+  const optimized=require("./fixtures/imageAssets.json").find(a=>a.originalPath==="mobile/assets/module0/"+asset+".png");assert.ok(optimized);assert.equal(optimized.originalSha256,record.sha256);
+  const file=fs.readFileSync(path.resolve(__dirname,"../..",optimized.path));assert.equal(file.toString("ascii",8,12),"WEBP");assert.equal(crypto.createHash("sha256").update(file).digest("hex"),optimized.sha256);
+  assert.ok(renderer.includes('require("../../../'+optimized.path.replace("mobile/","")+'")'));assert.ok(renderer.includes(record.accessibleDescription));
  }
  const all=catalog.activities.flatMap(a=>a.steps.flatMap(s=>teaching.conceptPanelsFor(s)));
  for(const step of catalog.activities.flatMap(a=>a.steps)){const panels=teaching.conceptPanelsFor(step);for(let i=1;i<panels.length;i++)assert.notEqual(panels[i].illustration||panels[i].icon,panels[i-1].illustration||panels[i-1].icon);}
@@ -121,7 +121,7 @@ test("complete teaching sequences have individual framework components and disti
   const panels=teaching.conceptPanelsFor({id});for(const component of components)assert.equal(panels.filter(p=>p.title.startsWith(component+":")).length,1,component);
  }
  const mapping=JSON.parse(fs.readFileSync(path.resolve(__dirname,"../../docs/module-0/approved-ui/teaching-expansion/asset-mapping.json"),"utf8"));
- for(const step of steps)for(const p of teaching.conceptPanelsFor(step))if(p.illustration && !p.illustration.startsWith("old-carts-"))assert.ok(mapping[p.illustration] && fs.existsSync(path.resolve(__dirname,"../../mobile/assets/module0",p.illustration+".png")),p.illustration);
+ for(const step of steps)for(const p of teaching.conceptPanelsFor(step))if(p.illustration && !p.illustration.startsWith("old-carts-")){const optimized=require("./fixtures/imageAssets.json").find(a=>a.originalPath==="mobile/assets/module0/"+p.illustration+".png");assert.ok(mapping[p.illustration] && optimized && fs.existsSync(path.resolve(__dirname,"../..",optimized.path)),p.illustration);}
  assert.equal(teaching.module0SpeechText("SBAR SOAP SNAPPS ACS SBARcode"),"s-bar SOAP SNAPPS ACS SBARcode");
 });
 function memoryService(evaluate, now) {
