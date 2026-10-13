@@ -1,5 +1,5 @@
-import React from "react";
-import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
+import React, { useRef } from "react";
+import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useFonts } from "expo-font";
@@ -80,6 +80,7 @@ type Props = {
   screen: ApprovedScreen; activity: LessonActivity; step: LessonStep;
   selected: string; onSelect: (value: string) => void;
   onContinue: () => void; onBack: () => void; onLeave: () => void;
+  exitPrompt?:boolean; onCancelExit?:()=>void; onConfirmExit?:()=>void;
   onFreeText: () => void; onClarify: () => void;
   onListen: () => void; onStopAudio: () => void;
   isSpeaking: boolean; busy: boolean; disabled: boolean; error?: string | null;
@@ -102,8 +103,8 @@ type Props = {
 function Art({ source, width, height }: { source: number; width: number; height: number }) {
   return <Image source={source} contentFit="contain" style={{ width, height }} accessibilityElementsHidden importantForAccessibility="no" />;
 }
-function Button({ label, onPress, disabled = false }: { label: string; onPress: () => void; disabled?: boolean }) {
-  return <Pressable accessibilityRole="button" accessibilityState={{ disabled }} disabled={disabled} onPress={onPress} style={({ pressed }) => [s.button, pressed && s.pressed, disabled && s.disabled]}>
+function Button({ label, onPress, disabled = false, buttonRef }: { label: string; onPress: () => void; disabled?: boolean; buttonRef?:React.Ref<React.ElementRef<typeof View>> }) {
+  return <Pressable ref={buttonRef} accessibilityRole="button" accessibilityState={{ disabled }} disabled={disabled} onPress={onPress} style={({ pressed }) => [s.button, pressed && s.pressed, disabled && s.disabled]}>
     <Text style={s.buttonText}>{label}</Text>
   </Pressable>;
 }
@@ -155,6 +156,7 @@ function Shell({children,header,footer,referenceChrome,contentKey,practice}:{chi
  </View></View>;
 }
 export function ApprovedScreens(props: Props) {
+  const cancelExitRef=useRef<React.ElementRef<typeof View>>(null);
   const { width, height } = useWindowDimensions();
   const oldCarts = props.step.id === "organize-old-carts";
   const lessonPanel = props.teachingPanel || 0;
@@ -185,7 +187,7 @@ export function ApprovedScreens(props: Props) {
     {p.error && <Text accessibilityRole="alert" style={s.error}>{p.error}</Text>}
     <Button label={p.busy ? "Preparing feedback…" : label} onPress={p.onContinue} disabled={p.disabled || p.busy || (p.screen === "practice" && !p.selected)} />
   </View>);
-  const hasHeader = !["welcome","resume","module-complete"].includes(p.screen);
+  const hasHeader = true;
   const header = hasHeader && <>
     <View style={s.navigationBar}><IconControl label="Back" icon="arrow-left" onPress={p.onBack} disabled={p.busy || p.disabled || !!p.progress?.pending}/><Text numberOfLines={2} style={s.lessonIdentifier}>{p.screen === "review" ? "Review & Practice" : p.screen === "introduction" || p.screen === "activity-complete" ? p.activity.title : conceptTitle(p.step,p.activity)}</Text><IconControl label="Close lesson" icon="close" onPress={p.onLeave}/></View>
     <View style={s.lessonProgress}><View accessibilityRole="progressbar" accessibilityLabel={conceptScreen ? "Teaching panel progress" : "Saved exercise progress"} accessibilityValue={conceptScreen ? {min:1,max:panels.length,now:lessonPanel+1} : {min:0,max:position.exerciseTotal,now:position.completedCount}} style={[s.track,{marginTop:0}]}><View style={[s.fill,{width:((conceptScreen ? (lessonPanel+1)/panels.length : position.exerciseTotal ? Math.min(1,position.completedCount/position.exerciseTotal) : 0)*100 + "%") as `${number}%`}]} /></View><Text style={s.panelCount}>{conceptScreen ? lessonPanel+1 : position.exerciseNumber}/{conceptScreen ? panels.length : position.exerciseTotal}</Text></View>
@@ -377,9 +379,18 @@ export function ApprovedScreens(props: Props) {
       {footer("Continue to Rotation 1")}
     </>}
   </>;
-  return <Shell practice={p.screen === "practice"} header={header} referenceChrome={p.referenceChrome} contentKey={`${p.screen}:${p.step.id}:${lessonPanel}`} footer={bottom}>{content}</Shell>;
+  return <><Modal visible={!!p.exitPrompt} transparent animationType="fade" onShow={()=>cancelExitRef.current?.focus?.()} onRequestClose={p.onCancelExit}>
+    <View style={s.exitBackdrop}><View accessibilityViewIsModal aria-modal role="dialog" accessibilityLabel="Leave Module 0?" style={s.exitDialog}>
+      <Text accessibilityRole="header" style={s.lessonHeading}>Leave Module 0?</Text>
+      <Text style={s.lessonText}>Submitted answers and progress are saved. Your unsent draft will be lost if you leave.</Text>
+      <Button buttonRef={cancelExitRef} label="Keep working" onPress={p.onCancelExit || (()=>{})}/>
+      <Button label="Leave Module 0" onPress={p.onConfirmExit || p.onLeave}/>
+    </View></View>
+  </Modal><Shell practice={p.screen === "practice"} header={header} referenceChrome={p.referenceChrome} contentKey={`${p.screen}:${p.step.id}:${lessonPanel}`} footer={bottom}>{content}</Shell></>;
 }
 const s = StyleSheet.create({
+  exitBackdrop:{flex:1,backgroundColor:"rgba(21,32,68,0.45)",justifyContent:"center",padding:24},
+  exitDialog:{width:"100%",maxWidth:420,alignSelf:"center",backgroundColor:c.background,borderRadius:16,padding:20,gap:16},
   practiceBody:{paddingHorizontal:24,paddingTop:24,gap:18},
   practiceDock:{paddingHorizontal:24,paddingTop:12,borderTopWidth:1,borderTopColor:c.track,gap:10},
   practiceReference:{backgroundColor:c.lavender,borderRadius:14,paddingHorizontal:16},

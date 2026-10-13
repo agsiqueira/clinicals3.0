@@ -69,6 +69,16 @@ function Module0Experience({ userId }: { userId: string }) {
   const presentationInitialized = useRef(false);
   const reviewNavigation = useRef<{source:"route" | "module-complete";mode:"review" | "practice" | null} | null>(reviewEntry ? {source:"route",mode:null} : null);
   const answerDraft = useRef("");
+  const drafts = useRef(new Map<string,string>());
+  const [exitPrompt,setExitPrompt] = useState(false);
+  const draftKey = (a?:string,s?:string,k:LessonResult["kind"]="required") => `${a}:${s}:${k}`;
+  function keepDraft() {
+    if(!activity || !step || kind === "clarify") return;
+    const key=draftKey(activity.id,step.id,kind);
+    if(input.trim() && notice?.response !== input && progress?.pending?.response !== input) drafts.current.set(key,input);
+    else drafts.current.delete(key);
+
+  }
   const oldCartsOrigin = useRef<{ stepId: string; result: LessonResult | null } | null>(null);
   const oldCartsDraft = useRef("");
   const clarificationOrigin = useRef<{
@@ -97,7 +107,7 @@ function Module0Experience({ userId }: { userId: string }) {
     onError: () => setError("Could not transcribe. Please try again or type your answer."),
   });
   useEffect(() => { let active=true; void getItemAsync("module0_captions").then(v=>{if(active) setCaptions(v === "1");}); return ()=>{active=false;}; }, []);
-  useEffect(() => { setCaseFactsState(null); }, [userId]);
+  useEffect(() => { setCaseFactsState(null); drafts.current.clear(); }, [userId]);
   const mentorSpeech = useSpeechPlayback({
     channel: "mentor", voice: MENTOR_TTS_VOICE,
     enabled: isFocused && !transcription.isRecording,
@@ -116,13 +126,16 @@ function Module0Experience({ userId }: { userId: string }) {
     return () => { try { validSession(); return validView(); } catch { return false; } };
   }
   const choose = (id: string, selectedStep?: string, nextKind: LessonResult["kind"] = "required") => {
+    keepDraft();
     clarificationOrigin.current = null;
     oldCartsOrigin.current = null;
     if (nextKind === "clarify") answerDraft.current = input;
     boundary.invalidate(); void mentorSpeech.stop();
     setActivityId(id); setStepId(selectedStep); setKind(nextKind);
     activeSubmission.current?.abort(); activeSubmission.current = null;
-    setInput(""); setNotice(null); setError(null); setSending(false); retrySubmission.current = null;
+    const selected = progressRef.current?.activities.find(a=>a.id === id);
+    const selectedId = selectedStep || selected?.nextStepId || selected?.steps[0]?.id;
+    setInput(drafts.current.get(draftKey(id,selectedId,nextKind)) || ""); setNotice(null); setError(null); setSending(false); retrySubmission.current = null;
     setNavigationOpen(false);
     setTeachingPanel(0);
     setCaseFactsState(null);
@@ -139,14 +152,14 @@ function Module0Experience({ userId }: { userId: string }) {
     present("review");
   }
   function returnToReview() {
+    keepDraft();
     if(reviewNavigation.current) reviewNavigation.current.mode=progressRef.current?.pending?.kind === "practice" ? "practice" : null;
     clarificationOrigin.current=null;setInput("");setNotice(null);setError(null);setKind("required");setTeachingPanel(0);setCaseFactsState(null);
     present("review");
   }
   function exitReview() {
-    const source=reviewNavigation.current?.source;reviewNavigation.current=null;
-    if(source === "route") {boundary.invalidate();void mentorSpeech.stop();if(router.canGoBack())router.back();else router.replace("/(tabs)/cases");}
-    else present("module-complete");
+    reviewNavigation.current=null;
+    present(progressRef.current?.completed ? "module-complete" : progressRef.current?.completedCount ? "resume" : "welcome");
   }
   function selectReviewExercise(id:string, selectedStep:string, practice:boolean) {
     const target=progressRef.current?.activities.find(a=>a.id === id)?.steps.find(s=>s.id === selectedStep);
@@ -186,6 +199,7 @@ function Module0Experience({ userId }: { userId: string }) {
     // Pending interactions retain the existing durable recovery UI.
     if (data.pending) setScreen(current => current === "resume" || current === "review" ? current : null);
     if (result) {
+      drafts.current.delete(draftKey(result.activityId,result.stepId,result.kind));
       setNotice(result); setInput(""); setError(null); setSending(false); retrySubmission.current = null;
       // Result identity, rather than server.next, anchors feedback to its submission.
       setActivityId(result.activityId); setStepId(result.stepId); setKind(result.kind);
@@ -318,15 +332,31 @@ function Module0Experience({ userId }: { userId: string }) {
       if (activeSubmission.current === controller) { activeSubmission.current = null; if (current()) setSending(false); }
     }
   };
-  const leave = () => {
-    boundary.invalidate(); void mentorSpeech.stop();
-    if (router.canGoBack()) router.back(); else router.replace("/(tabs)");
+  const exitModule = () => {
+    setExitPrompt(false); boundary.invalidate(); void mentorSpeech.stop();
+    router.replace("/(tabs)");
   };
+  const leave = () => {
+    keepDraft();
+    const unsent = [...drafts.current.values()].some(text=>text.trim()) ||
+      kind === "clarify" && (!!input.trim() && notice?.response !== input || !!clarificationOrigin.current?.input.trim());
+    if (unsent) setExitPrompt(true);
+    else exitModule();
+  };
+  function previousExercise() {
+    if(!progress || !activity || !step) return;
+    const index=activity.steps.findIndex(s=>s.id === step.id);
+    if(index === 0) {present("introduction");return;}
+    const previous=activity.steps[index-1];
+    choose(activity.id,previous.id);
+    setNotice(previous.saved);
+    present(previous.saved ? "feedback" : "practice");
+  }
   const relevantHistory = progress?.history.filter(r => r.activityId === activity?.id && r.stepId === step?.id) || [];
   const pending = progress?.pending;
   const retryWait = pending ? Math.max(0, Math.ceil((Date.parse(pending.retryAfter) - Math.max(Date.now(), retryClock)) / 1000)) : 0;
   if (progress && activity && step) {
-    return <ApprovedScreens screen={pending && screen !== "resume" && screen !== "review" ? "practice" : screen || "practice"} activity={activity} step={step} progress={progress}
+    return <ApprovedScreens exitPrompt={exitPrompt} onCancelExit={()=>setExitPrompt(false)} onConfirmExit={exitModule} screen={pending && screen !== "resume" && screen !== "review" ? "practice" : screen || "practice"} activity={activity} step={step} progress={progress}
       onReviewExercise={selectReviewExercise}
       clarificationContext={kind === "clarify" && clarificationOrigin.current ? clarificationOrigin.current : undefined}
       teachingPanel={teachingPanel} narration={narration} captions={captions} muted={!voiceEnabled} audioError={audioError}
@@ -360,7 +390,7 @@ function Module0Experience({ userId }: { userId: string }) {
             const origin = { stepId: step.id, result: notice };
             choose(activity.id, activity.nextStepId);
             oldCartsOrigin.current = origin;
-            setInput(oldCartsDraft.current);
+            setInput(drafts.current.get(draftKey(activity.id,activity.nextStepId,"required")) || oldCartsDraft.current);
           }
         }
         else if (screen === "teach") {
@@ -395,18 +425,31 @@ function Module0Experience({ userId }: { userId: string }) {
         if (screen === "old-carts-teach") {
           if (teachingPanel > 0) { void mentorSpeech.stop(); setTeachingPanel(v=>v-1); }
           else if (oldCartsOrigin.current) {
-            oldCartsDraft.current = input;
+            keepDraft(); oldCartsDraft.current = input; setInput("");
             setStepId(oldCartsOrigin.current.stepId);
             setNotice(oldCartsOrigin.current.result);
             present("exercise-transition");
-          } else present("introduction");
+          } else previousExercise();
         }
         else if (screen === "clarify") returnFromClarification();
         else if (screen === "teach" && conceptPanelsFor(step).length) {
-          if(teachingPanel>0){void mentorSpeech.stop();setTeachingPanel(v=>v-1);}else present("resume");
+          if(teachingPanel>0){void mentorSpeech.stop();setTeachingPanel(v=>v-1);}else previousExercise();
+        }
+        else if(screen === "welcome") leave();
+        else if(screen === "resume") present("welcome");
+        else if(screen === "module-complete") {
+          const last=progress.activities[progress.activities.length-1];choose(last.id,last.steps[last.steps.length-1].id);present("activity-complete");
+        }
+        else if(screen === "activity-complete") {
+          const last=activity.steps[activity.steps.length-1];choose(activity.id,last.id);setNotice(last.saved);present(last.saved ? "feedback" : "practice");
+        }
+        else if(screen === "introduction" && progress.activities.findIndex(a=>a.id === activity.id)>0) {
+          const previous=progress.activities[progress.activities.findIndex(a=>a.id === activity.id)-1];
+          if(previous.completed){choose(previous.id,previous.steps[previous.steps.length-1].id);present("activity-complete");}
+          else present("resume");
         }
         else { const previous = previousScreen(screen || "practice", step.id === "organize-old-carts"); if (previous === "old-carts-teach" || previous === "teach" && conceptPanelsFor(step).length) setTeachingPanel(conceptPanelsFor(step).length-1); if (previous) present(previous); }
-      }} onLeave={() => { if(screen === "review"){exitReview();return;}if(reviewNavigation.current?.mode){if(sending){present("resume");return;}returnToReview();return;}clarificationOrigin.current=null;setNavigationOpen(false); present(progress.completed ? "module-complete" : progress.completedCount > 0 || pending || sending ? "resume" : "welcome"); }}
+      }} onLeave={leave}
       onReview={openReview}
       onMicPress={() => { void mentorSpeech.stop(); void transcription.toggleRecording(); }} isRecording={transcription.isRecording}
       onFreeText={() => present(null)}
