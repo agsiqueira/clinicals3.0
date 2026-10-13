@@ -7,7 +7,7 @@ import { module0Colors as c, module0Fonts as f } from "./tokens";
 const titles: Record<string, string> = {
   "open-the-interview": "What would you ask first?",
   "organize-old-carts": "Summarize the symptoms",
-  "soap-and-data-types": "Classify and explain",
+  "soap-and-data-types": "Identify the SOAP Components",
   "history-and-context": "Review history and context",
   "review-of-systems": "Explain the role of ROS",
   "focused-examination": "Focus your examination",
@@ -17,7 +17,7 @@ const titles: Record<string, string> = {
 const instructions: Record<string, string> = {
   "open-the-interview": "Choose how you'd begin the encounter before hearing the chief complaint.",
   "organize-old-carts": "Use all eight OLD CARTS categories. Keep the supplied details and pertinent negatives; short phrases are enough.",
-  "soap-and-data-types": "Place each item in SOAP; explain the difference between the first two items.",
+  "soap-and-data-types": "For each statement, select the correct SOAP category.",
   sbar: "Give a brief SBAR using the supplied history and examination findings. Include a proposed next step and a question for your preceptor.",
   snapps: "Use SNAPPS and finish with a learning question.",
 };
@@ -26,7 +26,6 @@ const frameworks: Record<string, string[][]> = {
   sbar: [["S", "Situation"], ["B", "Background"], ["A", "Assessment"], ["R", "Recommendation"]],
   snapps: [["S", "Summarize"], ["N", "Narrow"], ["A", "Analyze"], ["P", "Probe"], ["P", "Plan"], ["S", "Select"]],
 };
-const soapItems = ["Patient reports pain with inspiration", "You hear crackles", "You consider a pulmonary cause", "You propose a chest X-ray"];
 
 function Reference({ label, children }: { label: string; children: React.ReactNode }) {
   const [expanded, setExpanded] = useState(false);
@@ -47,9 +46,6 @@ export function PracticeTask({ step, optional, choices, caseFacts }: { step: Les
     <Text accessibilityRole="header" style={s.title}>{optional ? "Practice again" : titles[step.id]}</Text>
     <Text style={s.instruction}>{optional ? step.optionalPracticeQuestion : instructions[step.id] || step.question}</Text>
     {!optional && step.id === "snapps" && <Text style={s.instruction}>Include evidence, uncertainty, a plan, and a focused case-related learning question.</Text>}
-    {!optional && step.id === "soap-and-data-types" && <View style={s.items}>{soapItems.map((item, i) => <View key={item} style={s.item}>
-      <Text style={s.marker}>{String(i + 1).padStart(2, "0")}</Text><Text style={s.itemText}>{item}</Text>
-    </View>)}</View>}
     {caseFacts}
     {framework && <View style={s.framework}>
       <Text style={s.eyebrow}>{step.id === "organize-old-carts" ? "OLD CARTS CATEGORIES" : "YOUR PRESENTATION"}</Text>
@@ -61,7 +57,7 @@ export function PracticeTask({ step, optional, choices, caseFacts }: { step: Les
       <Text style={s.referenceLabel}>{optional ? "Targeted practice" : "Full task"}</Text>
       <Text selectable style={s.instruction}>{optional ? step.optionalPracticeQuestion : step.question}</Text>
       <Text selectable style={s.instruction}>{step.teach}</Text>
-      <Text style={s.hint}>{step.answerHint}</Text>
+      <Text style={s.hint}>{optional && step.id === "soap-and-data-types" ? "A few focused sentences or labeled phrases are enough. Longer valid answers are welcome." : step.answerHint}</Text>
     </Reference>}
   </View>;
 }

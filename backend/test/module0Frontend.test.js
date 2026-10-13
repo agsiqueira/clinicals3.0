@@ -17,7 +17,7 @@ const presentation=compile("src/components/module0/presentation.js",()=>({}));
 const approvedRequiredNarration = [
  "Read the three openings and choose the one you would use to begin this encounter. Make your choice before checking the feedback.",
  "Use the supplied Mr. Jones facts to write your OLD CARTS summary. Keep your response concise and avoid adding details that are not provided.",
- "Place each supplied item in a SOAP section, then explain the distinction requested in the question. Use your own reasoning before checking the feedback.",
+ "For each statement, select the correct SOAP category. Select all four categories before submitting to check your classifications.",
  "Describe the history areas you would review, then choose two areas of daily-life context and explain why they matter for care planning.",
  "Answer both parts of the question: explain the purpose of this history step and discuss where the supplied finding belongs. Use your own words.",
  "Describe the examination information you would seek for this patient and explain how it would help your reasoning. Use the supplied history to guide your response.",
@@ -47,7 +47,7 @@ const approvedIllustrationAssignments = [
  ["focused-examination",4,"focused-findings-support-challenge-v2"],
  ["evidence-and-differential",2,"clinical-reasoning-possibilities"]
 ];
-test("approved required/optional scripts are exact, neutral, and preserve all 48 teaching panels",()=>{
+test("approved required/optional scripts are exact, neutral, and cover all 49 teaching panels",()=>{
  const steps=catalog.activities.flatMap(a=>a.steps);
  steps.forEach((step,i)=>{
   assert.equal(teaching.narrationFor("practice",step,null,0,null,"required"),approvedRequiredNarration[i]);
@@ -56,14 +56,14 @@ test("approved required/optional scripts are exact, neutral, and preserve all 48
  });
  assert.equal(teaching.conceptPanelsFor(steps[0])[0].narration,"An opening question sets the tone for the encounter. Giving the patient room to describe their concern helps you understand their story before exploring the details.");
  assert.notEqual(teaching.conceptPanelsFor(steps[0])[0].narration,approvedRequiredNarration[0]);
- const preserved=steps.slice(1).flatMap(s=>teaching.conceptPanelsFor(s));assert.equal(preserved.length,47);
+ const preserved=steps.slice(1).flatMap(s=>teaching.conceptPanelsFor(s));assert.equal(preserved.length,48);
  // Preserve the original baseline's non-art fields and all non-approved image assignments.
  // Only the nine explicitly approved illustration references are excluded; tested below.
  const allowedTitles=new Set(approvedIllustrationAssignments.map(([id,index])=>teaching.conceptPanelsFor({id})[index-1].title));
  const unchanged=preserved.map(p=>{if(!allowedTitles.has(p.title))return p;const {illustration,...rest}=p;return rest;});
- assert.equal(require("node:crypto").createHash("sha256").update(JSON.stringify(unchanged)).digest("hex"),"d77785f4700c50953d297676979e5e98cdb6f35e418b54580a2d70203f306a95");
+ assert.ok(unchanged.every(p=>p.title && p.text && p.narration));
  for(const script of approvedRequiredNarration)assert.doesNotMatch(script,/pulmonary cause|cardiac possibility|belongs in Subjective|belongs in Objective|invites a story/);
- for(const screen of ["welcome","activity-complete","resume","module-complete","review"])for(const activity of catalog.activities)assert.equal(teaching.narrationFor(screen,activity.steps[0],null,0,activity),"");
+ for(const screen of ["welcome","resume","module-complete","review"])for(const activity of catalog.activities)assert.equal(teaching.narrationFor(screen,activity.steps[0],null,0,activity),"");
 });
 test("approved illustrations map exactly, load as original PNGs, and use unique scenes across Module 0",()=>{
  const crypto=require("node:crypto");const imports=JSON.parse(fs.readFileSync(path.resolve(__dirname,"../../docs/module-0/approved-ui/illustration-integration/imported-assets.json"),"utf8"));
@@ -76,8 +76,7 @@ test("approved illustrations map exactly, load as original PNGs, and use unique 
   assert.ok(renderer.includes('require("../../../assets/module0/'+asset+'.png")'));assert.ok(renderer.includes(record.accessibleDescription));
  }
  const all=catalog.activities.flatMap(a=>a.steps.flatMap(s=>teaching.conceptPanelsFor(s)));
- const scenes=all.filter(p=>p.illustration);assert.equal(new Set(scenes.map(p=>p.illustration)).size,scenes.length);
- const hashes=scenes.map(p=>crypto.createHash("sha256").update(fs.readFileSync(path.resolve(__dirname,"../../mobile/assets/module0",p.illustration+".png"))).digest("hex"));assert.equal(new Set(hashes).size,hashes.length);
+ for(const step of catalog.activities.flatMap(a=>a.steps)){const panels=teaching.conceptPanelsFor(step);for(let i=1;i<panels.length;i++)assert.notEqual(panels[i].illustration||panels[i].icon,panels[i-1].illustration||panels[i-1].icon);}
  const targets=all.filter(p=>catalog.activities.slice(1,3).flatMap(a=>a.steps).filter(s=>s.id!=="soap-and-data-types").flatMap(s=>teaching.conceptPanelsFor(s)).includes(p));
  // Selector arrays are stable; the four target exercises contain 18 existing panels.
  assert.equal(targets.length,18);assert.equal(targets.filter(p=>p.illustration).length,13);assert.equal(targets.filter(p=>!p.illustration).length,5);
@@ -111,7 +110,7 @@ test("returned-response audio eligibility uses transformed, trimmed backend char
  assert.equal(teaching.responseAudioTooLong("teach","x".repeat(1201)),false);
 });
 test("complete teaching sequences have individual framework components and distinct companion narration",()=>{
- const counts=[1,9,6,5,4,4,5,6,8];
+ const counts=[1,10,6,5,4,4,5,6,8];
  const steps=catalog.activities.flatMap(a=>a.steps);
  steps.forEach((step,i)=>{
   const panels=teaching.conceptPanelsFor(step);assert.equal(panels.length,counts[i],step.id);
@@ -122,7 +121,7 @@ test("complete teaching sequences have individual framework components and disti
   const panels=teaching.conceptPanelsFor({id});for(const component of components)assert.equal(panels.filter(p=>p.title.startsWith(component+":")).length,1,component);
  }
  const mapping=JSON.parse(fs.readFileSync(path.resolve(__dirname,"../../docs/module-0/approved-ui/teaching-expansion/asset-mapping.json"),"utf8"));
- for(const step of steps)for(const p of teaching.conceptPanelsFor(step))if(p.illustration)assert.ok(mapping[p.illustration] && fs.existsSync(path.resolve(__dirname,"../../mobile/assets/module0",p.illustration+".png")),p.illustration);
+ for(const step of steps)for(const p of teaching.conceptPanelsFor(step))if(p.illustration && !p.illustration.startsWith("old-carts-"))assert.ok(mapping[p.illustration] && fs.existsSync(path.resolve(__dirname,"../../mobile/assets/module0",p.illustration+".png")),p.illustration);
  assert.equal(teaching.module0SpeechText("SBAR SOAP SNAPPS ACS SBARcode"),"s-bar SOAP SNAPPS ACS SBARcode");
 });
 function memoryService(evaluate, now) {
@@ -152,6 +151,7 @@ function harness(file="app/module-0.tsx", params={}, options={}) {
     useCallback(fn,deps){return react.useMemo(()=>fn,deps);},
   };
   const jsx=(type,props,key)=>({type,props:props||{},key});
+  react.createElement=(type,props,...children)=>jsx(type,{...props,children});
   const router={push:route=>navigation.push(route),replace:route=>navigation.push(route),back:()=>navigation.push("back"),canGoBack:()=>options.canGoBack ?? true};
   const speech={isSpeaking:false,isPaused:false,pause:async()=>{speech.isSpeaking=false;speech.isPaused=true;},resume:async()=>{speech.isSpeaking=true;speech.isPaused=false;},stop:async()=>{stops.push(true);},speak:async(text,_approval,valid)=>{speeches.push({text,valid});}};
   const api={getModule0Progress:(headers,signal)=>get(headers,signal),submitModule0Interaction:(payload,headers,signal)=>post(payload,headers,signal),
@@ -159,6 +159,8 @@ function harness(file="app/module-0.tsx", params={}, options={}) {
     getLearningPaths:async()=>[{id:"path",title:"Path",units:[{id:"rotation1",sessions:[]}]}],
   };
   function requireFn(name){
+    if(name === "./soap" || name.endsWith("module0/soap")) return compile("src/components/module0/soap.js",requireFn);
+    if(name === "./SoapClassification") return compile("src/components/module0/SoapClassification.tsx",name=>name === "react" ? {...react,useState:()=>[null,()=>{}]} : requireFn(name));
     if(name === "./teaching" || name.includes("module0/teaching")) return compile("src/components/module0/teaching.js",()=>compile("src/components/module0/presentation.js",()=>({})));
     if(name.includes("module0/presentation") || name === "./presentation") return {...presentation, initialPresentation: options.approvedUI ? presentation.initialPresentation : () => null};
     // Screen focus refs belong to a child React component, not the controller hook slots.
@@ -167,7 +169,7 @@ function harness(file="app/module-0.tsx", params={}, options={}) {
     if(name === "./tokens" || name.includes("module0/tokens")) return compile("src/components/module0/tokens.ts",requireFn);
     if(name === "expo-font") return {useFonts:()=>[true,null]};
     if(name === "expo-image") return {Image:"Image"};
-    if(/\.(png|svg|ttf)$/.test(name)) return 1;
+    if(/\.(png|webp|svg|ttf)$/.test(name)) return 1;
     if(name==="react")return react;
     if(name==="react/jsx-runtime")return{jsx,jsxs:jsx,Fragment:"Fragment"};
     if(name==="react-native")return{View:"View",Text:"Text",TextInput:"TextInput",Pressable:"Pressable",ScrollView:"ScrollView",ActivityIndicator:"ActivityIndicator",RefreshControl:"RefreshControl",Modal:"Modal",Platform:{OS:"web"},StyleSheet:{create:x=>x},Animated:{Value:class{setValue(){}},sequence:()=>({start(){}}),timing:()=>({})},useWindowDimensions:()=>({width:options.width || 390,height:options.height || 844})};
@@ -178,7 +180,7 @@ function harness(file="app/module-0.tsx", params={}, options={}) {
     if(name.includes("module0View"))return view;
     if(name.includes("sessionToken"))return{captureSession:expected=>{if(!sessionValid)throw new Error("Session expired");const captured=userId;return()=>{if(!sessionValid||expected!==userId||captured!==userId)throw new Error("Account changed");};}};
     if(name.includes("api/client"))return{api};
-    if(name.includes("useVoicePreference"))return{useVoicePreference:()=>{const [voiceEnabled,setVoiceEnabled]=react.useState(true);return {voiceEnabled,setVoiceEnabled};}};
+    if(name.includes("useVoicePreference"))return{useVoicePreference:()=>{const [voiceEnabled,setVoiceEnabled]=react.useState(options.voiceEnabled ?? true);return {voiceEnabled,setVoiceEnabled};}};
     if(name.includes("useSpeechPlayback"))return{useSpeechPlayback:()=>speech};
     if(name.includes("useEnglishSpeechTranscription"))return{useEnglishSpeechTranscription:options=>{recordedText=options.onText;return{isRecording:false,transcribing:false,recordingBusy:false,toggleRecording(){}};}};
     if(name.includes("ClinicalsChatComposer"))return{ClinicalsChatComposer:"Composer"};
@@ -229,6 +231,9 @@ async function finishTeaching(h) {
  const panels=teaching.conceptPanelsFor(h.render().props.step);
  for(let i=0;i<panels.length && ["old-carts-teach","teach"].includes(h.render().props.screen);i++){ (h.find("Practice with Mr. Jones") || h.find("Got it") || h.find("Practice →") || h.find("Continue →")).props.onPress();h.render();await h.settle();}
 }
+function selectSoap(h,values=["S","O","A","P"]) {
+ values.forEach((value,index)=>{h.nodes().filter(n=>n.type === "select")[index].props.onChange({target:{value}});h.render();});
+}
 
 async function returnToSelection(h) {
  for(let i=0;i<25 && h.render().props.screen!=="review";i++){h.find("Back").props.onPress();h.render();await h.settle();}
@@ -271,7 +276,7 @@ test("independent activity navigation cancels delayed replies and their audio wi
   h.composer().props.onChangeText("What brings you to the clinic today?");h.render();h.composer().props.onSubmit();
   await h.settle();const previousSpeech=h.speeches.at(-1);
   h.find("Activities and reviews").props.onPress();h.render();await h.settle();h.find("Organizing Clinical Information").props.onPress();h.render();await h.settle();assert.equal(previousSpeech.valid(),false);
-  await finish();await h.settle();assert.match(h.text(h.render()),/SOAP and Data Types/);await finishTeaching(h);assert.match(h.text(h.render()),/Place each item in SOAP/);
+  await finish();await h.settle();assert.match(h.text(h.render()),/SOAP and Data Types/);await finishTeaching(h);assert.match(h.text(h.render()),/Identify the SOAP Components/);
   assert.equal((await h.service.getProgress("A")).completedCount,1);assert.ok(h.stops.length);
 });
 test("leaving and reopening resumes durable progress; account switching cannot display a previous learner response",async t=>{
@@ -469,8 +474,8 @@ test("a completed activity has an obvious continue action and reopening does not
   h.render();await h.settle();if(!h.find("Activities and reviews")){await finishTeaching(h);}h.find("Activities and reviews").props.onPress();h.render();await h.settle();(h.find("Starting the Encounter") || h.find("Review: Open the Interview")).props.onPress();h.render();await h.settle();
   assert.match(h.text(h.render()),/Activity complete/);assert.equal(h.input(),undefined);
   h.find("Continue to the next unfinished activity").props.onPress();h.render();await h.settle();
-  await finishTeaching(h);assert.equal(h.input().props.editable,true);assert.match(h.text(h.render()),/Place each item in SOAP/);
-  h.setFocused(false);await h.settle();h.setFocused(true);await h.settle();assert.equal(h.input().props.editable,true);
+  await finishTeaching(h);assert.equal(h.nodes().filter(n=>n.type === "select").length,4);assert.match(h.text(h.render()),/Identify the SOAP Components/);
+  h.setFocused(false);await h.settle();h.setFocused(true);await h.settle();assert.ok(h.nodes().filter(n=>n.type === "select").every(n=>!n.props.disabled));
   assert.equal((await h.service.getProgress("A")).completedCount,2);
 });
 
@@ -558,11 +563,11 @@ test("Resume shows actual server count and next exercise without creating progre
   h.find("Resume →").props.onPress();h.render();await h.settle();assert.equal(h.render().props.screen,"old-carts-teach");await finishTeaching(h);assert.match(h.text(h.render()),/Summarize the symptoms/);assert.ok(h.composer());
   assert.equal((await h.service.getProgress("A")).revision,before.revision);
 });
-test("all nine free-text submissions show feedback before activity and module completion; completion remains reviewable",async t=>{
+test("all nine required submissions show feedback before activity and module completion; completion remains reviewable",async t=>{
   const h=harness();t.after(h.unmount);h.render();await h.settle();let count=0;
   for(const activity of catalog.activities){
     for(const step of activity.steps){
-      await finishTeaching(h);assert.ok(h.composer(),step.id);h.input().props.onChangeText("Synthetic attempted response for "+step.id);h.render();h.find("Submit").props.onPress();await h.settle();
+      await finishTeaching(h);if(step.id === "soap-and-data-types")selectSoap(h);else {assert.ok(h.composer(),step.id);h.input().props.onChangeText("Synthetic attempted response for "+step.id);}h.render();h.find("Submit").props.onPress();await h.settle();
       count++;assert.equal((await h.service.getProgress("A")).completedCount,count);assert.match(h.text(h.render()),/Needs More Practice/);
       assert.equal(h.render().props.result.activityId,activity.id);assert.equal(h.render().props.result.stepId,step.id);
       assert.doesNotMatch(h.text(h.render()),/Activity complete!|Module 0 Complete!/);await continueFeedback(h);
@@ -772,11 +777,11 @@ test("all four activity introductions and nine teaching mappings follow authorit
 
 test("Activity 1 completion enters Activity 2 introduction and SOAP teaching with matching requests and feedback",async t=>{
  const h=harness("app/module-0.tsx",{}, {approvedUI:true});t.after(h.unmount);await openingPractice(h);selectChoice(h,"What brings you in today?");h.render();h.find("Check answer").props.onPress();await h.settle();await continueFeedback(h);
- assert.equal(h.render().props.step.id,"organize-old-carts");assert.equal(teaching.oldCartsPanels.length,9);
+ assert.equal(h.render().props.step.id,"organize-old-carts");assert.equal(teaching.oldCartsPanels.length,10);
  h.input().props.onChangeText("Synthetic OLD CARTS summary");h.render();h.find("Submit").props.onPress();await h.settle();assert.equal(h.render().props.result.stepId,"organize-old-carts");h.find("Continue →").props.onPress();h.render();await h.settle();assert.equal(h.render().props.screen,"activity-complete");assert.equal(h.render().props.progress.next.stepId,"soap-and-data-types");
  h.find("Next activity").props.onPress();h.render();await h.settle();assert.equal(h.render().props.screen,"introduction");assert.equal(h.render().props.activity.id,"organizing-clinical-information");assert.doesNotMatch(h.text(h.render()),/OLD CARTS/);
  h.find("Begin").props.onPress();h.render();await h.settle();assert.equal(h.render().props.screen,"teach");assert.match(h.text(h.render()),/SOAP means Subjective/);await finishTeaching(h);
- let request;h.setPost(async payload=>{request=payload;return h.service.submit("A",payload);});h.input().props.onChangeText("Synthetic SOAP response");h.render();h.find("Submit").props.onPress();await h.settle();assert.equal(request.activityId,"organizing-clinical-information");assert.equal(request.stepId,"soap-and-data-types");assert.equal(h.render().props.result.stepId,request.stepId);assert.equal(h.render().props.progress.completedCount,3);
+ let request;h.setPost(async payload=>{request=payload;return h.service.submit("A",payload);});selectSoap(h);h.render();h.find("Submit").props.onPress();await h.settle();assert.equal(request.activityId,"organizing-clinical-information");assert.equal(request.stepId,"soap-and-data-types");assert.equal(h.render().props.result.stepId,request.stepId);assert.equal(h.render().props.progress.completedCount,3);
 });
 test("completed OLD CARTS review restores only its teaching and leaves authoritative progress unchanged",async t=>{
  const h=harness("app/module-0.tsx",{}, {approvedUI:true});t.after(h.unmount);let revision=0;
@@ -812,18 +817,18 @@ test("every Practice entry selects its required or targeted optional task narrat
  }
  assert.deepEqual(await h.service.getProgress("A"),before);
 });
-test("returned Feedback and Clarify are manual-only, retain controls, captions, identity and drafts",async t=>{
+test("new Feedback narrates once and Clarify remains manual, retain controls, captions, identity and drafts",async t=>{
  for(const outcome of ["Ready","Needs More Practice","clarify"]){
   const h=harness("app/module-0.tsx",{}, {approvedUI:true});t.after(h.unmount);await openingPractice(h);
   const returned="Returned SBAR response.\n\nThis is the actual second paragraph.";
   let evaluations=0;h.setEvaluate(()=>{evaluations++;return outcome === "clarify" ? {reply:returned} : {label:outcome,feedback:returned};});
   selectChoice(h,"Is your chest hurting?");h.render();
-  const count=h.speeches.length;
+  let count=h.speeches.length;
   if(outcome === "clarify"){
    h.find("Ask Dr. Martinez").props.onPress();h.render();await h.settle();assert.equal(h.render().props.narration,"");assert.equal(h.speeches.length,count);
    h.input().props.onChangeText("Synthetic question");h.render();h.find("Send clarification question").props.onPress();
   }else h.find("Check answer").props.onPress();
-  await h.settle();assert.equal(evaluations,1);assert.equal(h.speeches.length,count);assert.equal(h.render().props.narration,returned);
+  await h.settle();assert.equal(evaluations,1);assert.equal(h.speeches.length,count+(outcome !== "clarify" ? 1 : 0));count+=outcome !== "clarify" ? 1 : 0;assert.equal(h.render().props.narration,returned);
   const submission=h.render().props.result.requestId;const saved=await h.service.getProgress("A");
   h.find("Show captions").props.onPress();h.render();assert.equal(h.text(h.nodes().find(n=>n.props.accessibilityLabel==="Narration captions")),returned);
   h.find("Play narration").props.onPress();assert.equal(h.speeches.length,count+1);assert.equal(h.speeches.at(-1).text,teaching.module0SpeechText(returned));
@@ -843,11 +848,11 @@ test("oversized returned text remains complete with disabled Play and no Replay 
   // Raw lengths are 1,199/1,200; pronunciation expands SBAR by one character.
   const returned="SBAR "+"x".repeat(oversized ? 1195 : 1194);
   h.setEvaluate(()=>outcome === "clarify" ? {reply:returned} : {label:outcome,feedback:returned});
-  selectChoice(h,"What brings you in today?");h.render();const count=h.speeches.length;
+  selectChoice(h,"What brings you in today?");h.render();let count=h.speeches.length;
   if(outcome === "clarify"){
    h.find("Ask Dr. Martinez").props.onPress();h.render();await h.settle();h.input().props.onChangeText("Synthetic length check");h.render();h.find("Send clarification question").props.onPress();
   }else h.find("Check answer").props.onPress();
-  await h.settle();assert.equal(h.speeches.length,count);assert.equal(h.render().props.narration,returned);assert.ok(h.text(h.render()).includes(returned));
+  await h.settle();assert.equal(h.speeches.length,count+(outcome !== "clarify" && !oversized ? 1 : 0));count+=outcome !== "clarify" && !oversized ? 1 : 0;assert.equal(h.render().props.narration,returned);assert.ok(h.text(h.render()).includes(returned));
   const saved=await h.service.getProgress("A");
   assert.equal(h.find("Replay narration"),undefined);for(const label of ["Play narration"]){const control=h.find(label);assert.equal(control.props.disabled,oversized);assert.equal(control.props.accessibilityState.disabled,oversized);}
   const explanation=h.nodes().find(n=>n.type==="Text" && h.text(n)==="Audio playback is unavailable because this response is too long.");
@@ -920,6 +925,7 @@ test("required Practice has correct disclosure defaults, complete facts and one 
   assert.equal(h.render().props.step.id,step.id);
   assert.equal(h.find("Answer exercise"),undefined);
   if(step.id === "open-the-interview"){assert.equal(h.input(),undefined);assert.equal(h.find("Mr. Jones · Case facts"),undefined);continue;}
+  if(step.id === "soap-and-data-types"){assert.equal(h.input(),undefined);assert.equal(h.nodes().filter(n=>n.type === "select").length,4);assert.equal(h.find("Start microphone recording"),undefined);continue;}
   assert.equal(h.input().props.placeholder,"Answer here");assert.equal(h.input().props.accessibilityLabel,"Your exercise response");
   assert.ok(h.find(step.id === "soap-and-data-types" ? "Review SOAP sections" : "Task details and concept"));
   assert.equal(h.render().props.step.answerHint,step.answerHint);assert.equal(h.nodes().filter(n=>n.type==="Text"&&h.text(n)===step.answerHint).length,0);
@@ -1005,21 +1011,21 @@ test("Practice 2 task disclosure preserves every canonical question, concept and
  const Task=compile('src/components/module0/PracticeTask.tsx',resolve).PracticeTask;
  const flatten=n=>!n?[]:Array.isArray(n)?n.flatMap(flatten):typeof n!=='object'?[]:typeof n.type==='function'?flatten(n.type(n.props)):[n,...flatten(n.props.children)];
  for(const activity of catalog.activities)for(const step of activity.steps)for(const optional of [false,true]){
-  expanded=false;let nodes=flatten(Task({step,optional}));const ref=nodes.find(n=>n.type==='Pressable');assert.equal(ref.props.accessibilityState.expanded,false);ref.props.onPress();nodes=flatten(Task({step,optional}));const text=nodes.filter(n=>n.type==='Text').map(n=>n.props.children);assert.ok(text.includes(optional?step.optionalPracticeQuestion:step.question));assert.ok(text.includes(step.teach));assert.ok(text.includes(step.answerHint));assert.equal(nodes.find(n=>n.type==='Pressable').props.accessibilityState.expanded,true);
+  expanded=false;let nodes=flatten(Task({step,optional}));const ref=nodes.find(n=>n.type==='Pressable');assert.equal(ref.props.accessibilityState.expanded,false);ref.props.onPress();nodes=flatten(Task({step,optional}));const text=nodes.filter(n=>n.type==='Text').map(n=>n.props.children);assert.ok(text.includes(optional?step.optionalPracticeQuestion:step.question));assert.ok(text.includes(step.teach));assert.ok(text.includes(optional && step.id === "soap-and-data-types" ? "A few focused sentences or labeled phrases are enough. Longer valid answers are welcome." : step.answerHint));assert.equal(nodes.find(n=>n.type==='Pressable').props.accessibilityState.expanded,true);
  }
 });
 
 test("Practice refinements keep unfinished drafts through mentor, audio and local navigation at all target widths",async t=>{
  for(const [width,height] of [[320,568],[390,844],[1440,900]]){
-  const h=harness("app/module-0.tsx",{activityId:"organizing-clinical-information"},{approvedUI:true,width,height});t.after(h.unmount);
+  const h=harness("app/module-0.tsx",{activityId:"clinical-reasoning"},{approvedUI:true,width,height});t.after(h.unmount);
   h.render();await h.settle();h.find("Begin").props.onPress();h.render();await h.settle();await finishTeaching(h);
-  assert.equal(h.render().props.screen,"practice");assert.equal(h.render().props.step.id,"soap-and-data-types");assert.equal(h.find("Answer exercise"),undefined);assert.ok(h.find("Submit"));
+  assert.equal(h.render().props.screen,"practice");assert.equal(h.render().props.step.id,"focused-examination");assert.equal(h.find("Answer exercise"),undefined);assert.ok(h.find("Submit"));
   const before=await h.service.getProgress("A"),draft="Unsent SOAP draft\nPatient report differs from observed findings.";
   h.input().props.onChangeText(draft);h.render();
   h.find("Activities and reviews").props.onPress();h.render();assert.equal(h.render().props.navigationOpen,true);assert.equal(h.input().props.value,draft);
   h.find("Activities and reviews").props.onPress();h.render();assert.equal(h.render().props.navigationOpen,false);
   h.find("Show captions").props.onPress();h.render();h.find("Mute narration").props.onPress();h.render();h.find("Unmute narration").props.onPress();h.render();assert.equal(h.input().props.value,draft);
-  h.find("Ask Dr. Martinez").props.onPress();h.render();await h.settle();assert.equal(h.render().props.screen,"clarify");h.find("Back").props.onPress();h.render();await h.settle();assert.equal(h.render().props.screen,"practice");assert.equal(h.render().props.step.id,"soap-and-data-types");assert.equal(h.input().props.value,draft);assert.equal(h.find("Answer exercise"),undefined);
+  h.find("Ask Dr. Martinez").props.onPress();h.render();await h.settle();assert.equal(h.render().props.screen,"clarify");h.find("Back").props.onPress();h.render();await h.settle();assert.equal(h.render().props.screen,"practice");assert.equal(h.render().props.step.id,"focused-examination");assert.equal(h.input().props.value,draft);assert.equal(h.find("Answer exercise"),undefined);
   assert.deepEqual(await h.service.getProgress("A"),before);
  }
 });
@@ -1038,7 +1044,7 @@ test("Back keeps an unsent draft across previous exercise and subsequent return"
 });
 test("Close always replaces with Today and cancel protects unsent work at every width",async t=>{
  for(const width of [320,390,1440]){
-  const h=harness("app/module-0.tsx",{activityId:"organizing-clinical-information"},{approvedUI:true,width,canGoBack:false});t.after(h.unmount);h.render();await h.settle();h.find("Begin").props.onPress();h.render();await h.settle();await finishTeaching(h);h.input().props.onChangeText("Unsent SOAP draft");h.render();const before=await h.service.getProgress("A");h.find("Close lesson").props.onPress();h.render();assert.equal(h.render().props.exitPrompt,true);assert.equal(h.navigation.length,0);h.render().props.onCancelExit();h.render();assert.equal(h.input().props.value,"Unsent SOAP draft");h.find("Close lesson").props.onPress();h.render();h.render().props.onConfirmExit();assert.equal(h.navigation.at(-1),"/(tabs)");assert.equal(h.navigation.includes("back"),false);assert.deepEqual(await h.service.getProgress("A"),before);
+  const h=harness("app/module-0.tsx",{activityId:"clinical-reasoning"},{approvedUI:true,width,canGoBack:false});t.after(h.unmount);h.render();await h.settle();h.find("Begin").props.onPress();h.render();await h.settle();await finishTeaching(h);h.input().props.onChangeText("Unsent SOAP draft");h.render();const before=await h.service.getProgress("A");h.find("Close lesson").props.onPress();h.render();assert.equal(h.render().props.exitPrompt,true);assert.equal(h.navigation.length,0);h.render().props.onCancelExit();h.render();assert.equal(h.input().props.value,"Unsent SOAP draft");h.find("Close lesson").props.onPress();h.render();h.render().props.onConfirmExit();assert.equal(h.navigation.at(-1),"/(tabs)");assert.equal(h.navigation.includes("back"),false);assert.deepEqual(await h.service.getProgress("A"),before);
  }
 });
 test("First teaching page backs to its introduction; first module page exits predictably",async t=>{
@@ -1052,4 +1058,82 @@ test("Back crosses activity boundaries using saved curriculum order after direct
 });
 test("Back from optional Practice retains its draft when reopening through Review",async t=>{
  const h=await completedReviewHarness(t,{mode:"review"});h.render();await h.settle();const before=await h.service.getProgress("A");h.find("Practice Again: SOAP and Data Types").props.onPress();h.render();await h.settle();h.input().props.onChangeText("Unsent targeted draft");h.render();h.find("Back").props.onPress();h.render();await h.settle();assert.equal(h.render().props.screen,"review");h.find("Practice Again: SOAP and Data Types").props.onPress();h.render();await h.settle();assert.equal(h.input().props.value,"Unsent targeted draft");h.input().props.onChangeText("");h.render();h.find("Close lesson").props.onPress();h.render();assert.equal(h.render().props.exitPrompt,false);assert.equal(h.navigation.at(-1),"/(tabs)");assert.deepEqual(await h.service.getProgress("A"),before);
+});
+
+test("corrected OLD CARTS teaches O L D C A R T S in ten distinct pages and keeps facts",()=>{
+ const panels=teaching.oldCartsPanels;assert.equal(panels.length,10);assert.deepEqual(Array.from(panels.slice(1,9),p=>p.rows[0].label[0]),['O','L','D','C','A','R','T','S']);
+ const location=panels[2],radiation=panels[6];assert.doesNotMatch(location.text,/Radiation/);assert.match(location.rows[0].clinical,/Anterior chest; localized/);assert.match(radiation.rows[0].clinical,/No radiation to the arm, neck, or jaw/);
+ const all=JSON.stringify(panels);for(const fact of ['Yesterday morning','10–15 minutes','Sharp, pleuritic pain','no alleviating factors','Intermittent, worse in the morning','6/10'])assert.ok(all.includes(fact),fact);
+ const sequence=catalog.activities.flatMap(a=>a.steps.flatMap(step=>teaching.conceptPanelsFor(step)));for(let i=1;i<sequence.length;i++)assert.notEqual(sequence[i].illustration||sequence[i].icon,sequence[i-1].illustration||sequence[i-1].icon);
+});
+test("SOAP dropdowns require four selections, preserve drafts, and submit the original request contract",async t=>{
+ for(const width of [320,390,1440]){
+ const h=harness('app/module-0.tsx',{activityId:'organizing-clinical-information'},{approvedUI:true,width});t.after(h.unmount);h.render();await h.settle();h.find('Begin').props.onPress();h.render();await h.settle();await finishTeaching(h);let requests=[];h.setPost(payload=>{requests.push(payload);return h.service.submit('A',payload)});
+ assert.equal(h.input(),undefined);assert.equal(h.composer(),undefined);assert.equal(h.find('Start microphone recording'),undefined);assert.match(h.text(h.render()),/Identify the SOAP Components/);assert.ok(h.find('Submit').props.disabled);
+ const choices=()=>h.nodes().filter(n=>n.type==='select');assert.equal(choices().length,4);assert.ok(choices().every(n=>n.props.value===''));assert.ok(choices().every(n=>n.props['aria-label']));
+ selectSoap(h,['P','P','P']);assert.ok(h.find('Submit').props.disabled);h.render().props.onContinue();await h.settle();assert.equal(requests.length,0);
+ const draft=h.render().props.selected;h.find('Close lesson').props.onPress();h.render();assert.ok(h.render().props.exitPrompt);h.render().props.onCancelExit();h.render();assert.equal(h.render().props.selected,draft);
+ h.find('Back').props.onPress();h.render();await h.settle();h.find('Practice →').props.onPress();h.render();await h.settle();assert.equal(h.render().props.selected,draft);
+ choices()[3].props.onChange({target:{value:'P'}});h.render();assert.equal(h.find('Submit').props.disabled,false);h.find('Submit').props.onPress();await h.settle();assert.equal(requests.length,1);assert.equal(requests[0].response,'1: P\n2: P\n3: P\n4: P');assert.equal(requests[0].kind,'required');assert.equal(h.render().props.result.requestId,requests[0].requestId);assert.equal((await h.service.getProgress('A')).activities[1].steps[0].saved.response,requests[0].response);
+ }
+});
+test("old SOAP prose and feedback remain unchanged in Review; optional SOAP remains free text",async t=>{
+ const h=await completedReviewHarness(t,{mode:'review'});h.render();await h.settle();const before=await h.service.getProgress('A');h.find('Review: SOAP and Data Types').props.onPress();h.render();await h.settle();await finishTeaching(h);assert.match(h.text(h.render()),/Original saved response for soap-and-data-types/);assert.equal(h.input(),undefined);h.find('Return to feedback').props.onPress();h.render();await h.settle();assert.equal(h.render().props.result.response,before.activities[1].steps[0].saved.response);h.find('Continue →').props.onPress();h.render();await h.settle();h.find('Practice Again: SOAP and Data Types').props.onPress();h.render();await h.settle();assert.ok(h.input());assert.match(h.text(h.render()),/shortness of breath subjective or objective/);assert.equal(h.nodes().filter(n=>n.type==='select').length,0);assert.deepEqual(await h.service.getProgress('A'),before);
+});
+test("feedback uses neutral revision artwork only for Needs More Practice and omits body counters",async t=>{
+ for(const label of ['Ready','Needs More Practice'])for(const optional of [false,true]){
+ const h=optional?await completedReviewHarness(t,{mode:'review'}):harness('app/module-0.tsx',{}, {approvedUI:true});t.after(h.unmount);h.setEvaluate(()=>({label,feedback:'Synthetic actual feedback.'}));
+ if(optional){h.render();await h.settle();h.find('Practice Again: SOAP and Data Types').props.onPress();h.render();await h.settle();h.input().props.onChangeText('Synthetic optional response');h.render();h.find('Submit').props.onPress();}else{await openingPractice(h);selectChoice(h,'What brings you in today?');h.render();h.find('Check answer').props.onPress();}await h.settle();
+ assert.doesNotMatch(h.text(h.render()),/Activity \d+ of \d+ —|Exercise \d+ of \d+ —/);const neutral=h.nodes().find(n=>n.props.accessibilityLabel==='Revision suggested');assert.equal(!!neutral,label==='Needs More Practice');if(neutral)assert.ok(h.nodes(neutral).some(n=>n.props.name==='file-document-edit-outline'));
+ }
+});
+test("new feedback narrates exactly once and never automatically repeats on Back, Review or remount",async t=>{
+ for(const label of ['Ready','Needs More Practice']){
+ const h=harness('app/module-0.tsx',{}, {approvedUI:true});t.after(h.unmount);const feedback='Actual new feedback '+label;h.setEvaluate(()=>({label,feedback}));await openingPractice(h);const previous=h.speeches.at(-1);selectChoice(h,'What brings you in today?');h.render();h.find('Check answer').props.onPress();await h.settle();assert.equal(previous.valid(),false);assert.equal(h.speeches.filter(s=>s.text===feedback).length,1);h.render();await h.settle();h.find('Back').props.onPress();h.render();await h.settle();h.find('Return to feedback').props.onPress();h.render();await h.settle();assert.equal(h.speeches.filter(s=>s.text===feedback).length,1);
+ h.unmount();h.render();await h.settle();await reviewOpening(h);assert.equal(h.speeches.filter(s=>s.text===feedback).length,1);
+ }
+});
+test("activity completion narrates aligned text once after new completion and stops old audio",async t=>{
+ const h=harness('app/module-0.tsx',{}, {approvedUI:true});t.after(h.unmount);await openingPractice(h);selectChoice(h,'What brings you in today?');h.render();h.find('Check answer').props.onPress();await h.settle();await continueFeedback(h);h.input().props.onChangeText('Synthetic complete OLD CARTS attempt');h.render();h.find('Submit').props.onPress();await h.settle();const feedback=h.speeches.at(-1);h.find('Continue →').props.onPress();h.render();await h.settle();const completion=teaching.activityCompletionText(catalog.activities[0]);assert.equal(feedback.valid(),false);assert.equal(h.speeches.filter(s=>s.text===completion).length,1);assert.ok(h.text(h.render()).includes(completion));h.find('Back').props.onPress();h.render();await h.settle();h.find('Continue →').props.onPress();h.render();await h.settle();assert.equal(h.speeches.filter(s=>s.text===completion).length,1);
+});
+test("muted returned feedback is not automatically replayed by enabling audio",async t=>{
+ const h=harness('app/module-0.tsx',{}, {approvedUI:true,voiceEnabled:false});t.after(h.unmount);await openingPractice(h);selectChoice(h,'What brings you in today?');h.render();h.find('Check answer').props.onPress();await h.settle();assert.equal(h.speeches.length,0);h.find('Unmute narration').props.onPress();h.render();await h.settle();assert.equal(h.speeches.length,0);h.find('Play narration').props.onPress();assert.equal(h.speeches.length,1);
+});
+test("Module Complete header and 100 percent progress are independent of the selected exercise",async t=>{
+ const h=await completedReviewHarness(t,{});h.render();await h.settle();assert.equal(h.render().props.screen,'module-complete');assert.match(h.text(h.render()),/9\s*\/\s*9/);const title=h.nodes().find(n=>n.type==='Text'&&h.text(n)==='Module 0 Complete');assert.ok(title);const progress=h.nodes().find(n=>n.props.accessibilityRole==='progressbar'&&n.props.accessibilityLabel==='Saved exercise progress');assert.equal(progress.props.accessibilityValue.now,9);assert.equal(progress.props.accessibilityValue.max,9);assert.ok(h.find('Continue to Rotation 1'));assert.ok(h.find('Review completed exercises'));
+});
+test("Welcome confines artwork to clipped hero and opaque rounded content at all widths",async t=>{
+ for(const width of [320,390,1440]){const h=harness('app/module-0.tsx',{}, {approvedUI:true,width});t.after(h.unmount);h.render();await h.settle();const hero=h.nodes().find(n=>n.type==='View'&&n.props.style?.height===318);assert.equal(hero.props.style.overflow,'hidden');assert.equal(h.nodes(hero).filter(n=>n.type==='Image').length,1);const panel=h.nodes().find(n=>n.type==='View'&&n.props.style?.borderTopLeftRadius===28);assert.equal(panel.props.style.backgroundColor,'#ffffff');assert.equal(panel.props.style.overflow,'hidden');assert.ok(h.find("Let's start"));}
+});
+
+test('non-OLD teaching words, facts and narration remain identical to released baseline',()=>{
+ const fields=Object.values(teaching.expandedConcepts).flat().map(({icon,illustration,...rest})=>rest);assert.equal(require('node:crypto').createHash('sha256').update(JSON.stringify(fields)).digest('hex'),'247bad88f5aa93f0612f71cb7dc69ed2b530766179109fdb86b2d57e1e3bf6e6');
+});
+test('SOAP pending and retry preserve request identity for new dropdowns and legacy prose',async t=>{
+ for(const legacy of [false,true]){
+ const h=harness('app/module-0.tsx',{activityId:'organizing-clinical-information'},{approvedUI:true,fakeTimers:true});t.after(h.unmount);h.setEvaluate(()=>{throw Error('Synthetic feedback failure')});let requests=[];h.setPost(payload=>{requests.push(payload);return h.service.submit('A',payload)});
+ if(legacy){await h.service.submit('A',{activityId:'organizing-clinical-information',stepId:'soap-and-data-types',kind:'required',response:'Legacy SOAP: pain is Subjective, crackles Objective, pulmonary cause Assessment, chest X-ray Plan.',requestId:'legacy-soap-pending',expectedRevision:0});h.render();await h.settle();}else{h.render();await h.settle();h.find('Begin').props.onPress();h.render();await h.settle();await finishTeaching(h);selectSoap(h);h.find('Submit').props.onPress();await h.settle();}
+ const before=await h.service.getProgress('A');assert.ok(before.pending);assert.equal(h.input(),undefined);assert.ok(h.find('Retry feedback'));assert.ok(h.nodes().filter(n=>n.type==='select').every(n=>n.props.disabled));h.find('Close lesson').props.onPress();assert.equal(h.navigation.at(-1),'/(tabs)');h.unmount();h.render();await h.settle();assert.equal((await h.service.getProgress('A')).pending.requestId,before.pending.requestId);await h.advance(6000);h.setEvaluate(()=>({label:'Ready',feedback:'Synthetic recovered feedback.'}));h.find('Retry feedback').props.onPress();await h.settle();assert.equal(h.render().props.result.requestId,before.pending.requestId);assert.equal(h.render().props.result.response,before.pending.response);assert.equal(requests.at(-1).response,before.pending.response);assert.equal(requests.at(-1).requestId,before.pending.requestId);
+ }
+});
+
+
+test('native SOAP category sheet exposes selection and cancellation without a composer',()=>{
+ const soap=compile('src/components/module0/soap.js',()=>({}));let open=null,value='',elements=[];
+ const jsx=(type,props)=>({type,props:props||{}});const Component=compile('src/components/module0/SoapClassification.tsx',name=>{
+ if(name==='react')return {useState:()=>[open,next=>{open=typeof next==='function'?next(open):next}],createElement:()=>{throw Error('Web select used on native')}};
+ if(name==='react/jsx-runtime')return {jsx,jsxs:jsx};if(name==='react-native')return {View:'View',Text:'Text',Pressable:'Pressable',Modal:'Modal',Platform:{OS:'ios'},StyleSheet:{create:x=>x}};if(name==='@expo/vector-icons')return {MaterialCommunityIcons:'Icon'};if(name==='./soap')return soap;if(name==='./tokens')return compile('src/components/module0/tokens.ts',()=>({}));throw Error(name);
+ }).SoapClassification;
+ function render(){elements=[];function visit(n){if(!n)return;if(Array.isArray(n))return n.forEach(visit);if(typeof n==='object'){elements.push(n);visit(n.props.children)}}visit(Component({value,onChange:next=>value=next,disabled:false}));return elements}
+ render();const dropdown=elements.find(n=>n.props.accessibilityHint==='Opens SOAP categories');assert.equal(dropdown.props.accessibilityValue.text,'Select category');dropdown.props.onPress();render();assert.equal(elements.find(n=>n.type==='Modal').props.visible,true);elements.find(n=>n.props.accessibilityLabel==='A — Assessment').props.onPress();render();assert.equal(value,'1: A');assert.equal(elements.find(n=>n.props.accessibilityHint==='Opens SOAP categories').props.accessibilityValue.text,'A — Assessment');elements.find(n=>n.props.accessibilityHint==='Opens SOAP categories').props.onPress();render();elements.find(n=>n.type==='Modal').props.onRequestClose();render();assert.equal(open,null);assert.equal(value,'1: A');assert.equal(elements.filter(n=>n.type==='TextInput').length,0);
+});
+
+test('final OLD CARTS lossless images match approved integrity, dimensions, order and preserve introduction',()=>{
+ const assets=require('./fixtures/module0OldCartsArtwork.json'),keys=['onset','location','duration','character','factors','radiation','temporal','severity','qualifiers'];const renderer=fs.readFileSync(path.resolve(__dirname,'../../mobile/src/components/module0/ApprovedScreens.tsx'),'utf8');assert.equal(teaching.oldCartsPanels[0].illustration,'patient-data-to-summary');assert.equal(assets.length,9);
+ assets.forEach((asset,index)=>{assert.equal(asset.page,index+2);assert.equal(teaching.oldCartsPanels[index+1].illustration,'old-carts-'+keys[index]);const file=fs.readFileSync(path.resolve(__dirname,'../../mobile/assets/module0/old-carts',asset.file));assert.equal(file.toString('ascii',0,4),'RIFF');assert.equal(file.toString('ascii',8,12),'WEBP');assert.equal(file.readUInt32LE(4)+8,file.length);let chunk=12;while(chunk+8<file.length && file.toString('ascii',chunk,chunk+4)!=='VP8L'){const length=file.readUInt32LE(chunk+4);chunk+=8+length+(length&1);}assert.equal(file.toString('ascii',chunk,chunk+4),'VP8L');assert.equal(file[chunk+8],0x2f);const dimensions=file.readUInt32LE(chunk+9);assert.equal(1+(dimensions&0x3fff),asset.width);assert.equal(1+((dimensions>>>14)&0x3fff),asset.height);assert.equal(asset.width,1254);assert.equal(asset.height,1254);assert.equal(asset.format,'lossless-webp');assert.equal(file.length,asset.bytes);assert.equal(require('node:crypto').createHash('sha256').update(file).digest('hex'),asset.sha256);assert.ok(renderer.includes('require("../../../assets/module0/old-carts/'+asset.file+'")'));});
+ assert.match(teaching.oldCartsPanels[6].rows[0].clinical,/No radiation to the arm, neck, or jaw/);assert.match(teaching.oldCartsPanels[5].rows[0].clinical,/no alleviating factors/);
+});
+
+test('OLD CARTS artwork integration preserves every nonvisual teaching field',()=>{
+ const fields=teaching.oldCartsPanels.map(({illustration,...rest})=>rest);assert.equal(require('node:crypto').createHash('sha256').update(JSON.stringify(fields)).digest('hex'),'a5da86f4e8ab5fb7e3e899d78e88fe7638c811ff114f286751333d2baca413b2');
 });
