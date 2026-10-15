@@ -1,0 +1,398 @@
+[
+  {
+    "width": 390,
+    "screen": "today",
+    "data": {
+      "card": {
+        "bottom": 202,
+        "height": 90,
+        "left": 20,
+        "right": 370,
+        "top": 112,
+        "width": 350,
+        "x": 20,
+        "y": 112
+      },
+      "cta": {
+        "bottom": 664,
+        "height": 57,
+        "left": 20,
+        "right": 370,
+        "top": 607,
+        "width": 350,
+        "x": 20,
+        "y": 607
+      },
+      "module": {
+        "bottom": 591,
+        "height": 369,
+        "left": 20,
+        "right": 370,
+        "top": 222,
+        "width": 350,
+        "x": 20,
+        "y": 222
+      },
+      "text": "CURRENT ROTATIONFirst Clinical Encounter󰈸7 days󰓎Level 2140 / 200 XP"
+    }
+  },
+  {
+    "width": 390,
+    "screen": "roadmap",
+    "data": {
+      "card": {
+        "bottom": 182,
+        "height": 90,
+        "left": 20,
+        "right": 370,
+        "top": 92,
+        "width": 350,
+        "x": 20,
+        "y": 92
+      },
+      "text": "CURRENT ROTATIONFirst Clinical Encounter󰈸7 days󰓎Level 2140 / 200 XP"
+    }
+  },
+  {
+    "width": 320,
+    "fixture": "incomplete",
+    "screen": "today",
+    "data": {
+      "card": {
+        "bottom": 202,
+        "height": 90,
+        "left": 20,
+        "right": 300,
+        "top": 112,
+        "width": 280,
+        "x": 20,
+        "y": 112
+      },
+      "cta": {
+        "bottom": 664,
+        "height": 57,
+        "left": 20,
+        "right": 300,
+        "top": 607,
+        "width": 280,
+        "x": 20,
+        "y": 607
+      },
+      "horizontalOverflow": false,
+      "module": {
+        "bottom": 591,
+        "height": 369,
+        "left": 20,
+        "right": 300,
+        "top": 222,
+        "width": 280,
+        "x": 20,
+        "y": 222
+      },
+      "text": "CURRENT ROTATIONFirst Clinical Encounter󰈸7 days󰓎Level 2140 / 200 XP"
+    }
+  },
+  {
+    "width": 320,
+    "fixture": "long",
+    "screen": "today",
+    "data": {
+      "card": {
+        "bottom": 256,
+        "height": 144,
+        "left": 20,
+        "right": 300,
+        "top": 112,
+        "width": 280,
+        "x": 20,
+        "y": 112
+      },
+      "cta": {
+        "bottom": 1037.8229370117188,
+        "height": 57,
+        "left": 20,
+        "right": 300,
+        "top": 980.8229370117188,
+        "width": 280,
+        "x": 20,
+        "y": 980.8229370117188
+      },
+      "horizontalOverflow": false,
+      "module": {
+        "bottom": 964.8229370117188,
+        "height": 688.8229370117188,
+        "left": 20,
+        "right": 300,
+        "top": 276,
+        "width": 280,
+        "x": 20,
+        "y": 276
+      },
+      "text": "CURRENT ROTATIONAdvanced clinical communication and comprehensive patient assessment across a multidisciplinary rotation󰈸7 days󰓎Level 2140 / 200 XP"
+    }
+  },
+  {
+    "width": 320,
+    "fixture": "missing-xp",
+    "screen": "today",
+    "data": {
+      "card": {
+        "bottom": 228,
+        "height": 116,
+        "left": 20,
+        "right": 300,
+        "top": 112,
+        "width": 280,
+        "x": 20,
+        "y": 112
+      },
+      "cta": {
+        "bottom": 697.8229370117188,
+        "height": 57,
+        "left": 20,
+        "right": 300,
+        "top": 640.8229370117188,
+        "width": 280,
+        "x": 20,
+        "y": 640.8229370117188
+      },
+      "horizontalOverflow": false,
+      "module": {
+        "bottom": 624.8229370117188,
+        "height": 376.8229370117187,
+        "left": 20,
+        "right": 300,
+        "top": 248,
+        "width": 280,
+        "x": 20,
+        "y": 248
+      },
+      "text": "CURRENT ROTATIONFirst Clinical Encounter󰈸0 days󰓎Level unavailableXP unavailable"
+    }
+  },
+  {
+    "width": 1280,
+    "fixture": "incomplete",
+    "screen": "today",
+    "data": {
+      "card": {
+        "bottom": 202,
+        "height": 90,
+        "left": 465,
+        "right": 815,
+        "top": 112,
+        "width": 350,
+        "x": 465,
+        "y": 112
+      },
+      "cta": {
+        "bottom": 664,
+        "height": 57,
+        "left": 465,
+        "right": 815,
+        "top": 607,
+        "width": 350,
+        "x": 465,
+        "y": 607
+      },
+      "horizontalOverflow": false,
+      "module": {
+        "bottom": 591,
+        "height": 369,
+        "left": 465,
+        "right": 815,
+        "top": 222,
+        "width": 350,
+        "x": 465,
+        "y": 222
+      },
+      "text": "CURRENT ROTATIONFirst Clinical Encounter󰈸7 days󰓎Level 2140 / 200 XP"
+    }
+  },
+  {
+    "width": 1280,
+    "fixture": "long",
+    "screen": "today",
+    "data": {
+      "card": {
+        "bottom": 238,
+        "height": 126,
+        "left": 465,
+        "right": 815,
+        "top": 112,
+        "width": 350,
+        "x": 465,
+        "y": 112
+      },
+      "cta": {
+        "bottom": 983.8229370117188,
+        "height": 57,
+        "left": 465,
+        "right": 815,
+        "top": 926.8229370117188,
+        "width": 350,
+        "x": 465,
+        "y": 926.8229370117188
+      },
+      "horizontalOverflow": false,
+      "module": {
+        "bottom": 910.8229370117188,
+        "height": 652.8229370117188,
+        "left": 465,
+        "right": 815,
+        "top": 258,
+        "width": 350,
+        "x": 465,
+        "y": 258
+      },
+      "text": "CURRENT ROTATIONAdvanced clinical communication and comprehensive patient assessment across a multidisciplinary rotation󰈸7 days󰓎Level 2140 / 200 XP"
+    }
+  },
+  {
+    "width": 1280,
+    "fixture": "missing-xp",
+    "screen": "today",
+    "data": {
+      "card": {
+        "bottom": 202,
+        "height": 90,
+        "left": 465,
+        "right": 815,
+        "top": 112,
+        "width": 350,
+        "x": 465,
+        "y": 112
+      },
+      "cta": {
+        "bottom": 683.8229370117188,
+        "height": 57,
+        "left": 465,
+        "right": 815,
+        "top": 626.8229370117188,
+        "width": 350,
+        "x": 465,
+        "y": 626.8229370117188
+      },
+      "horizontalOverflow": false,
+      "module": {
+        "bottom": 610.8229370117188,
+        "height": 388.8229370117187,
+        "left": 465,
+        "right": 815,
+        "top": 222,
+        "width": 350,
+        "x": 465,
+        "y": 222
+      },
+      "text": "CURRENT ROTATIONFirst Clinical Encounter󰈸0 days󰓎Level unavailableXP unavailable"
+    }
+  },
+  {
+    "width": 320,
+    "fixture": "incomplete",
+    "screen": "roadmap",
+    "data": {
+      "card": {
+        "bottom": 182,
+        "height": 90,
+        "left": 20,
+        "right": 300,
+        "top": 92,
+        "width": 280,
+        "x": 20,
+        "y": 92
+      },
+      "text": "CURRENT ROTATIONFirst Clinical Encounter󰈸7 days󰓎Level 2140 / 200 XP"
+    }
+  },
+  {
+    "width": 320,
+    "fixture": "long",
+    "screen": "roadmap",
+    "data": {
+      "card": {
+        "bottom": 236,
+        "height": 144,
+        "left": 20,
+        "right": 300,
+        "top": 92,
+        "width": 280,
+        "x": 20,
+        "y": 92
+      },
+      "text": "CURRENT ROTATIONAdvanced clinical communication and comprehensive patient assessment across a multidisciplinary rotation󰈸7 days󰓎Level 2140 / 200 XP"
+    }
+  },
+  {
+    "width": 320,
+    "fixture": "missing-xp",
+    "screen": "roadmap",
+    "data": {
+      "card": {
+        "bottom": 208,
+        "height": 116,
+        "left": 20,
+        "right": 300,
+        "top": 92,
+        "width": 280,
+        "x": 20,
+        "y": 92
+      },
+      "text": "CURRENT ROTATIONFirst Clinical Encounter󰈸0 days󰓎Level unavailableXP unavailable"
+    }
+  },
+  {
+    "width": 1280,
+    "fixture": "incomplete",
+    "screen": "roadmap",
+    "data": {
+      "card": {
+        "bottom": 182,
+        "height": 90,
+        "left": 360,
+        "right": 920,
+        "top": 92,
+        "width": 560,
+        "x": 360,
+        "y": 92
+      },
+      "text": "CURRENT ROTATIONFirst Clinical Encounter󰈸7 days󰓎Level 2140 / 200 XP"
+    }
+  },
+  {
+    "width": 1280,
+    "fixture": "long",
+    "screen": "roadmap",
+    "data": {
+      "card": {
+        "bottom": 200,
+        "height": 108,
+        "left": 360,
+        "right": 920,
+        "top": 92,
+        "width": 560,
+        "x": 360,
+        "y": 92
+      },
+      "text": "CURRENT ROTATIONAdvanced clinical communication and comprehensive patient assessment across a multidisciplinary rotation󰈸7 days󰓎Level 2140 / 200 XP"
+    }
+  },
+  {
+    "width": 1280,
+    "fixture": "missing-xp",
+    "screen": "roadmap",
+    "data": {
+      "card": {
+        "bottom": 182,
+        "height": 90,
+        "left": 360,
+        "right": 920,
+        "top": 92,
+        "width": 560,
+        "x": 360,
+        "y": 92
+      },
+      "text": "CURRENT ROTATIONFirst Clinical Encounter󰈸0 days󰓎Level unavailableXP unavailable"
+    }
+  }
+]
