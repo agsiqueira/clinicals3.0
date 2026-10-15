@@ -1,137 +1,13 @@
 import { useCallback, useMemo, useRef, useState } from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  Text,
-  View,
-} from "react-native";
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth, useClerk, useUser } from "@clerk/clerk-expo";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { api } from "../../src/api/client";
-import { portfolioStyles } from "../../assets/styles/portfolio.styles";
-import { CompactJourneyCard } from "../../src/components/CompactJourneyCard";
-import { RotationCard, type RotationSession, type RotationUnit } from "../../src/components/RotationCard";
-
-type TodayIdentity = {
-  professionalLevel?: number | null;
-  levelTitle?: string | null;
-  xp?: number | null;
-  nextLevelXp?: number | null;
-  streak?: {
-    currentCount?: number | null;
-    longestCount?: number | null;
-    status?: string | null;
-  } | null;
-};
-
-type TodayEncounter = {
-  patientSessionId?: string | null;
-  patientSessionSlug?: string | null;
-  caseId?: string | null;
-  title?: string | null;
-  displayTitle?: string | null;
-  description?: string | null;
-  unitTitle?: string | null;
-  status?: "locked" | "available" | "completed" | string;
-  badgeTier?: "GOLD" | "SILVER" | "BRONZE" | "NONE" | string | null;
-  bestSessionScore?: number | null;
-  estimatedTime?: {
-    min?: number | null;
-    max?: number | null;
-    label?: string | null;
-  } | null;
-  launchParams?: {
-    caseId?: string | null;
-    patientSessionSlug?: string | null;
-    requiresHpi?: boolean | null;
-  } | null;
-};
-
-type TodayRotation = RotationUnit;
-
-import { Module0Card } from "../../src/components/Module0Card";
-import type { Module0Summary } from "../../src/types/clinicalReadiness";
 import { captureSession } from "../../src/api/sessionToken";
-
-type TodayResponse = {
-  module0?: Module0Summary | null;
-  identity?: TodayIdentity | null;
-  recommendedEncounter?: TodayEncounter | null;
-  activeRotation?: TodayRotation | null;
-  dailyBriefing?: {
-    motivation?: string | null;
-    focus?: string | null;
-    nextGoal?: {
-      type?: string | null;
-      slug?: string | null;
-      title?: string | null;
-      icon?: string | null;
-      currentValue?: number | null;
-      targetValue?: number | null;
-      description?: string | null;
-    } | null;
-  } | null;
-  roadmapCta?: {
-    title?: string | null;
-    body?: string | null;
-  } | null;
-};
-
-type TodayNextGoal = NonNullable<NonNullable<TodayResponse["dailyBriefing"]>["nextGoal"]>;
-
-function goalProgressText(goal?: TodayNextGoal | null) {
-  const current = Number(goal?.currentValue);
-  const target = Number(goal?.targetValue);
-  if (!Number.isFinite(current) || !Number.isFinite(target) || target <= 0) return null;
-
-  const title = String(goal?.title || "");
-  const description = String(goal?.description || "");
-  const type = String(goal?.type || "");
-  const isUnlockScoreGoal =
-    target === 84 || /unlock|score|best/i.test(`${title} ${description} ${type}`);
-
-  if (isUnlockScoreGoal) {
-    return {
-      primary: `Current best: ${Math.round(current)}%`,
-      secondary: `Goal: ${Math.round(target)}% to unlock the next encounter`,
-    };
-  }
-
-  const unit = /streak|day/i.test(`${title} ${description} ${type}`) ? " days" : " encounters";
-  return {
-    primary: `${Math.round(current)} / ${Math.round(target)}${unit}`,
-    secondary: null,
-  };
-}
-
-function mentorCoachingMessage({
-  motivation,
-  focus,
-  goalProgress,
-}: {
-  motivation?: string | null;
-  focus?: string | null;
-  goalProgress?: ReturnType<typeof goalProgressText>;
-}) {
-  const cleanMotivation = String(motivation || "Let's make today focused and manageable.")
-    .trim()
-    .replace(/\s+/g, " ");
-  const cleanFocus = String(
-    focus || "Start with a professional introduction, explain your role, and invite the patient to share their main concern."
-  )
-    .trim()
-    .replace(/\s+/g, " ");
-  const unlockText = goalProgress?.secondary
-    ? ` ${goalProgress.secondary.replace(/^Goal:\s*/i, "You only need ")}.`
-    : "";
-
-  return `${cleanMotivation} Today, focus on this: ${cleanFocus}${unlockText}`;
-}
+import { TodayContent, TodayHeader, todayStyles } from "../../src/components/today/TodayPresentation";
+import { todayFocus, type TodayResponse } from "../../src/components/today/model";
 
 export default function TodayScreen() {
   const { signOut } = useClerk();
@@ -204,131 +80,30 @@ export default function TodayScreen() {
   };
 
   const visibleToday = dataUserId === authUserId ? today : null;
-  const identity = visibleToday?.identity || {};
-  const streak = identity.streak || {};
-  const recommendedEncounter = visibleToday?.recommendedEncounter || null;
-  const dailyBriefing = visibleToday?.dailyBriefing || {};
-  const nextGoal = dailyBriefing.nextGoal || null;
-  const nextGoalProgress = goalProgressText(nextGoal);
-  const mentorMessage = mentorCoachingMessage({
-    motivation: dailyBriefing.motivation,
-    focus: dailyBriefing.focus,
-    goalProgress: nextGoalProgress,
-  });
-  const todayRotationUnit = visibleToday?.activeRotation || null;
-  const forceRetrySessionIds = useMemo(() => {
-    if (recommendedEncounter?.status !== "completed") return undefined;
-    const sessionId =
-      recommendedEncounter.patientSessionId ||
-      recommendedEncounter.patientSessionSlug ||
-      "today-recommended";
-    return new Set([sessionId]);
-  }, [recommendedEncounter]);
-
-  const openRotationSession = (session: RotationSession) => {
-    if (session.entryBlocked || visibleToday?.module0?.entryBlocked) { router.push("/module-0"); return; }
-    const patientSessionSlug = session.slug || recommendedEncounter?.patientSessionSlug;
-
-    if (!patientSessionSlug) {
-      router.push("/(tabs)/cases");
-      return;
-    }
-
-    router.push({
-      pathname: "/(tabs)/cases",
-      params: {
-        focusSessionSlug: patientSessionSlug,
-        focusSessionToken: String(Date.now()),
-      },
-    });
+  const focus = todayFocus(visibleToday);
+  const continueLearning = () => {
+    if (!visibleToday) return;
+    const route = focus.route;
+    router.push(route.pathname === "/module-0" ? "/module-0" :
+      "params" in route ? { pathname: "/(tabs)/cases", params: { ...route.params, focusSessionToken: String(Date.now()) } } : "/(tabs)/cases");
   };
 
   if (loading && !visibleToday) {
     return (
-      <SafeAreaView style={portfolioStyles.container}>
-        <View style={portfolioStyles.centeredState}>
+      <SafeAreaView style={todayStyles.screen}>
+        <View style={todayStyles.centered}>
           <ActivityIndicator />
-          <Text style={portfolioStyles.stateText}>Loading Today...</Text>
+          <Text style={todayStyles.body}>Loading Today...</Text>
         </View>
       </SafeAreaView>
     );
   }
 
-  return (
-    <SafeAreaView style={portfolioStyles.container}>
-      <ScrollView
-        contentContainerStyle={portfolioStyles.scrollContent}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => loadToday({ asRefresh: true })} />
-        }
-      >
-        <View style={portfolioStyles.screenHeaderRow}>
-          <View style={portfolioStyles.screenHeaderText}>
-            <Text style={portfolioStyles.screenTitle}>Today</Text>
-            <Text style={portfolioStyles.screenSubtitle}>
-              {user?.firstName ? `Welcome, ${user.firstName}.` : "Welcome."} What should you do next?
-            </Text>
-          </View>
-          <Pressable
-            onPress={handleSignOut}
-            disabled={signingOut}
-            style={[portfolioStyles.signOutButton, { opacity: signingOut ? 0.6 : 1 }]}
-          >
-            <Text style={portfolioStyles.signOutButtonText}>
-              {signingOut ? "Signing out..." : "Sign Out"}
-            </Text>
-          </Pressable>
-        </View>
-
-        {error ? (
-          <View style={portfolioStyles.errorBox}>
-            <Text style={portfolioStyles.errorText}>{error}</Text>
-            <Pressable onPress={() => loadToday()} style={portfolioStyles.retryButton}>
-              <Text style={portfolioStyles.retryButtonText}>Retry</Text>
-            </Pressable>
-          </View>
-        ) : null}
-
-        <CompactJourneyCard
-          levelTitle={identity.levelTitle}
-          professionalLevel={identity.professionalLevel}
-          xp={identity.xp}
-          streakCount={streak.currentCount}
-        />
-
-        <View style={[portfolioStyles.mentorCallout, portfolioStyles.todayMentorNote]}>
-          <Text style={portfolioStyles.mentorCalloutLabel}>🩺 Dr. Martinez · Today&apos;s Guidance</Text>
-          <Text style={portfolioStyles.mentorCalloutText}>{mentorMessage}</Text>
-        </View>
-
-        <Module0Card summary={visibleToday?.module0} />
-
-        <View style={portfolioStyles.todayRotationSection}>
-          {todayRotationUnit ? (
-            <RotationCard
-              unit={todayRotationUnit}
-              unitIndex={Math.max(0, Number(todayRotationUnit.sortOrder || 1) - 1)}
-              isLastRotation
-              showRail={false}
-              onSessionPress={openRotationSession}
-              forceRetrySessionIds={forceRetrySessionIds}
-            />
-          ) : (
-            <Text style={portfolioStyles.nextSessionTitle}>
-              You&apos;ve completed all currently available encounters.
-            </Text>
-          )}
-        </View>
-
-        <Pressable
-          onPress={() => router.push("/(tabs)/cases")}
-          style={[portfolioStyles.secondaryCta, portfolioStyles.todayFullRoadmapButton]}
-        >
-          <MaterialCommunityIcons name="map-marker-path" size={18} color="#5b21b6" />
-          <Text style={portfolioStyles.todayFullRoadmapText}>Full Roadmap</Text>
-          <MaterialCommunityIcons name="chevron-right" size={18} color="#5b21b6" />
-        </Pressable>
-      </ScrollView>
-    </SafeAreaView>
-  );
+  return <SafeAreaView style={todayStyles.screen}>
+    <TodayHeader identity={visibleToday?.identity} onSignOut={handleSignOut} signingOut={signingOut} />
+    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={todayStyles.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadToday({ asRefresh: true })} />}>
+      {error && <View accessibilityRole="alert" style={todayStyles.error}><Text style={todayStyles.body}>{error}</Text><Pressable accessibilityRole="button" onPress={() => loadToday()} style={todayStyles.retry}><Text>Retry</Text></Pressable></View>}
+      {visibleToday && <TodayContent data={visibleToday} onContinue={continueLearning} onRoadmap={() => router.push("/(tabs)/cases")} />}
+    </ScrollView>
+  </SafeAreaView>;
 }

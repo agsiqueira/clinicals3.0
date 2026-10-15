@@ -186,6 +186,8 @@ function harness(file="app/module-0.tsx", params={}, options={}) {
     if(name.includes("useEnglishSpeechTranscription"))return{useEnglishSpeechTranscription:options=>{recordedText=options.onText;return{isRecording:false,transcribing:false,recordingBusy:false,toggleRecording(){}};}};
     if(name.includes("ClinicalsChatComposer"))return{ClinicalsChatComposer:"Composer"};
     if(name.includes("MentorAvatar"))return{MentorAvatar:"MentorAvatar"};
+    if(name.includes("today/TodayPresentation"))return{TodayHeader:"TodayHeader",TodayContent:"TodayContent",todayStyles:{}};
+    if(name.includes("today/model"))return compile("src/components/today/model.ts",requireFn);
     if(name.includes("roadmap/JourneyConnections"))return{JourneyCanvas:"JourneyCanvas"};
     if(name.includes("roadmap/RoadmapJourney"))return{RoadmapFoundation:"RoadmapFoundation",RoadmapHeader:"RoadmapHeader",RoadmapJourney:"RoadmapJourney",roadmapStyles:{}};
     if(name.includes("roadmap/journey"))return compile("src/components/roadmap/journey.ts",requireFn);
@@ -306,12 +308,16 @@ test("Roadmap rejects delayed data after switching accounts and preserves loadin
   const empty=harness("app/(tabs)/cases.tsx",{}, {api:{getLearningPaths:async()=>[]}});t.after(empty.unmount);empty.render();await empty.settle();assert.match(empty.text(empty.render()),/No learning paths found/);
 });
 
-test("Today and Full Roadmap render Module 0 before the rotation",async t=>{
-  for(const file of ["app/(tabs)/index.tsx","app/(tabs)/cases.tsx"]){const h=harness(file);t.after(h.unmount);h.render();await h.settle();
-    const nodes=h.nodes();const card=nodes.findIndex(n=>n.type===(file.includes("cases")?"RoadmapFoundation":"Module0Card"));const rotation=nodes.findIndex(n=>n.type===(file.includes("cases")?"RoadmapJourney":"RotationCard"));
-    assert.ok(card>=0&&rotation>card,file);
-  }
+test("Today keeps Module 0 as primary focus; Roadmap preserves foundation ordering",async t=>{
+ const h=harness("app/(tabs)/index.tsx");t.after(h.unmount);h.render();await h.settle();const content=h.nodes().find(n=>n.type==="TodayContent");assert.equal(content.props.data.module0.completed,false);content.props.onContinue();assert.equal(h.navigation.at(-1),"/module-0");
+ const r=harness("app/(tabs)/cases.tsx");t.after(r.unmount);r.render();await r.settle();const nodes=r.nodes();assert.ok(nodes.findIndex(n=>n.type==="RoadmapJourney")>nodes.findIndex(n=>n.type==="RoadmapFoundation"));
 });
+test("Today recommendation keeps overview navigation and isolates late account responses",async t=>{
+ const make=id=>({identity:{xp:100},module0:{completed:true,entryBlocked:false},recommendedEncounter:{patientSessionSlug:id,status:"completed"}});
+ let finish;const h=harness("app/(tabs)/index.tsx",{}, {api:{getToday:headers=>headers.expectedUserId==="A"?new Promise(resolve=>{finish=resolve;}):Promise.resolve(make("B-session"))}});
+ t.after(h.unmount);h.render();await h.settle();h.switchUser("B");await h.settle();finish(make("A-private"));await h.settle();const content=h.nodes().find(n=>n.type==="TodayContent");assert.equal(content.props.data.recommendedEncounter.patientSessionSlug,"B-session");content.props.onContinue();const route=h.navigation.at(-1);assert.equal(route.params.focusSessionSlug,"B-session");assert.ok(route.params.focusSessionToken);content.props.onRoadmap();assert.equal(h.navigation.at(-1),"/(tabs)/cases");
+});
+
 test("Module 0 opens the exact unfinished step, saves weak feedback, advances, and permits completed review",async t=>{
   const h=harness();t.after(h.unmount);h.render();await h.settle();
   const c=h.composer();assert.ok(c);c.props.onChangeText("What brings you to the clinic today?");h.render();await h.settle();
