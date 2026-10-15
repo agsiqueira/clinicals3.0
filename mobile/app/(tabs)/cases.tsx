@@ -15,15 +15,13 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useFocusEffect, useIsFocused } from "@react-navigation/native";
 import { api } from "../../src/api/client";
 import { casesStyles } from "../../assets/styles/cases.styles";
-import { portfolioStyles } from "../../assets/styles/portfolio.styles";
-import { Module0Card } from "../../src/components/Module0Card";
+import { RoadmapFoundation, RoadmapHeader, RoadmapJourney, roadmapStyles } from "../../src/components/roadmap/RoadmapJourney";
+import { isRotationMastered, previousAttemptsRoute } from "../../src/components/roadmap/journey";
 import type { Module0Summary } from "../../src/types/clinicalReadiness";
 import { captureSession } from "../../src/api/sessionToken";
-import { CompactJourneyCard } from "../../src/components/CompactJourneyCard";
 import { ClinicalsChatComposer } from "../../src/components/ClinicalsChatComposer";
 import { MentorAvatar } from "../../src/components/MentorAvatar";
 import { PatientAvatar } from "../../src/components/PatientAvatar";
-import { RotationCard, rotationComplete } from "../../src/components/RotationCard";
 import { useEnglishSpeechTranscription } from "../../src/hooks/useEnglishSpeechTranscription";
 import { useSpeechPlayback } from "../../src/hooks/useSpeechPlayback";
 import { useVoicePreference } from "../../src/hooks/useVoicePreference";
@@ -215,6 +213,7 @@ function OwnedRoadmap() {
   const [roadmapError, setRoadmapError] = useState<string | null>(null);
   const [learningPaths, setLearningPaths] = useState<LearningPath[]>([]);
   const [journeySummary, setJourneySummary] = useState<JourneySummary | null>(null);
+  const [recommendedSlug, setRecommendedSlug] = useState<string | null>(null);
   const [selectedOverview, setSelectedOverview] = useState<SessionOverview | null>(null);
   const [overviewLoading, setOverviewLoading] = useState(false);
   const [overviewError, setOverviewError] = useState<string | null>(null);
@@ -272,6 +271,7 @@ function OwnedRoadmap() {
     }
 
     if (!user?.id) {
+      setRecommendedSlug(null);
       setLearningPaths([]);
       setJourneySummary(null);
       setLoadingRoadmap(false);
@@ -294,14 +294,17 @@ function OwnedRoadmap() {
         const todayData = await api.getToday(userHeaders);
         if (!current()) return;
         setJourneySummary(todayData?.identity || null);
+        setRecommendedSlug(todayData?.recommendedEncounter?.patientSessionSlug || null);
         setModule0(todayData?.module0 || null);
       } catch {
         if (!current()) return;
+        setRecommendedSlug(null);
         setJourneySummary(null);
         setModule0(null);
       }
     } catch (err: any) {
       if (!current()) return;
+      setRecommendedSlug(null);
       setRoadmapError(err?.message || "Failed to load learning roadmap.");
       setLearningPaths([]);
       setJourneySummary(null);
@@ -326,7 +329,7 @@ function OwnedRoadmap() {
     let isMounted = true;
     const achievedMilestoneIds = learningPaths
       .flatMap((path) => path.units)
-      .filter(rotationComplete)
+      .filter(isRotationMastered)
       .map((unit) => unit.id);
 
     if (achievedMilestoneIds.length === 0) return;
@@ -537,25 +540,10 @@ function OwnedRoadmap() {
   ]);
 
   return (
-    <SafeAreaView style={portfolioStyles.container}>
-      <ScrollView contentContainerStyle={portfolioStyles.scrollContent}>
-        <View style={portfolioStyles.screenHeaderRow}>
-          <View style={portfolioStyles.screenHeaderText}>
-            <Text style={portfolioStyles.screenTitle}>Roadmap</Text>
-            <Text style={portfolioStyles.screenSubtitle}>Follow your clinical journey.</Text>
-          </View>
-        </View>
-
-        {!!journeySummary && (
-          <CompactJourneyCard
-            levelTitle={journeySummary.levelTitle}
-            professionalLevel={journeySummary.professionalLevel}
-            xp={journeySummary.xp}
-            streakCount={journeySummary.streak?.currentCount}
-          />
-        )}
-
-        <Module0Card summary={module0} />
+    <SafeAreaView style={roadmapStyles.screen}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={roadmapStyles.content}>
+        <RoadmapHeader identity={journeySummary} />
+        <RoadmapFoundation summary={module0} />
 
         {loadingRoadmap ? (
           <View style={casesStyles.loadingBlock}>
@@ -571,31 +559,9 @@ function OwnedRoadmap() {
         ) : learningPaths.length === 0 ? (
           <Text style={casesStyles.emptyText}>No learning paths found.</Text>
         ) : (
-          learningPaths.map((path) => (
-            <View key={path.id} style={casesStyles.roadmapPath}>
-              <View style={casesStyles.pathHeader}>
-                <Text style={casesStyles.pathTitle}>{path.title}</Text>
-              </View>
-
-              {path.units.map((unit, unitIndex) => {
-                if (!milestoneAnimationRefs.current[unit.id]) {
-                  milestoneAnimationRefs.current[unit.id] = new Animated.Value(1);
-                }
-
-                return (
-                  <RotationCard
-                    key={unit.id}
-                    unit={unit}
-                    unitIndex={unitIndex}
-                    isLastRotation={unitIndex === path.units.length - 1}
-                    onSessionPress={(session) => openSessionOverview(session as RoadmapSession)}
-                    animatingMilestoneIds={animatingMilestoneIds}
-                    milestoneTrophyScale={milestoneAnimationRefs.current[unit.id]}
-                  />
-                );
-              })}
-            </View>
-          ))
+          <RoadmapJourney paths={learningPaths} onSessionPress={openSessionOverview}
+            recommendedSlug={recommendedSlug}
+            milestoneScales={milestoneAnimationRefs.current} />
         )}
 
       </ScrollView>
@@ -722,6 +688,19 @@ function OwnedRoadmap() {
                           </View>
                         </>
                       ) : null}
+
+                      {!!previousAttemptsRoute(selectedOverview) && (
+                        <Pressable accessibilityRole="button" style={[casesStyles.evaluationToggle, { minHeight: 44, justifyContent: "center" }]}
+                          onPress={() => {
+                            const destination = previousAttemptsRoute(selectedOverview);
+                            if (!destination) return;
+                            setOverviewVisible(false);
+                            router.push(destination);
+                          }}>
+                          <Text style={casesStyles.evaluationToggleText}>View Previous Attempts</Text>
+                          <Text style={casesStyles.briefSectionText}>All attempts for this patient’s case, across encounters.</Text>
+                        </Pressable>
+                      )}
 
                       <View style={casesStyles.modalActions}>
                         <Pressable onPress={() => setOverviewVisible(false)} style={casesStyles.modalSecondaryButton}>

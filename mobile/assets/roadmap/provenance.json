@@ -1,0 +1,109 @@
+{
+  "fileKey": "qsmnc7bznmYoLQRnplhJKH",
+  "assets": [
+    {
+      "file": "module0.png",
+      "figmaNode": "13:16",
+      "bytes": 1205907,
+      "sha256": "8362cc23482c1395f9d1e74b67b87109794c2f41175d4b65b814a702959a2439",
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGBA"
+    },
+    {
+      "file": "introduction.png",
+      "figmaNode": "13:21",
+      "bytes": 433945,
+      "sha256": "1a86ebabb150f34d360338005b94f376b65968a5a95756fc4dd66d7904676955",
+      "width": 722,
+      "height": 900,
+      "mode": "RGBA"
+    },
+    {
+      "file": "encounter.png",
+      "figmaNode": "13:25",
+      "bytes": 428353,
+      "sha256": "abc4738c77745f46393f5635a1d2c455c755933a4fdf230e32aa0e7b2f593f57",
+      "width": 720,
+      "height": 900,
+      "mode": "RGBA"
+    },
+    {
+      "file": "reasoning.png",
+      "figmaNode": "13:51",
+      "bytes": 339229,
+      "sha256": "3d0957fca4be39b6ad02aeb12c2dfa6decc8c61a772f0e3715110109455f034a",
+      "width": 678,
+      "height": 900,
+      "mode": "RGBA"
+    },
+    {
+      "file": "presentation.png",
+      "figmaNode": "13:34",
+      "bytes": 284149,
+      "sha256": "835dc1b2bfce93e7f086c29c8ea888f276e6f3cb3496eb54b4391b71af6ff272",
+      "width": 726,
+      "height": 900,
+      "mode": "RGBA"
+    },
+    {
+      "file": "destination.png",
+      "figmaNode": "21:2",
+      "bytes": 350054,
+      "sha256": "f2f3a8af030fcc885acd266fb9e7675e84d3a9cee7b9d86dcd9879260c330963",
+      "width": 752,
+      "height": 900,
+      "mode": "RGBA"
+    },
+    {
+      "file": "scenery.png",
+      "figmaNode": "13:4",
+      "bytes": 1468101,
+      "sha256": "d87660358e504ade1882e6239dfb99a108e5ae3238e6928fa379ce2a3f9351cc",
+      "width": 853,
+      "height": 1844,
+      "mode": "RGB"
+    },
+    {
+      "file": "flag-mint.svg",
+      "figmaNode": "14:13",
+      "bytes": 682,
+      "sha256": "7eb4f8f5393bd129f21abaf5d7c7b7057671d4377b292a9172fe9f2d3f56bc22"
+    },
+    {
+      "file": "flag-pink.svg",
+      "figmaNode": "14:21",
+      "bytes": 682,
+      "sha256": "c48c8642d3eb887e892f596981a402638e603e40dc6d4e9d3a3acdfc34aae785"
+    },
+    {
+      "file": "medal-gold.svg",
+      "figmaNode": "14:30",
+      "bytes": 1118,
+      "sha256": "c083c43afa4fbc8b72514a15fb5684716128a50c28ec54cdae4b4150ef4ea4fb"
+    },
+    {
+      "file": "medal-silver.svg",
+      "figmaNode": "14:36",
+      "bytes": 1118,
+      "sha256": "25f341abd8d183f256c22e158792e4ab6efd93e98c9ef2f36c45e5dc55d2aa0d"
+    },
+    {
+      "file": "connector.svg",
+      "figmaNode": "22:6",
+      "bytes": 352,
+      "sha256": "7588669f4ad1ffc734ae9bf04b53b9366e83ee06a2ab2af110ce37a0f9c59e9b"
+    },
+    {
+      "file": "medal-bronze.svg",
+      "figmaNode": "15:21",
+      "bytes": 1094,
+      "sha256": "85b6500e9f6d28988d6eb79424b3263c16f1041ddebec3a0174de56f261e01a4"
+    }
+  ],
+  "notes": [
+    "Original source images and vectors; no regenerated or recolored artwork.",
+    "Reasoning and presentation use original uploaded fills because design-context URLs returned transparent placeholders.",
+    "Pediatric image excluded for current adult cases."
+  ]
+}

@@ -1,0 +1,52 @@
+{
+  "baseline": "a1fa4de0607a9efdb642b21cc2bfab2375eafffb",
+  "branch": "feat/roadmap-redesign",
+  "productionFiles": [
+    "mobile/app/(tabs)/cases.tsx",
+    "mobile/assets/roadmap/.gitattributes",
+    "mobile/assets/roadmap/connector.svg",
+    "mobile/assets/roadmap/destination.png",
+    "mobile/assets/roadmap/encounter.png",
+    "mobile/assets/roadmap/flag-mint.svg",
+    "mobile/assets/roadmap/flag-pink.svg",
+    "mobile/assets/roadmap/introduction.png",
+    "mobile/assets/roadmap/medal-bronze.svg",
+    "mobile/assets/roadmap/medal-gold.svg",
+    "mobile/assets/roadmap/medal-silver.svg",
+    "mobile/assets/roadmap/module0.png",
+    "mobile/assets/roadmap/presentation.png",
+    "mobile/assets/roadmap/provenance.json",
+    "mobile/assets/roadmap/reasoning.png",
+    "mobile/assets/roadmap/scenery.png",
+    "mobile/src/components/roadmap/RoadmapJourney.tsx",
+    "mobile/src/components/roadmap/assets.ts",
+    "mobile/src/components/roadmap/journey.ts"
+  ],
+  "testFiles": [
+    "backend/test/module0Frontend.test.js",
+    "backend/test/roadmapFrontend.test.js"
+  ],
+  "reviewDocuments": [
+    "docs/design/roadmap-implementation/release-review.md",
+    "docs/design/roadmap-implementation/changed-files.json"
+  ],
+  "currentRefinementFiles": [
+    "mobile/src/components/roadmap/RoadmapJourney.tsx",
+    "mobile/src/components/roadmap/assets.ts",
+    "mobile/assets/roadmap/provenance.json",
+    "mobile/assets/roadmap/medal-bronze.svg",
+    "backend/test/roadmapFrontend.test.js"
+  ],
+  "reviewScreenshots": [
+    "docs/design/roadmap-implementation/visual-refinement/before/390-current.jpg",
+    "docs/design/roadmap-implementation/visual-refinement/before/390-destination.jpg",
+    "docs/design/roadmap-implementation/visual-refinement/after/320-current.jpg",
+    "docs/design/roadmap-implementation/visual-refinement/after/320-locked.jpg",
+    "docs/design/roadmap-implementation/visual-refinement/after/390-top.jpg",
+    "docs/design/roadmap-implementation/visual-refinement/after/390-current.jpg",
+    "docs/design/roadmap-implementation/visual-refinement/after/390-bronze.jpg",
+    "docs/design/roadmap-implementation/visual-refinement/after/390-rotation-transition.jpg",
+    "docs/design/roadmap-implementation/visual-refinement/after/390-scenic-mastered.jpg",
+    "docs/design/roadmap-implementation/visual-refinement/after/1280-scenic-mastered.jpg"
+  ]
+}
