@@ -13,11 +13,12 @@
     {
       "file": "introduction.png",
       "figmaNode": "13:21",
-      "bytes": 433945,
-      "sha256": "1a86ebabb150f34d360338005b94f376b65968a5a95756fc4dd66d7904676955",
+      "bytes": 432588,
+      "sha256": "03294dadb87c0dce5bf52b9f4492cff904670ac15c0aa7773f6b975f9dcda4ac",
       "width": 722,
       "height": 900,
-      "mode": "RGBA"
+      "mode": "RGBA",
+      "localEdit": "Localized checkmark removal using generated reconstruction, circle centered (609,580), radius 106px, 7px feather. All pixels outside circle unchanged; 722x900 canvas retained."
     },
     {
       "file": "encounter.png",

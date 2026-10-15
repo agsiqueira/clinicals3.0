@@ -15,7 +15,8 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useFocusEffect, useIsFocused } from "@react-navigation/native";
 import { api } from "../../src/api/client";
 import { casesStyles } from "../../assets/styles/cases.styles";
-import { RoadmapFoundation, RoadmapHeader, RoadmapJourney, roadmapStyles } from "../../src/components/roadmap/RoadmapJourney";
+import { RoadmapFoundation, RoadmapHeader, RoadmapJourney, RoadmapScenery, roadmapStyles } from "../../src/components/roadmap/RoadmapJourney";
+import { JourneyCanvas } from "../../src/components/roadmap/JourneyConnections";
 import { isRotationMastered, previousAttemptsRoute } from "../../src/components/roadmap/journey";
 import type { Module0Summary } from "../../src/types/clinicalReadiness";
 import { captureSession } from "../../src/api/sessionToken";
@@ -541,8 +542,9 @@ function OwnedRoadmap() {
 
   return (
     <SafeAreaView style={roadmapStyles.screen}>
+      <RoadmapHeader identity={journeySummary} />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={roadmapStyles.content}>
-        <RoadmapHeader identity={journeySummary} />
+        <JourneyCanvas scenery={RoadmapScenery} foundation={!!module0}>
         <RoadmapFoundation summary={module0} />
 
         {loadingRoadmap ? (
@@ -564,6 +566,7 @@ function OwnedRoadmap() {
             milestoneScales={milestoneAnimationRefs.current} />
         )}
 
+        </JourneyCanvas>
       </ScrollView>
 
       <Modal

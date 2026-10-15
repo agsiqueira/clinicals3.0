@@ -1,40 +1,41 @@
-# Illustrated Roadmap implementation review
+# Final illustrated Roadmap review
 
-Baseline: a1fa4de0607a9efdb642b21cc2bfab2375eafffb. Branch: feat/roadmap-redesign.
-Approved Figma: https://www.figma.com/design/qsmnc7bznmYoLQRnplhJKH?node-id=13-3
+Branch: `feat/roadmap-redesign`. Base: `a1fa4de0607a9efdb642b21cc2bfab2375eafffb`.
+[Approved Figma](https://www.figma.com/design/qsmnc7bznmYoLQRnplhJKH?node-id=13-3).
 
-## Implementation and parity
-Replaces the flat Roadmap with a naturally scrolling illustrated journey: actual rotation names and encounter counts, numbering from 1 per rotation, curved lavender connectors, original artwork, current encounter actions, backend-controlled locked states, and scenic mastery destinations.
+## Final implementation
 
-The pure journey adapter preserves API ordering, real badgeTier Gold/Silver/Bronze/NONE, missing scores, and the exact 84% mastery boundary (83.99% does not qualify). Mastery presentation never unlocks encounters or awards XP. Bronze is the approved Figma vector, node 15:21.
+- Fixed Roadmap header outside the scrolling journey. Clickable streak opens the existing level/XP summary in a responsive popover, with close/outside/Escape dismissal and focus return.
+- Compact encounter nodes retain actual patient/title, per-rotation numbering, concise state, finite best score, real Gold/Silver/Bronze/NONE badge state and one contextual action. Long objectives/descriptions remain in clinical data and existing detail workflows, not on the Roadmap.
+- Measured milestone centers automatically realign on responsive layout and Module 0 disclosure changes. Two broad alternating cubic arcs connect adjacent stages within each independent learning path. Lavender 5.5px rounded 9/11 dashes render below scenery and foreground artwork; no obstacle routing or stretched short segments.
+- Text masks and the same-art alpha silhouette beneath muted locked illustrations protect foreground readability. Destination art retains its original proportions, with localized scenic backdrops, actual numeric mastery and concise state.
+- Introduction illustration has the reviewed localized checkmark removal. Provenance records bytes, hash, dimensions and edit; all other approved image bytes remain unchanged in this follow-up.
 
-Existing owner/session protections, patient overview, evaluation details, preceptor briefing, mentor chat, STT/TTS, launch parameters, repeat/practice, saved progress, loading/error/empty states and real Expo Router tabs remain intact. View Previous Attempts is clearly case-wide and uses the existing history route. Today, Portfolio, assessment, backend APIs and schemas are unchanged.
+## Functional parity
 
-The visual refinement removes the active rectangular card, normalizes connector spacing, blends the scenic landscape into the journey, and gives narrow screens more text width and full-width prerequisites. Existing artwork was not regenerated.
+Backend locking, Module 0 requirements, API ordering, account ownership/isolation, saved progress and the exact 84% boundary remain authoritative. Destinations do not award XP or unlock encounters. No scores or achievements are invented. Completed/current/retry/available/locked states preserve existing launch handlers.
+
+Patient overview, evaluation details, preceptor briefing, mentor, STT/TTS, encounter parameters, repeat practice and clearly labelled case-wide previous attempts remain intact. Real Expo Router tabs, loading/error/empty states and independent learning paths remain intact. Today, Portfolio, backend APIs, assessment, authentication, schema and storage behavior are unchanged.
 
 ## Validation
-- Full regression suite: 326 passed, zero failures (backend npm test).
-- Focused Roadmap suite: 11 passed, including iOS/Android medal rendering and disabled locked launch actions.
-- Production Expo web, iOS and Android exports succeeded.
-- TypeScript comparison: 22 baseline diagnostics, 22 current, zero new.
-- Asset integrity and whitespace checks passed.
-- Synthetic browser checks at 320x568, 390x844 and 1280x900: assets loaded, no horizontal overflow, encounter actions at least 44px high, locked encounters had no launch actions.
-- Ordering, multiple rotations, empty units, badge NONE, missing scores, 83.99/84 boundary, case-wide history and preceptor entry flows covered.
-- No migrations or learner data changes.
 
-## Selected review screenshots
-Only the following review captures are included; raw collections, preview tools, exports and backups remain local.
+- Full regression suite: **333 passed, zero failures**. Focused Roadmap suite: **18 passed**.
+- Production Expo **web, iOS and Android exports succeeded**.
+- TypeScript comparison against baseline: **22 baseline, 22 current, zero new diagnostics**; existing diagnostics listed below.
+- Asset integrity validates all Roadmap files against provenance bytes and SHA-256. Whitespace checks pass.
+- Synthetic browser captures reviewed at **320x568, 390x844 and 1280x900**: no missing images, horizontal overflow or clipped labels; encounter actions at least 44px high. Measured connectors realign with expanded Module 0, long titles and multiple rotations; independent paths are not bridged.
+- Oversized hidden objective/description fixtures have identical scroll heights to compact fixtures: 3192/3295/3859px at the three widths. Separate captures cover retry, medal NONE/missing score and mastered destinations.
+- Regression coverage includes 83.99% versus 84%, real medals, best-score-only display, locked actions, overview/evaluation/history/preceptor entry, measurement changes and foreground layering.
 
-| View | Before | After |
-|---|---|---|
-| 390px current | [Before](visual-refinement/before/390-current.jpg) | [After](visual-refinement/after/390-current.jpg) |
-| 390px scenic destination | [Before](visual-refinement/before/390-destination.jpg) | [After](visual-refinement/after/390-scenic-mastered.jpg) |
+## Visual review and scope
 
-Additional captures: [320 current](visual-refinement/after/320-current.jpg), [320 locked](visual-refinement/after/320-locked.jpg), [390 top/completed](visual-refinement/after/390-top.jpg), [Bronze](visual-refinement/after/390-bronze.jpg), [rotation transition](visual-refinement/after/390-rotation-transition.jpg), [desktop destination](visual-refinement/after/1280-scenic-mastered.jpg).
+Final full-height mobile/desktop captures and the same-width 390px Figma comparison passed user visual review. Raw screenshots, generated exports, temporary validation logs, preview fixtures/servers and caches are intentionally excluded from this follow-up commit. Earlier selected screenshots already in the PR remain historical snapshots, not the final geometry.
 
-## Outstanding verification and deviations
-Physical iOS/Android checks, live microphone/STT/TTS, native SVG decoding and native grayscale remain outstanding. Native locked imagery retains opacity/muted styling; exact grayscale is verified only on web. Exports and native component tests do not establish physical-device appearance or live voice behavior.
-Real learner text varies from Figma fixture labels. The approved existing tab bar is preserved, and desktop uses a centered responsive journey. Screenshots use synthetic data.
+Real learner names, counts and text differ from Figma fixture values. The existing tab bar and Module 0 disclosure remain. Scenic backdrops are localized to destinations so opaque artwork cannot erase encounter connections.
+
+## Remaining verification
+
+Physical iOS/Android visual checks, native SVG data-URI decoding, grayscale/white-alpha-mask rendering, screen-reader behavior and live microphone/STT/TTS checks remain outstanding. Successful exports and synthetic/native component tests do not establish physical-device appearance or live voice behavior. No production learner data was used or changed. No migration, deployment or service restart is required or performed by this review step.
 
 ## Existing TypeScript diagnostics
 | File | Code | Count |
