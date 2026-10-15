@@ -1,0 +1,43 @@
+{
+  "figmaFile": "qsmnc7bznmYoLQRnplhJKH",
+  "node": "1:48",
+  "illustrationNode": "5:10",
+  "method": "Exact Figma MCP downloads; unmodified artwork. Existing real Expo tab navigation retained.",
+  "assets": [
+    {
+      "file": "05ab2.svg",
+      "bytes": 236,
+      "sha256": "dc16cf32deb0f7953bd89ae1022c19139263b1f9932911628191a3be87caf3ed"
+    },
+    {
+      "file": "5863c.svg",
+      "bytes": 1022,
+      "sha256": "038aba469305be2b1ef968bf35516a8e4a256aa13508eff13b6868a68a2f4296"
+    },
+    {
+      "file": "8f7b8.svg",
+      "bytes": 334,
+      "sha256": "03bedcd38dfff43cc359e9ea87b0cac500f38371e757e6ae31fc63d4330eca62"
+    },
+    {
+      "file": "9ea64.svg",
+      "bytes": 1194,
+      "sha256": "eb3525dbf2bde87f7c1c3b3fd4511250be0f2af2491bc8ac78ecf8b8e2c2ff14"
+    },
+    {
+      "file": "a889e.png",
+      "bytes": 1205907,
+      "sha256": "8362cc23482c1395f9d1e74b67b87109794c2f41175d4b65b814a702959a2439"
+    },
+    {
+      "file": "aab84.svg",
+      "bytes": 340,
+      "sha256": "9d31a14cfaff08b119804fb63ae8a4207b247d075f1325f7d6d111916a63e205"
+    },
+    {
+      "file": "ca0eb.svg",
+      "bytes": 248,
+      "sha256": "b827251d49323be74b327e49714c2fedcac69e7e72f518a4bf1472548264e0f7"
+    }
+  ]
+}
