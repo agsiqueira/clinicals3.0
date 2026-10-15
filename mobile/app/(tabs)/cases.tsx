@@ -16,6 +16,8 @@ import { useFocusEffect, useIsFocused } from "@react-navigation/native";
 import { api } from "../../src/api/client";
 import { casesStyles } from "../../assets/styles/cases.styles";
 import { RoadmapFoundation, RoadmapHeader, RoadmapJourney, RoadmapScenery, roadmapStyles } from "../../src/components/roadmap/RoadmapJourney";
+import { LearnerStatusCard } from "../../src/components/LearnerStatusCard";
+import type { TodayResponse } from "../../src/components/today/model";
 import { JourneyCanvas } from "../../src/components/roadmap/JourneyConnections";
 import { isRotationMastered, previousAttemptsRoute } from "../../src/components/roadmap/journey";
 import type { Module0Summary } from "../../src/types/clinicalReadiness";
@@ -87,15 +89,6 @@ type LearningPath = {
 };
 
 const SEEN_MILESTONES_STORAGE_KEY_PREFIX = "clinicals2:roadmap:seen-milestones";
-
-type JourneySummary = {
-  professionalLevel?: number | null;
-  levelTitle?: string | null;
-  xp?: number | null;
-  streak?: {
-    currentCount?: number | null;
-  } | null;
-};
 
 type SessionOverview = {
   id: string;
@@ -213,7 +206,7 @@ function OwnedRoadmap() {
   const [loadingRoadmap, setLoadingRoadmap] = useState(true);
   const [roadmapError, setRoadmapError] = useState<string | null>(null);
   const [learningPaths, setLearningPaths] = useState<LearningPath[]>([]);
-  const [journeySummary, setJourneySummary] = useState<JourneySummary | null>(null);
+  const [journeySummary, setJourneySummary] = useState<TodayResponse | null>(null);
   const [recommendedSlug, setRecommendedSlug] = useState<string | null>(null);
   const [selectedOverview, setSelectedOverview] = useState<SessionOverview | null>(null);
   const [overviewLoading, setOverviewLoading] = useState(false);
@@ -294,7 +287,7 @@ function OwnedRoadmap() {
       try {
         const todayData = await api.getToday(userHeaders);
         if (!current()) return;
-        setJourneySummary(todayData?.identity || null);
+        setJourneySummary(todayData || null);
         setRecommendedSlug(todayData?.recommendedEncounter?.patientSessionSlug || null);
         setModule0(todayData?.module0 || null);
       } catch {
@@ -542,8 +535,9 @@ function OwnedRoadmap() {
 
   return (
     <SafeAreaView style={roadmapStyles.screen}>
-      <RoadmapHeader identity={journeySummary} />
+      <RoadmapHeader />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={roadmapStyles.content}>
+        <View style={{ marginBottom: 16 }}><LearnerStatusCard identity={journeySummary?.identity} rotationTitle={journeySummary?.activeRotation?.title} /></View>
         <JourneyCanvas scenery={RoadmapScenery} foundation={!!module0}>
         <RoadmapFoundation summary={module0} />
 

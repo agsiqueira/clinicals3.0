@@ -105,6 +105,7 @@ test('iOS and Android presentation exposes no launch action on locked nodes and 
       if(name==='react-native')return {Animated:{View:'AnimatedView'},Platform:{OS:platform},Pressable:'Pressable',View:'View',Text:'Text',useWindowDimensions:()=>({width:320}),StyleSheet:{create:s=>s,absoluteFill:{}}};
       if(name==='expo-image')return {Image:'Image'};
       if(name==='expo-font')return {useFonts:()=>[true]};
+      if(name.includes('AccountSettingsButton'))return {AccountSettingsButton:'AccountSettingsButton'};
       if(name==='expo-router')return {useRouter:()=>({push(){}})};
       if(name==='./JourneyConnections')return {JourneyStage:props=>jsx('View',props),JourneyObstacle:props=>jsx('View',props),JourneyChain:props=>jsx('View',props)};
       if(name==='./journey')return exportsObject;
@@ -142,32 +143,16 @@ test('iOS and Android presentation exposes no launch action on locked nodes and 
   }
 });
 
-test('Roadmap header stays outside scrolling content and removes redundant destination instruction',()=>{
- const screen=fs.readFileSync(require('node:path').resolve(__dirname,'../../mobile/app/(tabs)/cases.tsx'),'utf8');
- assert.ok(screen.indexOf('<RoadmapHeader identity={journeySummary} />') < screen.indexOf('<ScrollView showsVerticalScrollIndicator={false}'));
- const source=fs.readFileSync(require('node:path').resolve(__dirname,'../../mobile/src/components/roadmap/RoadmapJourney.tsx'),'utf8');
- assert.doesNotMatch(source,/Complete encounters to arrive|Show.*level and XP/);
- assert.match(source,/accessibilityState=\{\{ expanded \}\}/);
- assert.match(source,/onRequestClose=\{dismiss\}/);
- assert.match(source,/event.key === "Escape"/);
+test('Roadmap fixed header precedes status in scroll flow and keeps the measured canvas separate',()=>{
+ const path=require('node:path'),screen=fs.readFileSync(path.resolve(__dirname,'../../mobile/app/(tabs)/cases.tsx'),'utf8');
+ assert.ok(screen.indexOf('<RoadmapHeader />')<screen.indexOf('<ScrollView showsVerticalScrollIndicator={false}'));
+ assert.ok(screen.indexOf('<LearnerStatusCard identity={journeySummary?.identity}')<screen.indexOf('<JourneyCanvas scenery={RoadmapScenery}'));
+ assert.match(screen,/rotationTitle=\{journeySummary\?\.activeRotation\?\.title\}/);
 });
-
-test('streak disclosure preserves identity and dismisses with focus return',()=>{
- const path=require('node:path'),states=[],refs=[];let si=0,ri=0,escape,focused;
- const jsx=(type,props)=>({type,props});
- const react={useState:initial=>{const i=si++;if(!(i in states))states[i]=initial;return[states[i],value=>{states[i]=value;}];},useRef:()=>{const i=ri++;return refs[i]??(refs[i]={current:null});},useEffect:effect=>effect()};
- const native={Animated:{View:'AnimatedView'},Modal:'Modal',Platform:{OS:'web'},Pressable:'Pressable',View:'View',Text:'Text',useWindowDimensions:()=>({width:320}),StyleSheet:{create:s=>s,absoluteFill:{}}};
- const exports={};vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.resolve(__dirname,'../../mobile/src/components/roadmap/RoadmapJourney.tsx'),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX}}).outputText,{exports,requestAnimationFrame:fn=>fn(),document:{addEventListener:(_,fn)=>{escape=fn;},removeEventListener(){}},require:name=>name==='react'?react:name==='react/jsx-runtime'?{jsx,jsxs:jsx}:name==='react-native'?native:name==='expo-image'?{Image:'Image'}:name==='expo-font'?{useFonts:()=>[true]}:name==='expo-router'?{useRouter:()=>({})}:name.includes('CompactJourneyCard')?{CompactJourneyCard:'JourneyCard'}:{} });
- function nodes(n,out=[]){if(Array.isArray(n)){n.forEach(x=>nodes(x,out));return out;}if(n&&typeof n==='object'){out.push(n);nodes(n.props?.children,out);}return out;}
- const identity={levelTitle:'Clinician',professionalLevel:4,xp:321,streak:{currentCount:9}};
- function render(){si=ri=0;return nodes(exports.RoadmapHeader({identity}));}
- let tree=render();const trigger=tree.find(x=>x.props?.accessibilityLabel==='Streak, level and XP');
- trigger.props.ref.current={measureInWindow:fn=>fn(180,12,120,47),focus:()=>{focused='trigger';}};
- trigger.props.onPress();tree=render();assert.equal(tree.find(x=>x.type==='Modal').props.visible,true);
- const card=tree.find(x=>x.type==='JourneyCard');assert.equal(card.props.xp,321);assert.equal(card.props.streakCount,9);
- assert.equal(tree.find(x=>x.props?.accessibilityLabel==='Streak, level and XP').props.accessibilityState.expanded,true);
- escape({key:'Escape',preventDefault(){}});assert.equal(render().find(x=>x.type==='Modal').props.visible,false);assert.equal(focused,'trigger');
- tree=render();tree.find(x=>x.props?.accessibilityLabel==='Streak, level and XP').props.onPress();tree=render();tree.find(x=>x.props?.accessibilityLabel==='Dismiss level and XP').props.onPress();assert.equal(render().find(x=>x.type==='Modal').props.visible,false);
+test('Roadmap header uses only the shared settings gear with no streak disclosure',()=>{
+ const source=fs.readFileSync(require('node:path').resolve(__dirname,'../../mobile/src/components/roadmap/RoadmapJourney.tsx'),'utf8');
+ const header=source.slice(source.indexOf('export function RoadmapHeader'),source.indexOf('/** Roadmap-only'));
+ assert.match(header,/<AccountSettingsButton \/>/);assert.doesNotMatch(header,/streak|Modal|CompactJourneyCard|Close level/);
 });
 
 const connectionGeometry={};

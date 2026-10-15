@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState } from "react";
-import { Animated, Modal, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { useState } from "react";
+import { Animated, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { Image } from "expo-image";
 import { useFonts } from "expo-font";
 import { useRouter } from "expo-router";
 import { Module0Card } from "../Module0Card";
-import { CompactJourneyCard } from "../CompactJourneyCard";
+import { AccountSettingsButton } from "../AccountSettingsButton";
 import type { Module0Summary } from "../../types/clinicalReadiness";
 import { sessionDisplayParts } from "../../utils/clinicalDisplay";
 import { buildJourney, type JourneyPath, type JourneySession } from "./journey";
@@ -12,44 +12,10 @@ import { roadmapAssets as art } from "./assets";
 import { JourneyChain, JourneyStage } from "./JourneyConnections";
 
 const colors = { ink: "#152044", purple: "#6150ed", body: "#4c5b7b", lavender: "#f2eeff", muted: "#67748f" };
-type Identity = { levelTitle?: string | null; professionalLevel?: number | null; xp?: number | null; streak?: { currentCount?: number | null } | null };
-
-export function RoadmapHeader({ identity }: { identity?: Identity | null }) {
-  const [expanded, setExpanded] = useState(false);
-  const [anchor, setAnchor] = useState({ x: 16, y: 72, width: 280 });
-  const trigger = useRef<any>(null);
-  const closeButton = useRef<any>(null);
-  const { width } = useWindowDimensions();
-  const dismiss = () => { setExpanded(false); requestAnimationFrame(() => trigger.current?.focus?.()); };
-  useEffect(() => {
-    if (!expanded || Platform.OS !== "web") return;
-    const escape = (event: KeyboardEvent) => { if (event.key === "Escape") { event.preventDefault(); dismiss(); } };
-    document.addEventListener("keydown", escape);
-    return () => document.removeEventListener("keydown", escape);
-  }, [expanded]);
-  const toggle = () => {
-    if (expanded) { dismiss(); return; }
-    trigger.current?.measureInWindow?.((x: number, y: number, w: number, h: number) => {
-      const panelWidth = Math.min(340, width - 32);
-      setAnchor({ x: Math.max(16, Math.min(x + w - panelWidth, width - panelWidth - 16)), y: y + h + 8, width: panelWidth });
-      setExpanded(true);
-    });
-  };
-  return <View style={styles.headerBlock}>
-    <View style={styles.header}>
-      <Text accessibilityRole="header" style={styles.title}>Roadmap</Text>
-      {!!identity && <Pressable ref={trigger} accessibilityRole="button" accessibilityLabel="Streak, level and XP" accessibilityState={{ expanded }} onPress={toggle} style={styles.streak}><Text style={styles.fire}>🔥</Text><Text style={styles.streakText}>{identity.streak?.currentCount ?? 0} day streak</Text></Pressable>}
-    </View>
-    <Modal transparent visible={expanded} animationType="none" onRequestClose={dismiss} onShow={() => closeButton.current?.focus?.()}>
-      <View style={{ flex: 1 }}>
-        <Pressable accessibilityLabel="Dismiss level and XP" accessibilityRole="button" onPress={dismiss} style={StyleSheet.absoluteFill} />
-        <View accessibilityViewIsModal style={[styles.popover, { left: anchor.x, top: anchor.y, width: anchor.width }]}>
-          <CompactJourneyCard levelTitle={identity?.levelTitle} professionalLevel={identity?.professionalLevel} xp={identity?.xp} streakCount={identity?.streak?.currentCount} />
-          <Pressable ref={closeButton} accessibilityRole="button" onPress={dismiss} style={styles.disclosure}><Text style={styles.link}>Close level and XP</Text></Pressable>
-        </View>
-      </View>
-    </Modal>
-  </View>;
+export function RoadmapHeader() {
+  return <View style={styles.headerBlock}><View style={styles.header}>
+    <Text accessibilityRole="header" style={styles.title}>Roadmap</Text><AccountSettingsButton />
+  </View></View>;
 }
 
 /** Roadmap-only summary: preserve existing activity links and readiness policy in disclosure. */
