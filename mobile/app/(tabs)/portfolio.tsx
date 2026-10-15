@@ -12,6 +12,7 @@ import { useAuth, useUser } from "@clerk/clerk-expo";
 import { useFocusEffect } from "@react-navigation/native";
 import { api } from "../../src/api/client";
 import { portfolioStyles } from "../../assets/styles/portfolio.styles";
+import { AccountSettingsButton } from "../../src/components/AccountSettingsButton";
 import { CompactJourneyCard } from "../../src/components/CompactJourneyCard";
 import { CompetencyProfileTab } from "../../src/components/CompetencyProfileTab";
 import { PatientAvatar } from "../../src/components/PatientAvatar";
@@ -508,6 +509,7 @@ export default function ClinicalPortfolioScreen() {
             <Text style={portfolioStyles.screenTitle}>Portfolio</Text>
             <Text style={portfolioStyles.screenSubtitle}>Evidence of your growth as a clinician.</Text>
           </View>
+          <AccountSettingsButton />
         </View>
 
         {error ? (

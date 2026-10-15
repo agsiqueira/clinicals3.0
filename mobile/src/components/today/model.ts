@@ -62,14 +62,7 @@ export type TodayResponse = {
 };
 
 
-const finite = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value) && value >= 0;
-export function xpPresentation(identity?: TodayIdentity | null) {
-  const xp = finite(identity?.xp) ? identity.xp : null;
-  const threshold = finite(identity?.nextLevelXp) && identity.nextLevelXp > 0 ? identity.nextLevelXp : null;
-  return { level: finite(identity?.professionalLevel) ? identity.professionalLevel : null,
-    label: xp === null ? "XP unavailable" : threshold === null ? `${xp} XP` : `${xp} / ${threshold} XP`,
-    ratio: xp !== null && threshold !== null ? Math.min(1, xp / threshold) : null };
-}
+export { xpPresentation } from "../learnerStatus";
 export function todayFocus(data?: TodayResponse | null) {
   const module = data?.module0;
   const encounter = data?.recommendedEncounter;

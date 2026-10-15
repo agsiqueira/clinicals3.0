@@ -186,6 +186,9 @@ function harness(file="app/module-0.tsx", params={}, options={}) {
     if(name.includes("useEnglishSpeechTranscription"))return{useEnglishSpeechTranscription:options=>{recordedText=options.onText;return{isRecording:false,transcribing:false,recordingBusy:false,toggleRecording(){}};}};
     if(name.includes("ClinicalsChatComposer"))return{ClinicalsChatComposer:"Composer"};
     if(name.includes("MentorAvatar"))return{MentorAvatar:"MentorAvatar"};
+    if(name.includes("AccountSettingsButton"))return{AccountSettingsButton:"AccountSettingsButton"};
+    if(name.includes("LearnerStatusCard"))return{LearnerStatusCard:"LearnerStatusCard"};
+    if(name.endsWith("learnerStatus"))return compile("src/components/learnerStatus.ts",requireFn);
     if(name.includes("today/TodayPresentation"))return{TodayHeader:"TodayHeader",TodayContent:"TodayContent",todayStyles:{}};
     if(name.includes("today/model"))return compile("src/components/today/model.ts",requireFn);
     if(name.includes("roadmap/JourneyConnections"))return{JourneyCanvas:"JourneyCanvas"};

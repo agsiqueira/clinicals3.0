@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useAuth, useClerk, useUser } from "@clerk/clerk-expo";
+import { useAuth, useUser } from "@clerk/clerk-expo";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { api } from "../../src/api/client";
@@ -10,9 +10,8 @@ import { TodayContent, TodayHeader, todayStyles } from "../../src/components/tod
 import { todayFocus, type TodayResponse } from "../../src/components/today/model";
 
 export default function TodayScreen() {
-  const { signOut } = useClerk();
   const router = useRouter();
-  const { userId: authUserId, sessionId } = useAuth();
+  const { userId: authUserId } = useAuth();
   const { user, isLoaded: userLoaded } = useUser();
   const loadEpoch = useRef(0);
   const [dataUserId, setDataUserId] = useState<string | null>(null);
@@ -20,7 +19,6 @@ export default function TodayScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [signingOut, setSigningOut] = useState(false);
 
   const userHeaders = useMemo<Record<string, string>>(() => ({ expectedUserId: user?.id || "" }), [user?.id]);
 
@@ -67,18 +65,6 @@ export default function TodayScreen() {
     }, [loadToday])
   );
 
-  const handleSignOut = async () => {
-    if (signingOut) return;
-    setSigningOut(true);
-    try {
-      await signOut({ sessionId: sessionId || undefined, redirectUrl: "/signin" });
-      router.replace("/signin");
-    } catch (err) {
-      setSigningOut(false);
-      throw err;
-    }
-  };
-
   const visibleToday = dataUserId === authUserId ? today : null;
   const focus = todayFocus(visibleToday);
   const continueLearning = () => {
@@ -100,7 +86,7 @@ export default function TodayScreen() {
   }
 
   return <SafeAreaView style={todayStyles.screen}>
-    <TodayHeader identity={visibleToday?.identity} onSignOut={handleSignOut} signingOut={signingOut} />
+    <TodayHeader />
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={todayStyles.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadToday({ asRefresh: true })} />}>
       {error && <View accessibilityRole="alert" style={todayStyles.error}><Text style={todayStyles.body}>{error}</Text><Pressable accessibilityRole="button" onPress={() => loadToday()} style={todayStyles.retry}><Text>Retry</Text></Pressable></View>}
       {visibleToday && <TodayContent data={visibleToday} onContinue={continueLearning} onRoadmap={() => router.push("/(tabs)/cases")} />}
