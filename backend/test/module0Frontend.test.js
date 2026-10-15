@@ -153,11 +153,12 @@ function harness(file="app/module-0.tsx", params={}, options={}) {
   const jsx=(type,props,key)=>({type,props:props||{},key});
   react.createElement=(type,props,...children)=>jsx(type,{...props,children});
   const router={push:route=>navigation.push(route),replace:route=>navigation.push(route),back:()=>navigation.push("back"),canGoBack:()=>options.canGoBack ?? true};
-  const speech={isSpeaking:false,isPaused:false,pause:async()=>{speech.isSpeaking=false;speech.isPaused=true;},resume:async()=>{speech.isSpeaking=true;speech.isPaused=false;},stop:async()=>{stops.push(true);},speak:async(text,_approval,valid)=>{speeches.push({text,valid});}};
+  const speech={capture:()=>()=>true,isSpeaking:false,isPaused:false,pause:async()=>{speech.isSpeaking=false;speech.isPaused=true;},resume:async()=>{speech.isSpeaking=true;speech.isPaused=false;},stop:async()=>{stops.push(true);},speak:async(text,_approval,valid)=>{speeches.push({text,valid});}};
   const api={getModule0Progress:(headers,signal)=>get(headers,signal),submitModule0Interaction:(payload,headers,signal)=>post(payload,headers,signal),
     getToday:async()=>({identity:{},module0:{storageReady:true,completed:false,completedCount:0,requiredCount:9,activities:catalog.activities.map(a=>({id:a.id,title:a.title,completedCount:0,requiredCount:a.steps.length,completed:false}))},activeRotation:{id:"rotation1",sessions:[]}}),
     getLearningPaths:async()=>[{id:"path",title:"Path",units:[{id:"rotation1",sessions:[]}]}],
   };
+  Object.assign(api,options.api);
   function requireFn(name){
     if(name === "./soap" || name.endsWith("module0/soap")) return compile("src/components/module0/soap.js",requireFn);
     if(name === "./SoapClassification") return compile("src/components/module0/SoapClassification.tsx",name=>name === "react" ? {...react,useState:()=>[null,()=>{}]} : requireFn(name));
@@ -185,12 +186,15 @@ function harness(file="app/module-0.tsx", params={}, options={}) {
     if(name.includes("useEnglishSpeechTranscription"))return{useEnglishSpeechTranscription:options=>{recordedText=options.onText;return{isRecording:false,transcribing:false,recordingBusy:false,toggleRecording(){}};}};
     if(name.includes("ClinicalsChatComposer"))return{ClinicalsChatComposer:"Composer"};
     if(name.includes("MentorAvatar"))return{MentorAvatar:"MentorAvatar"};
+    if(name.includes("roadmap/JourneyConnections"))return{JourneyCanvas:"JourneyCanvas"};
+    if(name.includes("roadmap/RoadmapJourney"))return{RoadmapFoundation:"RoadmapFoundation",RoadmapHeader:"RoadmapHeader",RoadmapJourney:"RoadmapJourney",roadmapStyles:{}};
+    if(name.includes("roadmap/journey"))return compile("src/components/roadmap/journey.ts",requireFn);
     if(name.includes("Module0Card"))return{Module0Card:"Module0Card"};
     if(name.includes("CompactJourneyCard"))return{CompactJourneyCard:"JourneyCard"};
     if(name.includes("RotationCard"))return{RotationCard:"RotationCard",rotationComplete:()=>false};
     if(name.includes("PatientAvatar"))return{PatientAvatar:"PatientAvatar"};
     if(name.includes("storage"))return{getItemAsync:async()=>null,setItemAsync:async()=>{}};
-    if(name.includes("clinicalDisplay"))return{patientFacingText:x=>x};
+    if(name.includes("clinicalDisplay"))return compile("src/utils/clinicalDisplay.ts",requireFn);
     if(name.includes("styles"))return{portfolioStyles:{},casesStyles:{}};
     if(name==="@expo/vector-icons")return{MaterialCommunityIcons:"Icon"};
     throw new Error(`Unexpected frontend dependency ${name}`);
@@ -254,9 +258,57 @@ test("activity, navigation and account boundaries reject delayed work",()=>{
   const boundary=view.createModule0Boundary();boundary.enter("A:activity1");const old=boundary.capture();boundary.enter("A:activity2");assert.equal(old(),false);
   const current=boundary.capture();boundary.invalidate();assert.equal(current(),false);boundary.enter("B:activity2");assert.equal(current(),false);
 });
+test("Roadmap retains overview, evaluation, case-wide history, preceptor chat and encounter launch",async t=>{
+  const session={id:"s",slug:"first-patient-hpi",title:"Taylor Reed: Complete Clinical Encounter",status:"available"};
+  const calls=[];
+  const h=harness("app/(tabs)/cases.tsx",{}, {api:{
+    getLearningPaths:async()=>[{id:"p",title:"Path",units:[{id:"u",title:"Rotation",slug:"u",sessions:[session]}]}],
+    getPatientSessionOverview:async(slug,headers)=>{calls.push({slug,headers});return{...session,achievements:[{id:"a",title:"History",weightPercent:100}],badgeThresholds:{gold:84,silver:50,bronze:1},estimatedTime:{min:3,max:5},linkedCase:{caseId:"shared-case",title:"Case"},workflow:{requiresHpi:true}};},
+    sendPreceptorChatMessage:async(slug,payload,headers)=>{calls.push({slug,payload,headers});return{reply:"Synthetic mentor answer"};},
+  }});t.after(h.unmount);h.render();await h.settle();
+  await h.nodes().find(n=>n.type==="RoadmapJourney").props.onSessionPress(session);await h.settle();
+  assert.match(h.text(h.render()),/Your Mission/);
+  h.find("Show evaluation details").props.onPress();h.render();assert.match(h.text(h.render()),/Performance Levels/);
+  h.find("View Previous Attempts").props.onPress();h.render();assert.equal(JSON.stringify(h.navigation.at(-1).params),JSON.stringify({caseId:"shared-case"}));
+  await h.nodes().find(n=>n.type==="RoadmapJourney").props.onSessionPress(session);await h.settle();
+  h.find("Meet Preceptor").props.onPress();h.render();await h.settle();
+  await h.find("What is a chief complaint?").props.onPress();await h.settle();
+  assert.match(h.text(h.render()),/Synthetic mentor answer/);
+  assert.equal(calls.at(-1).headers.expectedUserId,"A");
+  h.find("Meet Patient").props.onPress();h.render();
+  const destination=h.navigation.at(-1);assert.equal(destination.pathname,"/(tabs)/level1");
+  assert.equal(destination.params.caseId,"shared-case");assert.equal(destination.params.patientSessionSlug,session.slug);
+  assert.equal(destination.params.requiresHpi,"true");
+});
+
+test("Roadmap direct links and refreshed entry respect backend locked and Module 0 blocked status",async t=>{
+  for(const [status,entryBlocked,expected] of [["available",false,1],["locked",false,0],["completed",true,0]]){
+    let opened=0;const session={id:"s",slug:"direct",title:"Synthetic",status,entryBlocked};
+    const h=harness("app/(tabs)/cases.tsx",{focusSessionSlug:"direct",focusSessionToken:"refresh"},{api:{
+      getLearningPaths:async()=>[{id:"p",title:"Path",units:[{id:"u",sessions:[session]}]}],
+      getPatientSessionOverview:async()=>{opened++;throw new Error("Synthetic overview unavailable");},
+    }});t.after(h.unmount);h.render();await h.settle();assert.equal(opened,expected);
+  }
+});
+
+test("Roadmap overview errors are visible; account changes cannot reuse an old Roadmap",async t=>{
+  const h=harness("app/(tabs)/cases.tsx",{}, {api:{getLearningPaths:async()=>{throw new Error("Synthetic roadmap failure");}}});
+  t.after(h.unmount);h.render();await h.settle();assert.match(h.text(h.render()),/Synthetic roadmap failure/);assert.ok(h.find("Retry"));
+  h.switchUser("B");await h.settle();assert.equal(h.nodes().some(n=>n.type==="RoadmapJourney"),false);
+});
+
+test("Roadmap rejects delayed data after switching accounts and preserves loading and empty states",async t=>{
+  let finish;const h=harness("app/(tabs)/cases.tsx",{}, {api:{getLearningPaths:headers=>headers.expectedUserId==="A"
+    ? new Promise(resolve=>{finish=resolve;}) : Promise.resolve([{id:"B",title:"B-only path",units:[]}])}});
+  t.after(h.unmount);h.render();await h.settle();assert.equal(h.nodes().some(n=>n.type==="ActivityIndicator"),true);
+  h.switchUser("B");await h.settle();finish([{id:"A",title:"A-private path",units:[]}]);await h.settle();
+  const journey=h.nodes().find(n=>n.type==="RoadmapJourney");assert.equal(journey.props.paths[0].id,"B");
+  const empty=harness("app/(tabs)/cases.tsx",{}, {api:{getLearningPaths:async()=>[]}});t.after(empty.unmount);empty.render();await empty.settle();assert.match(empty.text(empty.render()),/No learning paths found/);
+});
+
 test("Today and Full Roadmap render Module 0 before the rotation",async t=>{
   for(const file of ["app/(tabs)/index.tsx","app/(tabs)/cases.tsx"]){const h=harness(file);t.after(h.unmount);h.render();await h.settle();
-    const nodes=h.nodes();const card=nodes.findIndex(n=>n.type==="Module0Card");const rotation=nodes.findIndex(n=>n.type==="RotationCard");
+    const nodes=h.nodes();const card=nodes.findIndex(n=>n.type===(file.includes("cases")?"RoadmapFoundation":"Module0Card"));const rotation=nodes.findIndex(n=>n.type===(file.includes("cases")?"RoadmapJourney":"RotationCard"));
     assert.ok(card>=0&&rotation>card,file);
   }
 });

@@ -1,0 +1,15 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="58" height="72" viewBox="0 0 58 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Silver medal &#194;&#183; dynamic tier example">
+<path id="Vector" d="M12 41L8 67L25 57L29 71L37 43" fill="#6079CF"/>
+<path id="Vector_2" d="M36 41L51 66L35 57L28 70L22 43" fill="#8DA1E8"/>
+<path id="Vector_3" d="M29 53C42.2548 53 53 42.2548 53 29C53 15.7452 42.2548 5 29 5C15.7452 5 5 15.7452 5 29C5 42.2548 15.7452 53 29 53Z" fill="url(#paint0_linear_0_5)" stroke="white" stroke-width="3"/>
+<path id="Vector_4" d="M29 47C38.9411 47 47 38.9411 47 29C47 19.0589 38.9411 11 29 11C19.0589 11 11 19.0589 11 29C11 38.9411 19.0589 47 29 47Z" stroke="white" stroke-opacity="0.65" stroke-width="2"/>
+<path id="Vector_5" d="M29 14L33.5 23L43.5 24.3L36.4 31.3L37.9 41.3L29 36.6L20 41.3L21.7 31.3L14.5 24.3L24.5 23L29 14Z" fill="#FFF9E9"/>
+</g>
+<defs>
+<linearGradient id="paint0_linear_0_5" x1="5" y1="5" x2="53" y2="53" gradientUnits="userSpaceOnUse">
+<stop stop-color="#F2F8FF"/>
+<stop offset="1" stop-color="#8CA1C0"/>
+</linearGradient>
+</defs>
+</svg>
