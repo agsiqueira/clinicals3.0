@@ -14,8 +14,8 @@ test('shared status handles partial data without invented achievements or thresh
  const x=model.learnerStatus(null,null);assert.equal(x.rotation,'No active rotation');assert.equal(x.streak,'Streak unavailable');assert.equal(x.level,null);assert.equal(x.label,'XP unavailable');assert.equal(x.ratio,null);
  assert.equal(model.learnerStatus({xp:42,nextLevelXp:null}).label,'42 XP');assert.equal(model.learnerStatus({xp:NaN,nextLevelXp:100}).ratio,null);
 });
-test('shared status card stays on Roadmap only; Today preserves compact XP',()=>{
- assert.match(fs.readFileSync(path.join(root,'app/(tabs)/cases.tsx'),'utf8'),/<LearnerStatusCard identity=/);assert.doesNotMatch(fs.readFileSync(path.join(root,'src/components/today/TodayPresentation.tsx'),'utf8'),/LearnerStatusCard/);
+test('Today and Roadmap reuse the same informational status card',()=>{
+ assert.match(fs.readFileSync(path.join(root,'app/(tabs)/cases.tsx'),'utf8'),/<LearnerStatusCard identity=/);assert.match(fs.readFileSync(path.join(root,'src/components/today/TodayPresentation.tsx'),'utf8'),/<LearnerStatusCard identity=\{data.identity\} rotationTitle=\{data.activeRotation\?\.title\}/);
  assert.doesNotMatch(fs.readFileSync(path.join(root,'app/(tabs)/portfolio.tsx'),'utf8'),/LearnerStatusCard/);
  for(const platform of ['ios','android','web']){const component=compile('src/components/LearnerStatusCard.tsx',name=>name==='react/jsx-runtime'?{jsx,jsxs:jsx}:name==='react-native'?{View:'View',Text:'Text',StyleSheet:{create:x=>x}}:name==='expo-font'?{useFonts:()=>[true]}:name==='@expo/vector-icons'?{MaterialCommunityIcons:'Icon'}:name==='./learnerStatus'?model:{});
  const tree=component.LearnerStatusCard({identity:{professionalLevel:2,xp:140,nextLevelXp:200,streak:{currentCount:7}},rotationTitle:'Actual title'});assert.match(text(tree),/Actual title 7 days Level 2 140 \/ 200 XP/);assert.equal(nodes(tree).some(n=>n.props?.onPress),false,platform);assert.equal(nodes(tree).find(n=>n.props?.accessibilityRole==='progressbar').props.accessibilityValue.now,70);}
@@ -57,14 +57,11 @@ test('old menu callback cannot sign out a newly switched account',async()=>{
  const h=menuHarness(),tree=h.open(),old=tree.find(n=>n.type==='Pressable'&&n.props.children?.props?.children==='Sign Out').props.onPress;h.switchUser('B');h.render();await old();assert.equal(h.calls.length,0);assert.equal(h.routes.length,0);
 });
 
-test('Today compact streak uses backend counts without changing card or module geometry',()=>{
- for(const width of [320,390])for(const [count,label] of [[0,'0 days'],[1,'1 day'],[7,'7 days'],[12345,'12345 days'],[null,'Streak unavailable']]){
- const component=compile('src/components/today/TodayPresentation.tsx',name=>name==='react/jsx-runtime'?{jsx,jsxs:jsx}:name==='react-native'?{View:'View',Text:'Text',Pressable:'Pressable',StyleSheet:{create:x=>x},useWindowDimensions:()=>({width})}:name==='expo-font'?{useFonts:()=>[true]}:name==='expo-image'?{Image:'Image'}:name==='@expo/vector-icons'?{Ionicons:'Icon'}:name==='./model'?{xpPresentation:model.xpPresentation,todayFocus:()=>({title:'Clinical Readiness',description:'Original',progress:'2 of 4 activities',action:'Continue Learning'})}:name==='../learnerStatus'?model:{});
- const tree=component.TodayContent({data:{identity:{professionalLevel:2,xp:140,nextLevelXp:200,streak:{currentCount:count}}},onContinue(){},onRoadmap(){}}),all=nodes(tree);
- const streak=all.find(n=>n.props?.testID==='today-streak');assert.equal(streak.props.accessibilityLabel,`Current streak: ${label}`);assert.equal(text(streak),label);const flame=nodes(streak).find(n=>n.type==='Icon');if(count===null)assert.equal(flame,undefined);else {assert.equal(flame.props.name,'flame-outline');assert.equal(flame.props.size,14);assert.equal(flame.props.color,'#6150ED');}
- assert.equal(streak.props.style.position,'absolute');assert.equal(streak.props.style.top,18);
- const card=all.find(n=>n.props?.testID==='today-xp');assert.equal(card.props.style[0].minHeight,91);assert.equal(card.props.style[0].paddingVertical,18);
- const bar=all.find(n=>n.props?.accessibilityRole==='progressbar');assert.equal(bar.props.style.height,12);assert.equal(bar.props.accessibilityValue.now,70);
- assert.equal(all.find(n=>n.props?.testID==='today-current-module').props.style.minHeight,369);
+test('Today forwards real learner data to the unchanged shared card in normal flow',()=>{
+ for(const width of [320,390,1280])for(const identity of [null,{professionalLevel:2,xp:140,nextLevelXp:200,streak:{currentCount:0}},{professionalLevel:3,xp:250,nextLevelXp:500,streak:{currentCount:1}}]){
+ const component=compile('src/components/today/TodayPresentation.tsx',name=>name==='react/jsx-runtime'?{jsx,jsxs:jsx}:name==='react-native'?{View:'View',Text:'Text',Pressable:'Pressable',StyleSheet:{create:x=>x},useWindowDimensions:()=>({width})}:name==='expo-font'?{useFonts:()=>[true]}:name==='expo-image'?{Image:'Image'}:name==='./model'?{todayFocus:()=>({title:'Clinical Readiness',description:'Original',progress:'2 of 4 activities',action:'Continue Learning'})}:name==='../LearnerStatusCard'?{LearnerStatusCard:'LearnerStatusCard'}:{});
+ const title='Actual long rotation title '.repeat(10),tree=component.TodayContent({data:{identity,activeRotation:{title}},onContinue(){},onRoadmap(){}}),all=nodes(tree),card=all.find(n=>n.type==='LearnerStatusCard');
+ assert.equal(card.props.identity,identity);assert.equal(card.props.rotationTitle,title);assert.equal(tree.props.children[0],card);assert.equal(tree.props.style.gap,20);assert.equal(card.props.style,undefined);
+ assert.equal(all.some(n=>['today-xp','today-streak'].includes(n.props?.testID)),false);assert.equal(all.find(n=>n.props?.testID==='today-current-module').props.style.minHeight,369);assert.equal(all.find(n=>n.props?.testID==='today-continue').props.style.minHeight,57);
  }
 });
