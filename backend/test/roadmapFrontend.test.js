@@ -105,6 +105,7 @@ test('iOS and Android presentation exposes no launch action on locked nodes and 
       if(name==='react-native')return {Animated:{View:'AnimatedView'},Platform:{OS:platform},Pressable:'Pressable',View:'View',Text:'Text',useWindowDimensions:()=>({width:320}),StyleSheet:{create:s=>s,absoluteFill:{}}};
       if(name==='expo-image')return {Image:'Image'};
       if(name==='expo-font')return {useFonts:()=>[true]};
+      if(name.includes('ProgressHeader'))return {ProgressHeader:'ProgressHeader'};
       if(name.includes('AccountSettingsButton'))return {AccountSettingsButton:'AccountSettingsButton'};
       if(name==='expo-router')return {useRouter:()=>({push(){}})};
       if(name==='./JourneyConnections')return {JourneyStage:props=>jsx('View',props),JourneyObstacle:props=>jsx('View',props),JourneyChain:props=>jsx('View',props)};
@@ -145,14 +146,14 @@ test('iOS and Android presentation exposes no launch action on locked nodes and 
 
 test('Roadmap fixed header precedes status in scroll flow and keeps the measured canvas separate',()=>{
  const path=require('node:path'),screen=fs.readFileSync(path.resolve(__dirname,'../../mobile/app/(tabs)/cases.tsx'),'utf8');
- assert.ok(screen.indexOf('<RoadmapHeader />')<screen.indexOf('<ScrollView showsVerticalScrollIndicator={false}'));
- assert.ok(screen.indexOf('<LearnerStatusCard identity={journeySummary?.identity}')<screen.indexOf('<JourneyCanvas scenery={RoadmapScenery}'));
- assert.match(screen,/rotationTitle=\{journeySummary\?\.activeRotation\?\.title\}/);
+ assert.ok(screen.indexOf('<RoadmapHeader identity={journeySummary?.identity} />')<screen.indexOf('<ScrollView style='));
+ assert.doesNotMatch(screen,/LearnerStatusCard/);
+ assert.match(screen,/identity=\{journeySummary\?\.identity\}/);
 });
 test('Roadmap header uses only the shared settings gear with no streak disclosure',()=>{
  const source=fs.readFileSync(require('node:path').resolve(__dirname,'../../mobile/src/components/roadmap/RoadmapJourney.tsx'),'utf8');
  const header=source.slice(source.indexOf('export function RoadmapHeader'),source.indexOf('/** Roadmap-only'));
- assert.match(header,/<AccountSettingsButton \/>/);assert.doesNotMatch(header,/streak|Modal|CompactJourneyCard|Close level/);
+ assert.match(header,/<ProgressHeader title="Roadmap" identity=\{identity\}/);assert.doesNotMatch(header,/streak|Modal|CompactJourneyCard|Close level/);
 });
 
 const connectionGeometry={};

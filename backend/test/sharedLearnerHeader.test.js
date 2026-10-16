@@ -15,10 +15,10 @@ test('shared status handles partial data without invented achievements or thresh
  assert.equal(model.learnerStatus({xp:42,nextLevelXp:null}).label,'42 XP');assert.equal(model.learnerStatus({xp:NaN,nextLevelXp:100}).ratio,null);
 });
 test('Today and Roadmap reuse the same informational status card',()=>{
- assert.match(fs.readFileSync(path.join(root,'app/(tabs)/cases.tsx'),'utf8'),/<LearnerStatusCard identity=/);assert.match(fs.readFileSync(path.join(root,'src/components/today/TodayPresentation.tsx'),'utf8'),/<LearnerStatusCard identity=\{data.identity\} rotationTitle=\{data.activeRotation\?\.title\}/);
+ assert.match(fs.readFileSync(path.join(root,"src/components/ProgressHeader.tsx"),"utf8"),/<LearnerStatusCard identity=/);
  assert.doesNotMatch(fs.readFileSync(path.join(root,'app/(tabs)/portfolio.tsx'),'utf8'),/LearnerStatusCard/);
  for(const platform of ['ios','android','web']){const component=compile('src/components/LearnerStatusCard.tsx',name=>name==='react/jsx-runtime'?{jsx,jsxs:jsx}:name==='react-native'?{View:'View',Text:'Text',StyleSheet:{create:x=>x}}:name==='expo-font'?{useFonts:()=>[true]}:name==='@expo/vector-icons'?{MaterialCommunityIcons:'Icon'}:name==='./learnerStatus'?model:{});
- const tree=component.LearnerStatusCard({identity:{professionalLevel:2,xp:140,nextLevelXp:200,streak:{currentCount:7}},rotationTitle:'Actual title'});assert.match(text(tree),/Actual title 7 days Level 2 140 \/ 200 XP/);assert.equal(nodes(tree).some(n=>n.props?.onPress),false,platform);assert.equal(nodes(tree).find(n=>n.props?.accessibilityRole==='progressbar').props.accessibilityValue.now,70);}
+ const tree=component.LearnerStatusCard({identity:{professionalLevel:2,xp:140,nextLevelXp:200,streak:{currentCount:7}},});assert.match(text(tree),/7 days Level 2 140 \/ 200 XP/);assert.equal(nodes(tree).some(n=>n.props?.onPress),false,platform);assert.equal(nodes(tree).find(n=>n.props?.accessibilityRole==='progressbar').props.accessibilityValue.now,70);}
 });
 function menuHarness(platform='web'){
  const states=[],refs=[],deps=[],pending=[];let cursor=0,refCursor=0,effectCursor=0,userId='A',sessionId='session-A',focused=true,focusedElement,measurement,failSignOut=false,profile;
@@ -31,7 +31,7 @@ function menuHarness(platform='web'){
  return{render,byLabel,open:()=>{const tree=render();byLabel(tree,'Account settings').props.onPress();return render();},switchUser:id=>{userId=id;sessionId='session-'+id;},blur:()=>{focused=false;},focus:()=>focusedElement,calls,routes,fail:()=>{failSignOut=true;},profile:value=>{profile=value;}};
 }
 test('all three tabs share one account gear; no settings action is attached to progress',()=>{
- for(const file of ['src/components/today/TodayPresentation.tsx','src/components/roadmap/RoadmapJourney.tsx','app/(tabs)/portfolio.tsx'])assert.match(fs.readFileSync(path.join(root,file),'utf8'),/<AccountSettingsButton \/>/);
+ for(const file of ['src/components/ProgressHeader.tsx','app/(tabs)/portfolio.tsx'])assert.match(fs.readFileSync(path.join(root,file),'utf8'),/<AccountSettingsButton \/>/);
  const source=fs.readFileSync(path.join(root,'src/components/AccountSettingsButton.tsx'),'utf8');assert.match(source,/width: 44, height: 44/);assert.doesNotMatch(source,/Close account menu|Close level and XP/);
 });
 test('gear opens actual account menu and web focus returns after Escape/outside dismissal',()=>{
@@ -57,11 +57,13 @@ test('old menu callback cannot sign out a newly switched account',async()=>{
  const h=menuHarness(),tree=h.open(),old=tree.find(n=>n.type==='Pressable'&&n.props.children?.props?.children==='Sign Out').props.onPress;h.switchUser('B');h.render();await old();assert.equal(h.calls.length,0);assert.equal(h.routes.length,0);
 });
 
-test('Today forwards real learner data to the unchanged shared card in normal flow',()=>{
- for(const width of [320,390,1280])for(const identity of [null,{professionalLevel:2,xp:140,nextLevelXp:200,streak:{currentCount:0}},{professionalLevel:3,xp:250,nextLevelXp:500,streak:{currentCount:1}}]){
- const component=compile('src/components/today/TodayPresentation.tsx',name=>name==='react/jsx-runtime'?{jsx,jsxs:jsx}:name==='react-native'?{View:'View',Text:'Text',Pressable:'Pressable',StyleSheet:{create:x=>x},useWindowDimensions:()=>({width})}:name==='expo-font'?{useFonts:()=>[true]}:name==='expo-image'?{Image:'Image'}:name==='./model'?{todayFocus:()=>({title:'Clinical Readiness',description:'Original',progress:'2 of 4 activities',action:'Continue Learning'})}:name==='../LearnerStatusCard'?{LearnerStatusCard:'LearnerStatusCard'}:{});
- const title='Actual long rotation title '.repeat(10),tree=component.TodayContent({data:{identity,activeRotation:{title}},onContinue(){},onRoadmap(){}}),all=nodes(tree),card=all.find(n=>n.type==='LearnerStatusCard');
- assert.equal(card.props.identity,identity);assert.equal(card.props.rotationTitle,title);assert.equal(tree.props.children[0],card);assert.equal(tree.props.style.gap,20);assert.equal(card.props.style,undefined);
- assert.equal(all.some(n=>['today-xp','today-streak'].includes(n.props?.testID)),false);assert.equal(all.find(n=>n.props?.testID==='today-current-module').props.style.minHeight,369);assert.equal(all.find(n=>n.props?.testID==='today-continue').props.style.minHeight,57);
+test('both headers share compact fixed layout and receive only current learner data',()=>{
+ const header=compile('src/components/ProgressHeader.tsx',name=>name==='react/jsx-runtime'?{jsx,jsxs:jsx}:name==='react-native'?{View:'View',Text:'Text',StyleSheet:{create:x=>x}}:name==='expo-font'?{useFonts:()=>[true]}:name==='./LearnerStatusCard'?{LearnerStatusCard:'Card'}:name==='./AccountSettingsButton'?{AccountSettingsButton:'Gear'}:{});
+ for(const title of ['Today','Roadmap'])for(const identity of [null,{xp:140,nextLevelXp:200,professionalLevel:2,streak:{currentCount:1}}]){
+ const tree=header.ProgressHeader({title,identity}),all=nodes(tree);assert.equal(tree.props.style.backgroundColor,'white');assert.equal(tree.props.style.flexShrink,0);assert.equal(tree.props.style.zIndex,1);assert.equal(all.find(n=>n.type==='Card').props.identity,identity);assert.match(text(tree),new RegExp(title));assert.equal(all.filter(n=>n.type==='Gear').length,1);
+ const layout=tree.props.children.props.style;assert.equal(layout.paddingTop,12);assert.equal(layout.paddingBottom,12);assert.equal(layout.gap,8);assert.equal(header.progressLayout.scroll.minHeight,0);
  }
+ const today=fs.readFileSync(path.join(root,'app/(tabs)/index.tsx'),'utf8'),roadmap=fs.readFileSync(path.join(root,'app/(tabs)/cases.tsx'),'utf8');
+ assert.ok(today.indexOf('<TodayHeader identity={visibleToday?.identity}')<today.indexOf('<ScrollView style='));assert.ok(roadmap.indexOf('<RoadmapHeader identity={journeySummary?.identity}')<roadmap.indexOf('<ScrollView style='));for(const screen of [today,roadmap])assert.match(screen,/style=\{progressLayout.scroll\}/);
+ const card=fs.readFileSync(path.join(root,'src/components/LearnerStatusCard.tsx'),'utf8');assert.doesNotMatch(card,/CURRENT ROTATION|rotationTitle|styles.rotation/);assert.match(card,/minHeight: 56/);
 });
