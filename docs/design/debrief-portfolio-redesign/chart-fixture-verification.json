@@ -1,0 +1,120 @@
+{
+  "synthetic": true,
+  "productionRecordsChanged": false,
+  "input": [
+    {
+      "sessionAttemptId": "synthetic-5",
+      "sessionScore": 94,
+      "scoredAt": "2026-10-15T12:00:00Z"
+    },
+    {
+      "sessionAttemptId": "synthetic-4",
+      "sessionScore": 79,
+      "scoredAt": "2026-10-14T12:00:00Z"
+    },
+    {
+      "sessionAttemptId": "synthetic-3",
+      "sessionScore": 88,
+      "scoredAt": "2026-10-13T12:00:00Z"
+    },
+    {
+      "sessionAttemptId": "synthetic-2",
+      "sessionScore": 66,
+      "scoredAt": "2026-10-12T12:00:00Z"
+    },
+    {
+      "sessionAttemptId": "synthetic-1",
+      "sessionScore": 81,
+      "scoredAt": "2026-10-11T12:00:00Z"
+    },
+    {
+      "sessionAttemptId": "synthetic-0",
+      "sessionScore": 72,
+      "scoredAt": "2026-10-10T12:00:00Z"
+    }
+  ],
+  "mobile": {
+    "width": 292,
+    "points": [
+      {
+        "id": "synthetic-0",
+        "score": 72,
+        "x": 40,
+        "y": 32.96
+      },
+      {
+        "id": "synthetic-1",
+        "score": 81,
+        "x": 84,
+        "y": 25.58
+      },
+      {
+        "id": "synthetic-2",
+        "score": 66,
+        "x": 128,
+        "y": 37.88
+      },
+      {
+        "id": "synthetic-3",
+        "score": 88,
+        "x": 172,
+        "y": 19.840000000000003
+      },
+      {
+        "id": "synthetic-4",
+        "score": 79,
+        "x": 216,
+        "y": 27.22
+      },
+      {
+        "id": "synthetic-5",
+        "score": 94,
+        "x": 260,
+        "y": 14.920000000000002
+      }
+    ],
+    "path": "M40,32.96 L84,25.58 L128,37.88 L172,19.840000000000003 L216,27.22 L260,14.920000000000002"
+  },
+  "desktop": {
+    "width": 662,
+    "points": [
+      {
+        "id": "synthetic-0",
+        "score": 72,
+        "x": 40,
+        "y": 32.96
+      },
+      {
+        "id": "synthetic-1",
+        "score": 81,
+        "x": 158,
+        "y": 25.58
+      },
+      {
+        "id": "synthetic-2",
+        "score": 66,
+        "x": 276,
+        "y": 37.88
+      },
+      {
+        "id": "synthetic-3",
+        "score": 88,
+        "x": 394,
+        "y": 19.840000000000003
+      },
+      {
+        "id": "synthetic-4",
+        "score": 79,
+        "x": 512,
+        "y": 27.22
+      },
+      {
+        "id": "synthetic-5",
+        "score": 94,
+        "x": 630,
+        "y": 14.920000000000002
+      }
+    ],
+    "path": "M40,32.96 L158,25.58 L276,37.88 L394,19.840000000000003 L512,27.22 L630,14.920000000000002"
+  }
+}

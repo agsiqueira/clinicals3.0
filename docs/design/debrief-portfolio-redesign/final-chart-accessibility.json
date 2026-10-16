@@ -1,0 +1,20 @@
+[
+  {
+    "accessibleScores": "Encounter scores, chronological order, fixed 0 to 100 percent scale: 1: 72%, 2: 81%, 3: 66%, 4: 88%, 5: 79%, 6: 94%",
+    "caption": "Encounter sequence · Each point = one scored patient encounter",
+    "height": 568,
+    "pageWidth": 320,
+    "plotWidth": 292,
+    "visibleChartText": "SESSION SCORE TREND\nEncounter sequence · Each point = one scored patient encounter",
+    "width": 320
+  },
+  {
+    "accessibleScores": "Encounter scores, chronological order, fixed 0 to 100 percent scale: 1: 72%, 2: 81%, 3: 66%, 4: 88%, 5: 79%, 6: 94%",
+    "caption": "Encounter sequence · Each point = one scored patient encounter",
+    "height": 844,
+    "pageWidth": 390,
+    "plotWidth": 292,
+    "visibleChartText": "SESSION SCORE TREND\nEncounter sequence · Each point = one scored patient encounter",
+    "width": 390
+  }
+]

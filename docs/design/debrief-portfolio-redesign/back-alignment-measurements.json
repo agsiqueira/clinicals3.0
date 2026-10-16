@@ -1,0 +1,35 @@
+[
+  {
+    "alignItems": "center",
+    "button": {
+      "h": 44,
+      "w": 86
+    },
+    "horizontalCenterDelta": 0,
+    "justifyContent": "center",
+    "verticalCenterDelta": 0,
+    "viewport": 320
+  },
+  {
+    "alignItems": "center",
+    "button": {
+      "h": 44,
+      "w": 86
+    },
+    "horizontalCenterDelta": 0,
+    "justifyContent": "center",
+    "verticalCenterDelta": 0,
+    "viewport": 390
+  },
+  {
+    "alignItems": "center",
+    "button": {
+      "h": 44,
+      "w": 110
+    },
+    "horizontalCenterDelta": 0,
+    "justifyContent": "center",
+    "verticalCenterDelta": 0,
+    "viewport": 1280
+  }
+]

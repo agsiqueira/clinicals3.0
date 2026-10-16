@@ -118,7 +118,7 @@ const styles = StyleSheet.create({
   mobileFooter: { paddingHorizontal: 16 },
   error: { fontFamily: fonts.regular, fontSize: 13, lineHeight: 19, color: "#B42318" },
   actions: { flexDirection: "row", gap: 10 },
-  back: { width: 110, minHeight: 44, borderRadius: 14, backgroundColor: "#F7F6FC", alignItems: "flex-start", justifyContent: "center", paddingHorizontal: 12 },
+  back: { width: 110, minHeight: 44, borderRadius: 14, backgroundColor: "#F7F6FC", alignItems: "center", justifyContent: "center", paddingHorizontal: 12 },
   mobileBack: { width: 86 },
   backText: { fontFamily: fonts.bold, fontSize: 14, color: colors.ink },
   primary: { minWidth: 192, minHeight: 44, paddingHorizontal: 12, borderRadius: 14, backgroundColor: colors.primary, flexDirection: "row", gap: 8, alignItems: "center", justifyContent: "center" },

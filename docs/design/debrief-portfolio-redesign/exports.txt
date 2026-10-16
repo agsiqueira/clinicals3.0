@@ -1,0 +1,54 @@
+React Compiler enabled
+Starting Metro Bundler
+iOS ..\..\clinicals3.0-approved-ui\mobile\node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.9% ( 10/108)
+Android ..\..\clinicals3.0-approved-ui\mobile\node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+| (node:41652) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+iOS ..\..\clinicals3.0-approved-ui\mobile\node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░ 88.0% (1382/1473)
+Android ..\..\clinicals3.0-approved-ui\mobile\node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓░░░░░░░ 61.4% ( 949/1211)
+iOS ..\..\clinicals3.0-approved-ui\mobile\node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 93.9% (1611/1666)
+Android ..\..\clinicals3.0-approved-ui\mobile\node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.9% (1673/1673)
+iOS Bundled 13045ms ..\..\clinicals3.0-approved-ui\mobile\node_modules\expo-router\entry.js (1666 modules)
+iOS ..\..\clinicals3.0-approved-ui\mobile\node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 93.9% (1611/1666)
+Android ..\..\clinicals3.0-approved-ui\mobile\node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.9% (1673/1673)
+Android ..\..\clinicals3.0-approved-ui\mobile\node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.9% (1673/1673)
+Android Bundled 20097ms ..\..\clinicals3.0-approved-ui\mobile\node_modules\expo-router\entry.js (1673 modules)
+Android ..\..\clinicals3.0-approved-ui\mobile\node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.9% (1673/1673)
+Static rendering is enabled. Learn more: https://docs.expo.dev/router/reference/static-rendering/
+λ Bundled 2765ms ..\..\clinicals3.0-approved-ui\mobile\node_modules\expo-router\node\render.js (1438 modules)
+Web ..\..\clinicals3.0-approved-ui\mobile\node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.9% (1438/1438)
+Web Bundled 3886ms ..\..\clinicals3.0-approved-ui\mobile\node_modules\expo-router\entry.js (1438 modules)
+
+› ios bundles (1):
+_expo/static/js/ios/entry-12aa0ce957262f9ab80ae6730129453a.hbc (5.7 MB)
+
+› android bundles (1):
+_expo/static/js/android/entry-4661a191feb91419712a5f9f6b3c095e.hbc (5.68 MB)
+
+› web bundles (1):
+_expo/static/js/web/entry-5a0a90aa140b3ddb5e440ac78a09e114.js (3.12 MB)
+
+› Static routes (21):
+/modal (17.4 kB)
+/cases (17.4 kB)
+/ (index) (17.4 kB)
+/signin (17.4 kB)
+/signup (17.4 kB)
+/level1 (17.4 kB)
+/attempts (17.4 kB)
+/module-0 (17.4 kB)
+/_sitemap (17.4 kB)
+/portfolio (17.4 kB)
+/+not-found (17.4 kB)
+/(tabs)/cases (17.4 kB)
+/(tabs) (17.4 kB)
+/(auth)/signin (17.4 kB)
+/(auth)/signup (17.4 kB)
+/(tabs)/level1 (17.4 kB)
+/attempt-result (17.4 kB)
+/(tabs)/portfolio (17.4 kB)
+/level1 - original (17.4 kB)
+/clinical-portfolio (17.4 kB)
+/(tabs)/level1 - original (17.4 kB)
+
+Exported: ../docs/design/debrief-portfolio-redesign/exports

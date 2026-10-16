@@ -1,0 +1,31 @@
+import { StyleSheet } from "react-native";
+import { caseStyles } from "../../assets/styles/case.styles";
+import { module0Fonts as f } from "./module0/tokens";
+export const debriefStyles = { ...caseStyles, ...StyleSheet.create({
+        debriefChatBox: { gap: 10 }, debriefContextLabel: { display: "none" },
+        debriefChatMessages: { gap: 15 }, debriefChatBubble: { padding: 17, borderRadius: 16, gap: 10, borderWidth: 0 },
+        debriefChatBubbleAssistant: { backgroundColor: "#EEF1FB", alignSelf: "stretch", maxWidth: "100%" }, debriefChatBubbleUser: { backgroundColor: "#F2EEFF", alignSelf: "stretch", maxWidth: "100%" },
+        debriefMentorLabel: { textTransform: "uppercase", fontFamily: f.bold, fontSize: 11, color: "#6150ED" }, debriefText: { fontFamily: f.regular, fontSize: 13, lineHeight: 20, color: "#152044" },
+        debriefChatHint: { textTransform: "uppercase", fontFamily: f.bold, fontSize: 11, lineHeight: 17, color: "#6150ED" }, debriefQuickActions: { gap: 9 },
+        debriefQuickActionButton: { paddingHorizontal: 11, paddingVertical: 10, minHeight: 44, borderRadius: 11, backgroundColor: "#F2EEFF", justifyContent: "center" }, debriefQuickActionText: { fontFamily: f.semibold, fontSize: 11, lineHeight: 17, color: "#6150ED" },
+        debriefReportDivider: { flexDirection: "row", alignItems: "center" }, debriefReportLine: { display: "none" }, debriefReportHeading: { fontFamily: f.bold, fontSize: 17, color: "#152044" },
+        debriefReportPanel: { padding: 16, backgroundColor: "#F7F6FC", borderRadius: 17, gap: 14 }, debriefScoreRow: { flexDirection: "row", gap: 9 },
+        debriefMetricBoxCompact: { flex: 1, minWidth: 0, backgroundColor: "white", padding: 12, borderRadius: 12, gap: 5 }, debriefMetricLabel: { fontFamily: f.semibold, fontSize: 11, color: "#727EA1" }, debriefMetricValue: { fontFamily: f.bold, fontSize: 16, color: "#152044" },
+        debriefActions: { flexDirection: "row", gap: 10 }, debriefSecondaryButton: { flex: 1, minHeight: 44, padding: 10, borderRadius: 13, backgroundColor: "#F7F6FC", alignItems: "center", justifyContent: "center" }, debriefPrimaryButton: { flex: 1, minHeight: 44, padding: 10, borderRadius: 13, backgroundColor: "#6150ED", alignItems: "center", justifyContent: "center" }, debriefSecondaryButtonText: { fontFamily: f.bold, fontSize: 13, color: "#152044", textAlign: "center" }, debriefPrimaryButtonText: { fontFamily: f.bold, fontSize: 13, color: "white", textAlign: "center" },
+        debriefVoiceToggle: { minHeight: 44, paddingHorizontal: 9, borderRadius: 14, backgroundColor: "#F2EEFF", justifyContent: "center" }, debriefVoiceToggleText: { fontFamily: f.semibold, fontSize: 11, color: "#6150ED" },
+        reviewSummaryCardCompact: {backgroundColor:"white",borderColor:"#E5E3F4",borderWidth:1,padding:12,borderRadius:12},
+        reviewSummaryLabel: {fontFamily:f.semibold,fontSize:11,lineHeight:17,color:"#727EA1"},
+        reviewSummaryValue: {fontFamily:f.regular,fontSize:13,lineHeight:20,color:"#152044",flexShrink:1},
+        reviewSummaryTitle: {fontFamily:f.bold,fontSize:14,color:"#152044"},
+        learningDetailsCard: {backgroundColor:"white",borderRadius:12,padding:12,gap:8},
+        learningDetailsToggle: {flexDirection:"row",alignItems:"center",justifyContent:"space-between",gap:8,minHeight:44},
+        learningDetailsTitle: {fontFamily:f.semibold,fontSize:12,lineHeight:18,color:"#152044",flex:1,minWidth:0},
+        learningDetailsChevron: {fontFamily:f.semibold,fontSize:11,color:"#6150ED"},
+        learningDetailsText: {fontFamily:f.regular,fontSize:12,lineHeight:18,color:"#727EA1"},
+        criterionLabel: {fontFamily:f.semibold,fontSize:12,lineHeight:18,color:"#152044",flex:1,minWidth:0},
+        criterionStatusText: {fontFamily:f.semibold,fontSize:11,lineHeight:17},
+        criterionMeta: {fontFamily:f.regular,fontSize:11,lineHeight:17,color:"#727EA1"},
+        criterionRationale: {fontFamily:f.regular,fontSize:12,lineHeight:18,color:"#152044"},
+        criterionEvidence: {fontFamily:f.regular,fontSize:12,lineHeight:18,color:"#727EA1"},
+        criterionOmitReason: {fontFamily:f.regular,fontSize:12,lineHeight:18,color:"#727EA1"},
+    }) };
