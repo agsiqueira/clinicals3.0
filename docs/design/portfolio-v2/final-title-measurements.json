@@ -1,0 +1,77 @@
+[
+  {
+    "art": {
+      "bottom": 397,
+      "height": 112,
+      "left": 37,
+      "right": 133,
+      "top": 285,
+      "width": 96,
+      "x": 37,
+      "y": 285
+    },
+    "copy": {
+      "bottom": 278,
+      "height": 147,
+      "left": 37,
+      "right": 268,
+      "top": 131,
+      "width": 231,
+      "x": 37,
+      "y": 131
+    },
+    "height": 568,
+    "pageWidth": 320,
+    "width": 320
+  },
+  {
+    "art": {
+      "bottom": 403,
+      "height": 154,
+      "left": 37,
+      "right": 169,
+      "top": 249,
+      "width": 132,
+      "x": 37,
+      "y": 249
+    },
+    "copy": {
+      "bottom": 242,
+      "height": 126,
+      "left": 37,
+      "right": 338,
+      "top": 116,
+      "width": 301,
+      "x": 37,
+      "y": 116
+    },
+    "height": 844,
+    "pageWidth": 390,
+    "width": 390
+  },
+  {
+    "art": {
+      "bottom": 374,
+      "height": 154,
+      "left": 369.5,
+      "right": 501.5,
+      "top": 220,
+      "width": 132,
+      "x": 369.5,
+      "y": 220
+    },
+    "copy": {
+      "bottom": 213,
+      "height": 97,
+      "left": 369.5,
+      "right": 1055.5,
+      "top": 116,
+      "width": 686,
+      "x": 369.5,
+      "y": 116
+    },
+    "height": 900,
+    "pageWidth": 1440,
+    "width": 1440
+  }
+]

@@ -12,6 +12,8 @@ import { useAuth, useUser } from "@clerk/clerk-expo";
 import { useFocusEffect } from "@react-navigation/native";
 import { api } from "../../src/api/client";
 import { portfolioStyles } from "../../src/components/portfolio/presentation";
+import { AchievementGallery, EncounterGallery, LearnerStoryHero } from "../../src/components/portfolio/IllustratedPortfolio";
+import { encounterMetadata, type PortfolioMilestone, type RecentPatient } from "../../src/components/portfolio/gallery";
 import { ClinicalPerformance } from "../../src/components/portfolio/ClinicalPerformance";
 import { scoredEncounters } from "../../src/components/portfolio/performance";
 import { useFonts } from "expo-font";
@@ -21,18 +23,6 @@ import { PatientAvatar } from "../../src/components/PatientAvatar";
 import { Sparkline } from "../../src/components/Sparkline";
 import { TimelineEvent } from "../../src/components/TimelineEvent";
 
-type PortfolioMilestone = {
-  slug: string;
-  title: string;
-  description?: string | null;
-  category: string;
-  icon?: string | null;
-  status: "LOCKED" | "IN_PROGRESS" | "EARNED" | string;
-  currentValue?: number | null;
-  targetValue?: number | null;
-  earnedAt?: string | null;
-};
-
 type PortfolioCompetency = {
   slug: string;
   title: string;
@@ -40,17 +30,6 @@ type PortfolioCompetency = {
   achievedCount: number;
   bestPercentScore?: number | null;
   latestPercentScore?: number | null;
-};
-
-type RecentPatient = {
-  sessionAttemptId: string;
-  patientSessionTitle?: string | null;
-  caseTitle?: string | null;
-  caseId?: string | null;
-  sessionScore?: number | null;
-  badgeTier?: string | null;
-  passed?: boolean | null;
-  scoredAt?: string | null;
 };
 
 type ClinicalPortfolio = {
@@ -290,6 +269,11 @@ function MilestoneCard({ milestone }: { milestone: PortfolioMilestone }) {
 }
 
 export default function ClinicalPortfolioScreen() {
+  const {userId,sessionId} = useAuth();
+  return <ClinicalPortfolioContent key={`${userId || "signed-out"}:${sessionId || ""}`} />;
+}
+
+function ClinicalPortfolioContent() {
   useFonts({Module0Inter:require("../../assets/module0/Inter-Regular.ttf"),Module0InterSemiBold:require("../../assets/module0/Inter-SemiBold.ttf"),Module0InterBold:require("../../assets/module0/Inter-Bold.ttf")});
   const { userId: authUserId } = useAuth();
   const { user, isLoaded: userLoaded } = useUser();
@@ -361,8 +345,6 @@ export default function ClinicalPortfolioScreen() {
   const currentGoal = today?.dailyBriefing?.nextGoal || highlightedMilestone(milestones);
   const currentGoalProgress = goalProgressDisplay(currentGoal);
   const allRecentPatients = portfolio?.recentPatients || [];
-  const visiblePatients = showAllEncounters ? allRecentPatients : allRecentPatients.slice(0, 3);
-  const hasMoreEncounters = allRecentPatients.length > 3;
   const highlightedMilestones = milestones.slice(0, 6);
   const timelineEvents = [
     ...allRecentPatients.slice(0, 3).map((patient) => ({
@@ -406,9 +388,9 @@ export default function ClinicalPortfolioScreen() {
         <View style={portfolioStyles.screenHeaderRow}>
           <View style={portfolioStyles.screenHeaderText}>
             <Text style={portfolioStyles.screenTitle}>Portfolio</Text>
-            <Text style={portfolioStyles.screenSubtitle}>Evidence of your growth as a clinician.</Text>
+            <Text style={portfolioStyles.screenSubtitle}>Your clinical story, one encounter at a time.</Text>
           </View>
-          <AccountSettingsButton />
+          <View style={portfolioStyles.settingsSurface}><AccountSettingsButton /></View>
         </View>
 
         {error ? (
@@ -420,14 +402,8 @@ export default function ClinicalPortfolioScreen() {
           </View>
         ) : null}
 
-        <View style={portfolioStyles.dashboardHero}>
-          <Text style={portfolioStyles.identityLabel}>YOUR CLINICAL JOURNEY</Text>
-          <Text style={portfolioStyles.identityTitle}>{identity.levelTitle || "Student Clinician"}</Text>
-          <Text style={portfolioStyles.identityDetail}>Level {toNumber(identity.professionalLevel, 1)} · {toNumber(identity.xp, 0)} XP · {toNumber(streak.currentCount, 0)}-day streak</Text>
-          {!!portfolio?.learningPathProgress?.pathTitle && <Text style={portfolioStyles.identityDetail}>{portfolio.learningPathProgress.pathTitle}</Text>}
-          {portfolio?.learningPathProgress?.percentComplete != null && <ProgressBar value={portfolio.learningPathProgress.percentComplete} />}
-          {portfolio?.learningPathProgress?.completedSessions != null && portfolio?.learningPathProgress?.totalSessions != null && <Text style={portfolioStyles.identityDetail}>{portfolio.learningPathProgress.completedSessions} of {portfolio.learningPathProgress.totalSessions} encounters complete</Text>}
-        </View>
+        <LearnerStoryHero identity={identity} path={portfolio?.learningPathProgress} streak={streak.currentCount}
+          progress={portfolio?.learningPathProgress?.percentComplete != null ? <ProgressBar value={portfolio.learningPathProgress.percentComplete} /> : null} />
 
         <View style={portfolioStyles.portfolioTabRow}>
           {PORTFOLIO_TABS.map((tab) => {
@@ -458,16 +434,14 @@ export default function ClinicalPortfolioScreen() {
 
         {activeTab === "badges" ? (
           <>
-            <View style={portfolioStyles.dashboardCard}>
-              <Text style={portfolioStyles.sectionTitle}>Clinical Performance</Text>
-              {scoredEncounters(allRecentPatients).length >= 2 && <Text style={portfolioStyles.cardSubText}>How your encounter scores change over time</Text>}
-              <ClinicalPerformance patients={allRecentPatients} />
-              {visiblePatients.length > 0 && <Text style={portfolioStyles.cardTitle}>Clinical Journey</Text>}
-              {visiblePatients.length > 0 ? (
-                visiblePatients.map((patient) => (
+            <AchievementGallery milestones={milestones} renderDetail={milestone => <MilestoneCard milestone={milestone}/>} />
+            <EncounterGallery patients={allRecentPatients} expanded={showAllEncounters} onViewAll={() => setShowAllEncounters(visible => !visible)} />
+            {showAllEncounters && <View testID="portfolio-encounter-history" style={portfolioStyles.dashboardCard}>
+              <Text style={portfolioStyles.sectionTitle}>Clinical Journey</Text>
+              {                allRecentPatients.map((patient) => (
                   <View key={patient.sessionAttemptId} style={portfolioStyles.patientCompactCard}>
                     <PatientAvatar
-                      patientName={patientNameFromTitle(patient.patientSessionTitle)}
+                      patientName={patientNameFromTitle(patient.patientSessionTitle || patient.caseTitle)}
                       caseId={patient.caseId}
                       size={46}
                       status="completed"
@@ -475,8 +449,9 @@ export default function ClinicalPortfolioScreen() {
                     />
                     <View style={portfolioStyles.patientMain}>
                       <Text style={portfolioStyles.cardTitle}>
-                        {patientNameFromTitle(patient.patientSessionTitle)}
+                        {patientNameFromTitle(patient.patientSessionTitle || patient.caseTitle)}
                       </Text>
+                      {!!encounterMetadata(patient).task && <Text style={portfolioStyles.cardSubText}>{encounterMetadata(patient).task}</Text>}
                       <Text style={portfolioStyles.cardSubText}>
                         {badgeLabel(patient.badgeTier)} · {formatScore(patient.sessionScore)}
                       </Text>
@@ -486,18 +461,12 @@ export default function ClinicalPortfolioScreen() {
                       {!!patient.scoredAt && <Text style={portfolioStyles.dateText}>{formatDate(patient.scoredAt)}</Text>}
                     </View>
                   </View>
-                ))
-              ) : null}
-              {hasMoreEncounters ? (
-                <Pressable
-                  onPress={() => setShowAllEncounters((visible) => !visible)}
-                  style={portfolioStyles.subtleToggle}
-                >
-                  <Text style={portfolioStyles.subtleToggleText}>
-                    {showAllEncounters ? "Show latest 3" : "Show all encounters"}
-                  </Text>
-                </Pressable>
-              ) : null}
+                ))}
+            </View>}
+            <View style={portfolioStyles.dashboardCard}>
+              <Text style={portfolioStyles.sectionTitle}>Clinical Performance</Text>
+              {scoredEncounters(allRecentPatients).length >= 2 && <Text style={portfolioStyles.cardSubText}>Session scores across completed patient encounters</Text>}
+              <ClinicalPerformance patients={allRecentPatients} />
             </View>
           </>
         ) : null}
