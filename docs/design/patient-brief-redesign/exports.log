@@ -1,0 +1,59 @@
+React Compiler enabled
+Starting Metro Bundler
+iOS ..\..\clinicals3.0-approved-ui\mobile\node_modules\expo-router\entry.js ▓▓░░░░░░░░░░░░░░ 14.5% ( 60/258)
+Android ..\..\clinicals3.0-approved-ui\mobile\node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+iOS ..\..\clinicals3.0-approved-ui\mobile\node_modules\expo-router\entry.js ▓▓▓▓░░░░░░░░░░░░ 30.1% (347/638)
+Android ..\..\clinicals3.0-approved-ui\mobile\node_modules\expo-router\entry.js ▓▓░░░░░░░░░░░░░░ 13.8% (119/320)
+iOS ..\..\clinicals3.0-approved-ui\mobile\node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓░░░░░░░░ 52.9% ( 750/1071)
+Android ..\..\clinicals3.0-approved-ui\mobile\node_modules\expo-router\entry.js ▓▓▓▓▓▓░░░░░░░░░░ 38.9% (570/914)
+iOS ..\..\clinicals3.0-approved-ui\mobile\node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░ 88.4% (1399/1488)
+Android ..\..\clinicals3.0-approved-ui\mobile\node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░ 88.2% (1362/1450)
+iOS ..\..\clinicals3.0-approved-ui\mobile\node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.9% (1676/1676)
+Android ..\..\clinicals3.0-approved-ui\mobile\node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.9% (1667/1667)
+iOS Bundled 19787ms ..\..\clinicals3.0-approved-ui\mobile\node_modules\expo-router\entry.js (1676 modules)
+iOS ..\..\clinicals3.0-approved-ui\mobile\node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.9% (1676/1676)
+Android ..\..\clinicals3.0-approved-ui\mobile\node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.9% (1667/1667)
+Android ..\..\clinicals3.0-approved-ui\mobile\node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.9% (1667/1667)
+Android Bundled 24882ms ..\..\clinicals3.0-approved-ui\mobile\node_modules\expo-router\entry.js (1667 modules)
+Android ..\..\clinicals3.0-approved-ui\mobile\node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.9% (1667/1667)
+Static rendering is enabled. Learn more: https://docs.expo.dev/router/reference/static-rendering/
+Web ..\..\clinicals3.0-approved-ui\mobile\node_modules\expo-router\entry.js ▓▓▓▓░░░░░░░░░░░░ 29.6% (161/296)
+λ ..\..\clinicals3.0-approved-ui\mobile\node_modules\expo-router\node\render.js ▓▓▓▓▓▓▓░░░░░░░░░ 47.3% (364/529)
+Web ..\..\clinicals3.0-approved-ui\mobile\node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓░░░░░░░ 56.8% (729/967)
+λ ..\..\clinicals3.0-approved-ui\mobile\node_modules\expo-router\node\render.js ▓▓▓▓▓▓▓▓▓▓▓▓░░░░ 78.7% (1063/1198)
+λ Bundled 9344ms ..\..\clinicals3.0-approved-ui\mobile\node_modules\expo-router\node\render.js (1426 modules)
+Web Bundled 10088ms ..\..\clinicals3.0-approved-ui\mobile\node_modules\expo-router\entry.js (1432 modules)
+
+› ios bundles (1):
+_expo/static/js/ios/entry-0a1b4b14a209a89694802931f83288c1.hbc (5.67 MB)
+
+› android bundles (1):
+_expo/static/js/android/entry-bc27fbba2ea6278a8e66900c65ac5c82.hbc (5.66 MB)
+
+› web bundles (1):
+_expo/static/js/web/entry-7b77bf0b0ce37726da90534034b4bec5.js (3.1 MB)
+
+› Static routes (21):
+/modal (17.4 kB)
+/cases (17.4 kB)
+/ (index) (17.4 kB)
+/signin (17.4 kB)
+/signup (17.4 kB)
+/level1 (17.4 kB)
+/attempts (17.4 kB)
+/module-0 (17.4 kB)
+/_sitemap (17.4 kB)
+/portfolio (17.4 kB)
+/+not-found (17.4 kB)
+/(tabs)/cases (17.4 kB)
+/(tabs) (17.4 kB)
+/(auth)/signin (17.4 kB)
+/(auth)/signup (17.4 kB)
+/(tabs)/level1 (17.4 kB)
+/attempt-result (17.4 kB)
+/(tabs)/portfolio (17.4 kB)
+/level1 - original (17.4 kB)
+/clinical-portfolio (17.4 kB)
+/(tabs)/level1 - original (17.4 kB)
+
+Exported: ../docs/design/patient-brief-redesign/exports

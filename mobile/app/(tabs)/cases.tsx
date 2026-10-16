@@ -27,15 +27,12 @@ import type { Module0Summary } from "../../src/types/clinicalReadiness";
 import { captureSession } from "../../src/api/sessionToken";
 import { ClinicalsChatComposer } from "../../src/components/ClinicalsChatComposer";
 import { MentorAvatar } from "../../src/components/MentorAvatar";
-import { PatientAvatar } from "../../src/components/PatientAvatar";
+import { PatientBrief } from "../../src/components/PatientBrief";
 import { useEnglishSpeechTranscription } from "../../src/hooks/useEnglishSpeechTranscription";
 import { useSpeechPlayback } from "../../src/hooks/useSpeechPlayback";
 import { useVoicePreference } from "../../src/hooks/useVoicePreference";
 import { getItemAsync, setItemAsync } from "../../src/utils/storage";
 import {
-  overviewEncounterTitle,
-  overviewPatientName,
-  overviewReasonForVisit,
   patientFacingText,
 } from "../../src/utils/clinicalDisplay";
 
@@ -595,159 +592,21 @@ function OwnedRoadmap() {
       {(!autoFocus.visible || loadingRoadmap) && <View testID="roadmap-positioning" pointerEvents="none" style={{ position: "absolute", top: 0, bottom: 0, left: 0, right: 0, alignItems: "center", justifyContent: "center" }}><ActivityIndicator accessibilityLabel="Loading current Roadmap destination" /></View>}
       </View>
 
-      <Modal
-        visible={overviewVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setOverviewVisible(false)}
-      >
-        <View style={casesStyles.modalBackdrop}>
-          <View style={[casesStyles.sessionModal, casesStyles.preceptorModal]}>
-            {overviewLoading ? (
-              <View style={casesStyles.modalLoading}>
-                <ActivityIndicator />
-              </View>
-            ) : overviewError ? (
-              <View style={casesStyles.modalContent}>
-                <Text style={casesStyles.errorText}>{overviewError}</Text>
-                <View style={casesStyles.modalActions}>
-                  <Pressable onPress={() => setOverviewVisible(false)} style={casesStyles.modalSecondaryButton}>
-                    <Text style={casesStyles.modalSecondaryButtonText}>Close</Text>
-                  </Pressable>
-                </View>
-              </View>
-            ) : selectedOverview ? (
-              <ScrollView contentContainerStyle={casesStyles.preceptorModalContent}>
-                {(() => {
-                  const weightLabels = achievementWeightLabels(selectedOverview.achievements);
-                  const thresholdLabels = badgeThresholdLabels(selectedOverview.badgeThresholds);
-                  const reasonForVisit = overviewReasonForVisit(selectedOverview);
-
-                  return (
-                    <>
-                      <Text style={casesStyles.patientBriefLabel}>Patient Brief</Text>
-                      <View style={casesStyles.patientBriefHeader}>
-                        <PatientAvatar
-                          patientName={overviewPatientName(selectedOverview)}
-                          patientSessionSlug={selectedOverview.slug}
-                          caseId={selectedOverview.linkedCase?.caseId}
-                          size={58}
-                          status="available"
-                        />
-                        <View style={casesStyles.patientBriefHeaderText}>
-                          <Text style={casesStyles.modalTitle}>{overviewPatientName(selectedOverview)}</Text>
-                        </View>
-                      </View>
-                      <Text style={casesStyles.modalEncounterTitle}>
-                        {overviewEncounterTitle(selectedOverview)}
-                      </Text>
-                      {!!reasonForVisit && (
-                        <View style={casesStyles.briefInfoBlock}>
-                          <Text style={casesStyles.briefSectionLabel}>Reason for Visit</Text>
-                          <Text style={casesStyles.briefSectionText}>{reasonForVisit}</Text>
-                        </View>
-                      )}
-
-                      <View style={casesStyles.briefInfoBlock}>
-                        <Text style={casesStyles.briefSectionLabel}>Your Mission</Text>
-                        <Text style={casesStyles.briefMissionText}>
-                          {briefMissionText(selectedOverview)}
-                        </Text>
-                      </View>
-
-                      <View style={casesStyles.modalSection}>
-                        <Text style={casesStyles.modalSectionTitle}>Today’s Focus</Text>
-                        {selectedOverview.achievements.map((achievement) => (
-                          <View key={achievement.id} style={casesStyles.focusRow}>
-                            <Text style={casesStyles.focusCheck}>✓</Text>
-                            <Text style={casesStyles.focusText}>{achievement.title}</Text>
-                          </View>
-                        ))}
-                      </View>
-
-                      <Text style={casesStyles.estimatedTimeText}>
-                        Estimated time: {selectedOverview.estimatedTime.min || 3}-{selectedOverview.estimatedTime.max || 5} minutes
-                      </Text>
-
-                      <Text style={casesStyles.preceptorCueText}>
-                        Next: Meet with Dr. Martinez before entering the encounter.
-                      </Text>
-
-                      <Pressable
-                        onPress={() => setEvaluationDetailsVisible((visible) => !visible)}
-                        style={casesStyles.evaluationToggle}
-                      >
-                        <Text style={casesStyles.evaluationToggleText}>
-                          {evaluationDetailsVisible ? "Hide evaluation details" : "Show evaluation details"}
-                        </Text>
-                      </Pressable>
-
-                      {evaluationDetailsVisible ? (
-                        <>
-                          <View style={casesStyles.modalSection}>
-                            <Text style={casesStyles.modalSectionTitle}>{"How You'll Be Evaluated"}</Text>
-                            {selectedOverview.achievements.map((achievement, index) => (
-                              <View key={achievement.id} style={casesStyles.achievementRow}>
-                                <Text style={casesStyles.achievementTitle}>✓ {achievement.title}</Text>
-                                {!!weightLabels[index] && (
-                                  <Text style={casesStyles.achievementWeight}>
-                                    Worth {weightLabels[index]} of your session score
-                                  </Text>
-                                )}
-                              </View>
-                            ))}
-                          </View>
-
-                          <View style={casesStyles.modalSection}>
-                            <Text style={casesStyles.modalSectionTitle}>Performance Levels</Text>
-                            <View style={casesStyles.thresholdGrid}>
-                              <View style={casesStyles.thresholdCellGold}>
-                                <Text style={casesStyles.thresholdLabel}>🥇 Gold</Text>
-                                <Text style={casesStyles.thresholdValue}>{thresholdLabels.gold}</Text>
-                              </View>
-                              <View style={casesStyles.thresholdCellSilver}>
-                                <Text style={casesStyles.thresholdLabel}>🥈 Silver</Text>
-                                <Text style={casesStyles.thresholdValue}>{thresholdLabels.silver}</Text>
-                              </View>
-                              <View style={casesStyles.thresholdCellBronze}>
-                                <Text style={casesStyles.thresholdLabel}>🥉 Bronze</Text>
-                                <Text style={casesStyles.thresholdValue}>{thresholdLabels.bronze}</Text>
-                              </View>
-                            </View>
-                          </View>
-                        </>
-                      ) : null}
-
-                      {!!previousAttemptsRoute(selectedOverview) && (
-                        <Pressable accessibilityRole="button" style={[casesStyles.evaluationToggle, { minHeight: 44, justifyContent: "center" }]}
-                          onPress={() => {
-                            const destination = previousAttemptsRoute(selectedOverview);
-                            if (!destination) return;
-                            setOverviewVisible(false);
-                            router.push(destination);
-                          }}>
-                          <Text style={casesStyles.evaluationToggleText}>View Previous Attempts</Text>
-                          <Text style={casesStyles.briefSectionText}>All attempts for this patient’s case, across encounters.</Text>
-                        </Pressable>
-                      )}
-
-                      <View style={casesStyles.modalActions}>
-                        <Pressable onPress={() => setOverviewVisible(false)} style={casesStyles.modalSecondaryButton}>
-                          <Text style={casesStyles.modalSecondaryButtonText}>Close</Text>
-                        </Pressable>
-                        <Pressable onPress={startSelectedSession} style={casesStyles.modalPrimaryButton}>
-                          <Text style={casesStyles.modalPrimaryButtonText}>Meet Preceptor</Text>
-                        </Pressable>
-                      </View>
-                    </>
-                  );
-                })()}
-              </ScrollView>
-            ) : null}
-          </View>
-        </View>
-      </Modal>
-
+      <PatientBrief
+        visible={overviewVisible} loading={overviewLoading} error={overviewError} overview={selectedOverview}
+        mission={selectedOverview ? briefMissionText(selectedOverview) : ""} preceptorName={preceptorName}
+        evaluationExpanded={evaluationDetailsVisible} onToggleEvaluation={() => setEvaluationDetailsVisible(visible => !visible)}
+        weights={selectedOverview ? achievementWeightLabels(selectedOverview.achievements) : []}
+        thresholds={selectedOverview ? badgeThresholdLabels(selectedOverview.badgeThresholds) : { gold: "", silver: "", bronze: "" }}
+        hasPreviousAttempts={!!previousAttemptsRoute(selectedOverview)}
+        onPreviousAttempts={() => {
+          const destination = previousAttemptsRoute(selectedOverview);
+          if (!destination) return;
+          setOverviewVisible(false);
+          router.push(destination);
+        }}
+        onClose={() => setOverviewVisible(false)} onMeetPreceptor={startSelectedSession}
+      />
       <Modal
         visible={briefingVisible}
         transparent
