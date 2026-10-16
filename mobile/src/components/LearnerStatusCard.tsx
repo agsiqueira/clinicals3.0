@@ -22,8 +22,8 @@ export function LearnerStatusCard({ identity }: { identity?: LearnerIdentity | n
   </View>;
 }
 const styles = StyleSheet.create({
-  card: { minHeight: 56, justifyContent: "center", backgroundColor: "#F2EEFF", borderRadius: 22, paddingHorizontal: 16, paddingVertical: 12 },
-  indicators: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", columnGap: 12, rowGap: 8 },
+  card: { minHeight: 44, justifyContent: "center", backgroundColor: "#F2EEFF", borderRadius: 22, paddingHorizontal: 12, paddingVertical: 6 },
+  indicators: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", columnGap: 8, rowGap: 4 },
   indicator: { flexDirection: "row", alignItems: "center", gap: 3, flexShrink: 1 },
   value: { color: "#152044", fontSize: 12, lineHeight: 18, fontFamily: "RoadmapInter", flexShrink: 1 },
   xp: { flexGrow: 1, flexBasis: 80, gap: 4 },

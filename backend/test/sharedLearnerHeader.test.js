@@ -64,6 +64,6 @@ test('both headers share compact fixed layout and receive only current learner d
  const layout=tree.props.children.props.style;assert.equal(layout.paddingTop,12);assert.equal(layout.paddingBottom,12);assert.equal(layout.gap,8);assert.equal(header.progressLayout.scroll.minHeight,0);
  }
  const today=fs.readFileSync(path.join(root,'app/(tabs)/index.tsx'),'utf8'),roadmap=fs.readFileSync(path.join(root,'app/(tabs)/cases.tsx'),'utf8');
- assert.ok(today.indexOf('<TodayHeader identity={visibleToday?.identity}')<today.indexOf('<ScrollView style='));assert.ok(roadmap.indexOf('<RoadmapHeader identity={journeySummary?.identity}')<roadmap.indexOf('<ScrollView style='));for(const screen of [today,roadmap])assert.match(screen,/style=\{progressLayout.scroll\}/);
- const card=fs.readFileSync(path.join(root,'src/components/LearnerStatusCard.tsx'),'utf8');assert.doesNotMatch(card,/CURRENT ROTATION|rotationTitle|styles.rotation/);assert.match(card,/minHeight: 56/);
+ assert.ok(today.indexOf('<TodayHeader identity={visibleToday?.identity}')<today.indexOf('<ScrollView style='));assert.ok(roadmap.indexOf('<RoadmapHeader identity={journeySummary?.identity}')<roadmap.indexOf('<ScrollView ref='));for(const screen of [today,roadmap])assert.match(screen,/progressLayout.scroll/);
+ const card=fs.readFileSync(path.join(root,'src/components/LearnerStatusCard.tsx'),'utf8');assert.doesNotMatch(card,/CURRENT ROTATION|rotationTitle|styles.rotation/);assert.match(card,/minHeight: 44/);
 });

@@ -10,7 +10,7 @@ import type { Module0Summary } from "../../types/clinicalReadiness";
 import { sessionDisplayParts } from "../../utils/clinicalDisplay";
 import { buildJourney, type JourneyPath, type JourneySession } from "./journey";
 import { roadmapAssets as art } from "./assets";
-import { JourneyChain, JourneyStage } from "./JourneyConnections";
+import { JourneyChain, JourneyStage, useJourneyFocusAnchor } from "./JourneyConnections";
 
 const colors = { ink: "#152044", purple: "#6150ed", body: "#4c5b7b", lavender: "#f2eeff", muted: "#67748f" };
 export function RoadmapHeader({ identity }: { identity?: LearnerIdentity | null }) {
@@ -21,8 +21,9 @@ export function RoadmapHeader({ identity }: { identity?: LearnerIdentity | null 
 export function RoadmapFoundation({ summary }: { summary?: Module0Summary | null }) {
   const router = useRouter();
   const [expanded, setExpanded] = useState(false);
+  const focusAnchor = useJourneyFocusAnchor("foundation");
   if (!summary) return null;
-  return <View>
+  return <View {...focusAnchor}>
     <Pressable accessibilityRole="button" accessibilityLabel="Module 0, Clinical Readiness" onPress={() => router.push(summary.completed ? { pathname: "/module-0", params: { mode: "review" } } : "/module-0")} style={styles.foundation}>
       <JourneyStage id="foundation" style={styles.foundationArt}><Image source={art.module0} contentFit="contain" style={styles.nodeArt} accessible={false} /></JourneyStage>
       <View style={styles.foundationCopy}>
@@ -61,6 +62,7 @@ export function RoadmapScenery() {
 
 type Encounter<S extends JourneySession> = ReturnType<typeof buildJourney<S>>[number]["rotations"][number]["encounters"][number];
 function EncounterNode<S extends JourneySession>({ encounter, onSessionPress, stageId }: { encounter: Encounter<S>; onSessionPress: (session: S) => void; stageId: string }) {
+  const focusAnchor = useJourneyFocusAnchor(stageId);
   const { width } = useWindowDimensions();
   const imageWidth = Math.min(210, (Math.min(width, 600) - 40) * (width < 360 ? 0.46 : 0.54));
   const { session, disabled, current, number, medal, action } = encounter;
@@ -68,7 +70,7 @@ function EncounterNode<S extends JourneySession>({ encounter, onSessionPress, st
   const prerequisite = disabled ? session.entryBlocked ? "Complete Module 0 first" : "84% required on previous encounter" : null;
   const parts = sessionDisplayParts(session);
   const source = art[encounter.artwork];
-  return <View style={styles.node} testID={`encounter-${session.slug}`}>
+  return <View {...focusAnchor} style={styles.node} testID={`encounter-${session.slug}`}>
     <View style={styles.nodeMain}>
     <JourneyStage id={stageId} style={{ width: imageWidth, height: imageWidth * 1.25 }}>
       {disabled && <Image source={source} tintColor="white" contentFit="contain" accessible={false} style={[styles.nodeArt, { position: "absolute" }]} />}

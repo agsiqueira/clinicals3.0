@@ -4,7 +4,7 @@ import { Image } from "expo-image";
 import { connectMilestones, type MilestoneBox } from "./connections";
 
 type Registry = {
-  register: (id: string, ref: any, region: boolean) => () => void;
+  register: (id: string, ref: any, region: boolean, focusOnly?: boolean) => () => void;
   refresh: () => void;
   setGroup: (id: string, stages: string[]) => () => void;
   foundation: boolean;
@@ -12,9 +12,10 @@ type Registry = {
 const Context = createContext<Registry | null>(null);
 
 /** Background path, then scenery and all foreground content. No obstacle-driven rerouting. */
-export function JourneyCanvas({ children, scenery: Scenery, foundation }: { children: ReactNode; scenery: ComponentType; foundation: boolean }) {
+export function JourneyCanvas({ children, scenery: Scenery, foundation, onFocusMeasure, onCanvasLayout }: { children: ReactNode; scenery: ComponentType; foundation: boolean; onFocusMeasure?: (id: string, box: MilestoneBox) => void; onCanvasLayout?: (box: { y: number; height: number }) => void }) {
   const canvas = useRef<View>(null);
-  const refs = useRef(new Map<string, { ref: any; region: boolean }>());
+  const focusCallback = useRef(onFocusMeasure); focusCallback.current = onFocusMeasure;
+  const refs = useRef(new Map<string, { ref: any; region: boolean; focusOnly?: boolean }>());
   const [width, setWidth] = useState(0);
   const [boxes, setBoxes] = useState<Record<string, MilestoneBox>>({});
   const [regions, setRegions] = useState<Record<string, MilestoneBox>>({});
@@ -22,6 +23,8 @@ export function JourneyCanvas({ children, scenery: Scenery, foundation }: { chil
   const refresh = useCallback(() => {
     refs.current.forEach((entry, id) => entry.ref.current?.measureLayout(canvas.current, (x: number, y: number, w: number, h: number) => {
       if (refs.current.get(id) !== entry) return;
+      focusCallback.current?.(id, { x, y, width: w, height: h });
+      if (entry.focusOnly) return;
       const update = entry.region ? setRegions : setBoxes;
       update(current => {
         const old = current[id];
@@ -30,8 +33,8 @@ export function JourneyCanvas({ children, scenery: Scenery, foundation }: { chil
       });
     }, () => {}));
   }, []);
-  const register = useCallback((id: string, ref: any, region: boolean) => {
-    refs.current.set(id, { ref, region });
+  const register = useCallback((id: string, ref: any, region: boolean, focusOnly = false) => {
+    refs.current.set(id, { ref, region, focusOnly });
     refresh();
     return () => { refs.current.delete(id); (region ? setRegions : setBoxes)(current => { const next = { ...current }; delete next[id]; return next; }); };
   }, [refresh]);
@@ -41,7 +44,7 @@ export function JourneyCanvas({ children, scenery: Scenery, foundation }: { chil
   }, []);
   const context = useMemo(() => ({ register, refresh, setGroup, foundation }), [register, refresh, setGroup, foundation]);
   return <Context.Provider value={context}>
-    <View ref={canvas} testID="journey-canvas" collapsable={false} onLayout={event => { setWidth(event.nativeEvent.layout.width); refresh(); }}>
+    <View ref={canvas} testID="journey-canvas" collapsable={false} onLayout={event => { setWidth(event.nativeEvent.layout.width); onCanvasLayout?.(event.nativeEvent.layout); refresh(); }}>
       {connectMilestones(Object.values(groups), boxes, width).map(edge => <Image key={`${edge.from}:${edge.to}`} testID={`connection-${edge.from}-${edge.to}`} pointerEvents="none" accessible={false} source={{ uri: edge.uri }} contentFit="fill" transition={0} style={{ position: "absolute", left: 0, top: edge.top, width, height: edge.height }} />)}
       {Object.entries(regions).map(([id, box]) => <View key={id} pointerEvents="none" style={{ position: "absolute", left: box.x, top: box.y, width: box.width, height: box.height }}><Scenery /></View>)}
       {children}
@@ -64,4 +67,11 @@ export function useJourneyChain(id: string, stages: string[], includeFoundation:
 export function JourneyChain({ id, stages, includeFoundation, children }: { id: string; stages: string[]; includeFoundation: boolean; children: ReactNode }) {
   useJourneyChain(id, stages, includeFoundation);
   return <View>{children}</View>;
+}
+
+/** Observe the complete lesson without adding a wrapper or changing connector anchors. */
+export function useJourneyFocusAnchor(id: string) {
+  const context = useContext(Context), ref = useRef<View>(null);
+  useEffect(() => context?.register("focus:" + id, ref, false, true), [context, id]);
+  return { ref, onLayout: context?.refresh, collapsable: false as const };
 }

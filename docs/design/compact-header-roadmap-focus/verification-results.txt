@@ -1,0 +1,28 @@
+Base: d6938f1541af12a308fbf385569e96bf44257aae
+
+Focused command: node --test backend/test/roadmapFocus.test.js backend/test/roadmapFrontend.test.js backend/test/sharedLearnerHeader.test.js backend/test/todayFrontend.test.js
+ℹ tests 45
+ℹ suites 0
+ℹ pass 45
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 661.3206
+
+Full regression: backend npm test
+ℹ tests 363
+ℹ suites 0
+ℹ pass 363
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 20600.176
+
+TypeScript comparison: 22 existing baseline / 22 current / zero new diagnostics.
+
+Expo: npx expo export --platform all
+Web, iOS and Android exports succeeded (exit 0).
+
+git diff --check passed.

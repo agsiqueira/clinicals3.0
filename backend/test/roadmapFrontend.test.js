@@ -108,7 +108,7 @@ test('iOS and Android presentation exposes no launch action on locked nodes and 
       if(name.includes('ProgressHeader'))return {ProgressHeader:'ProgressHeader'};
       if(name.includes('AccountSettingsButton'))return {AccountSettingsButton:'AccountSettingsButton'};
       if(name==='expo-router')return {useRouter:()=>({push(){}})};
-      if(name==='./JourneyConnections')return {JourneyStage:props=>jsx('View',props),JourneyObstacle:props=>jsx('View',props),JourneyChain:props=>jsx('View',props)};
+      if(name==='./JourneyConnections')return {useJourneyFocusAnchor:()=>({}),JourneyStage:props=>jsx('View',props),JourneyObstacle:props=>jsx('View',props),JourneyChain:props=>jsx('View',props)};
       if(name==='./journey')return exportsObject;
       if(name==='./assets')return {roadmapAssets:new Proxy({}, {get:(_,key)=>key})};
       if(name.includes('clinicalDisplay'))return compile('src/utils/clinicalDisplay.ts');
@@ -146,7 +146,7 @@ test('iOS and Android presentation exposes no launch action on locked nodes and 
 
 test('Roadmap fixed header precedes status in scroll flow and keeps the measured canvas separate',()=>{
  const path=require('node:path'),screen=fs.readFileSync(path.resolve(__dirname,'../../mobile/app/(tabs)/cases.tsx'),'utf8');
- assert.ok(screen.indexOf('<RoadmapHeader identity={journeySummary?.identity} />')<screen.indexOf('<ScrollView style='));
+ assert.ok(screen.indexOf('<RoadmapHeader identity={journeySummary?.identity} />')<screen.indexOf('<ScrollView ref='));
  assert.doesNotMatch(screen,/LearnerStatusCard/);
  assert.match(screen,/identity=\{journeySummary\?\.identity\}/);
 });
