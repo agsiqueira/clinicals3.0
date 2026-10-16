@@ -135,11 +135,11 @@ function memoryService(evaluate, now) {
 }
 function harness(file="app/module-0.tsx", params={}, options={}) {
   let slots=[],cursor=0,effects=[],dirty=false,root,instance;
-  let userId="A",focused=true,recordedText;
+  let userId="A",focused=true,recordedText; const transcriptionState=options.transcription || {};
   let clock=Date.now(), evaluate, sessionValid=true;
   const timers=new Map();let timerId=0;
   const schedule=(fn,ms)=>{const id=++timerId;timers.set(id,{fn,at:clock+ms});return id;};
-  const service=memoryService(input=>evaluate ? evaluate(input) : input.kind==="clarify"?{reply:"An open question invites the patient narrative."}:{label:"Needs More Practice",feedback:"Your response is an attempt. Connect it to the visible facts.",evidence:[input.response.slice(0,20)]},()=>clock);const navigation=[],speeches=[],stops=[];
+  const service=memoryService(input=>evaluate ? evaluate(input) : input.kind==="clarify"?{reply:"An open question invites the patient narrative."}:{label:"Needs More Practice",feedback:"Your response is an attempt. Connect it to the visible facts.",evidence:[input.response.slice(0,20)]},()=>clock);const navigation=[],speeches=[],stops=[],recordings=[];
   let get=async()=>service.getProgress(userId);
   let post=async payload=>service.submit(userId,payload);
   const same=(a,b)=>a&&b&&a.length===b.length&&a.every((v,i)=>Object.is(v,b[i]));
@@ -173,7 +173,7 @@ function harness(file="app/module-0.tsx", params={}, options={}) {
     if(/\.(png|webp|svg|ttf)$/.test(name)) return 1;
     if(name==="react")return react;
     if(name==="react/jsx-runtime")return{jsx,jsxs:jsx,Fragment:"Fragment"};
-    if(name==="react-native")return{View:"View",Text:"Text",TextInput:"TextInput",Pressable:"Pressable",ScrollView:"ScrollView",ActivityIndicator:"ActivityIndicator",RefreshControl:"RefreshControl",Modal:"Modal",Platform:{OS:"web"},StyleSheet:{create:x=>x},Animated:{Value:class{setValue(){}},sequence:()=>({start(){}}),timing:()=>({})},useWindowDimensions:()=>({width:options.width || 390,height:options.height || 844})};
+    if(name==="react-native")return{View:"View",Text:"Text",TextInput:"TextInput",Pressable:"Pressable",ScrollView:"ScrollView",ActivityIndicator:"ActivityIndicator",KeyboardAvoidingView:"KeyboardAvoidingView",RefreshControl:"RefreshControl",Modal:"Modal",Platform:{OS:options.platform || "web"},StyleSheet:{create:x=>x},Animated:{Value:class{setValue(){}},sequence:()=>({start(){}}),timing:()=>({})},useWindowDimensions:()=>({width:options.width || 390,height:options.height || 844})};
     if(name==="react-native-safe-area-context")return{SafeAreaView:"SafeAreaView",useSafeAreaInsets:()=>options.insets || ({top:0,bottom:0,left:0,right:0})};
     if(name==="@clerk/clerk-expo")return{useAuth:()=>({userId,sessionId:`session-${userId}`}),useUser:()=>({isLoaded:true,user:{id:userId}}),useClerk:()=>({signOut:async()=>{}})};
     if(name==="expo-router")return{useRouter:()=>router,useLocalSearchParams:()=>params};
@@ -183,7 +183,7 @@ function harness(file="app/module-0.tsx", params={}, options={}) {
     if(name.includes("api/client"))return{api};
     if(name.includes("useVoicePreference"))return{useVoicePreference:()=>{const [voiceEnabled,setVoiceEnabled]=react.useState(options.voiceEnabled ?? true);return {voiceEnabled,setVoiceEnabled};}};
     if(name.includes("useSpeechPlayback"))return{useSpeechPlayback:()=>speech};
-    if(name.includes("useEnglishSpeechTranscription"))return{useEnglishSpeechTranscription:options=>{recordedText=options.onText;return{isRecording:false,transcribing:false,recordingBusy:false,toggleRecording(){}};}};
+    if(name.includes("useEnglishSpeechTranscription"))return{useEnglishSpeechTranscription:options=>{recordedText=options.onText;return{isRecording:false,transcribing:false,recordingBusy:false,...transcriptionState,toggleRecording(){recordings.push(true);}};}};
     if(name.includes("ClinicalsChatComposer"))return{ClinicalsChatComposer:"Composer"};
     if(name.includes("MentorAvatar"))return{MentorAvatar:"MentorAvatar"};
     if(name.includes("AccountSettingsButton"))return{AccountSettingsButton:"AccountSettingsButton"};
@@ -201,6 +201,7 @@ function harness(file="app/module-0.tsx", params={}, options={}) {
     if(name.includes("Module0Card"))return{Module0Card:"Module0Card"};
     if(name.includes("CompactJourneyCard"))return{CompactJourneyCard:"JourneyCard"};
     if(name.includes("RotationCard"))return{RotationCard:"RotationCard",rotationComplete:()=>false};
+    if(name.includes("MeetPreceptor"))return compile("src/components/MeetPreceptor.tsx",requireFn);
     if(name.includes("PatientBrief"))return compile("src/components/PatientBrief.tsx",requireFn);
     if(name.includes("PatientAvatar"))return{PatientAvatar:"PatientAvatar"};
     if(name.includes("storage"))return{getItemAsync:async()=>null,setItemAsync:async()=>{}};
@@ -219,7 +220,7 @@ function harness(file="app/module-0.tsx", params={}, options={}) {
   function unmount(){for(const slot of slots)slot?.cleanup?.();slots=[];}
   function nodes(node,result=[]){if(arguments.length===0)node=root;if(!node)return result;if(Array.isArray(node)){for(const child of node)nodes(child,result);return result;}if(typeof node!=="object")return result;result.push(node);if(node.type==="Composer")nodes(composerComponent(node.props),result);else if(typeof node.type==="function")nodes(node.type(node.props),result);else nodes(node.props?.children,result);return result;}
   function text(node){if(node===undefined||node===null||typeof node==="boolean")return"";if(Array.isArray(node))return node.map(text).join(" ");if(typeof node!=="object")return String(node);return typeof node.type==="function" ? text(node.type(node.props)) : text(node.props?.children);}
-  return{render,settle,unmount,nodes,text,service,navigation,speeches,stops,
+  return{render,settle,unmount,nodes,text,service,navigation,speeches,stops,recordings,
     input:()=>nodes().find(n=>n.type==="TextInput"),
     dictate:text=>recordedText(text),
     advance:async ms=>{clock+=ms;for(const [id,timer] of [...timers])if(timer.at<=clock){timers.delete(id);timer.fn();}await settle();},
@@ -1270,4 +1271,56 @@ test('Patient Brief portrait component uses the real patient image and falls bac
  const avatar=compile('src/components/PatientAvatar.tsx',name=>name==='react/jsx-runtime'?{jsx,jsxs:jsx}:name==='react-native'?{Image:'Image',View:'View',Text:'Text',StyleSheet:{create:x=>x}}:assets,{__DEV__:false}).PatientAvatar;
  const known=avatar({patientName:'Taylor Reed',patientSessionSlug:'first-patient',caseId:'uti_level1',size:54,showRing:false});assert.equal(known.props.children.type,'Image');assert.ok(known.props.children.props.source);
  const missing=avatar({patientName:'Unknown Learner Fixture',patientSessionSlug:'unmapped',caseId:'unmapped',size:54,showRing:false});assert.equal(missing.props.children.type,'Text');assert.equal(missing.props.children.props.children,assets.getPatientInitials('Unknown Learner Fixture','PT'));
+});
+
+function mentorHarness(options={}){
+ const calls=[],session={id:'mentor-session',slug:'first-patient-hpi',title:'Complete HPI',status:'available'};
+ const opts={...options,api:{getLearningPaths:async()=>[{id:'p',title:'Path',units:[{id:'u',title:'U',slug:'u',sessions:[session]}]}],getPatientSessionOverview:async()=>({...session,achievements:[],badgeThresholds:{gold:84,silver:50,bronze:1},estimatedTime:{min:3,max:5},workflow:{requiresHpi:true},linkedCase:{caseId:'clinical-case'},preceptorPersona:{name:'Dr. Rivera',slug:'dr-martinez',specialty:'Clinical Educator'}}),sendPreceptorChatMessage:async(slug,payload,headers)=>{calls.push({slug,payload,headers});return options.reply?options.reply():{reply:'Patient-centered mentor response'};}}};
+ const h=harness('app/(tabs)/cases.tsx',{},opts);return{h,calls,opts,mentor:()=>h.nodes().find(n=>typeof n.type==='function'&&n.props.onMeetPatient),async open(){h.render();await h.settle();await h.nodes().find(n=>n.type==='RoadmapJourney').props.onSessionPress(session);await h.settle();h.find('Meet Preceptor').props.onPress();h.render();await h.settle();}};
+}
+
+test('Meet Preceptor renders existing identity, welcome, suggestions and real mentor portrait props',async t=>{
+ const b=mentorHarness();t.after(b.h.unmount);await b.open();const h=b.h,m=b.mentor();assert.equal(m.props.name,'Dr. Rivera');assert.equal(m.props.role,'Clinical Educator');assert.match(m.props.welcome,/Welcome\. I'm Dr\. Martinez/);assert.equal(m.props.suggestions.length,3);
+ const avatar=h.nodes().find(n=>n.type==='MentorAvatar');assert.equal(avatar.props.mentorSlug,'dr-martinez');assert.equal(avatar.props.size,94);assert.equal(avatar.props.variant,'circle');
+ assert.ok(h.find('How should I introduce myself?'));assert.ok(h.find('What is a chief complaint?'));assert.ok(h.find('What should I focus on?'));assert.equal(h.navigation.length,0);
+});
+
+test('Meet Preceptor suggested and typed questions preserve backend payload, history and controlled draft',async t=>{
+ const b=mentorHarness();t.after(b.h.unmount);await b.open();const h=b.h;await h.find('What is a chief complaint?').props.onPress();await h.settle();assert.equal(b.calls[0].slug,'first-patient-hpi');assert.equal(b.calls[0].headers.expectedUserId,'A');assert.equal(b.calls[0].payload.message,'What is a chief complaint?');assert.equal(b.mentor().props.messages.length,2);
+ h.composer().props.onChangeText('My follow-up question');h.render();await h.composer().props.onSubmit();await h.settle();assert.equal(b.calls[1].payload.message,'My follow-up question');assert.equal(b.calls[1].payload.messages.length,3);assert.equal(b.mentor().props.input,'');assert.equal(b.mentor().props.messages.length,4);
+ b.opts.width=320;h.render();assert.equal(b.mentor().props.messages.length,4);assert.equal(b.mentor().props.messages[0].content,'What is a chief complaint?');assert.equal(h.navigation.length,0);
+});
+
+test('Meet Preceptor loading disables suggestions and composer; failure preserves conversation and allows another question',async t=>{
+ let fail;const b=mentorHarness({reply:()=>new Promise((resolve,reject)=>{fail=reject;})});t.after(b.h.unmount);await b.open();const h=b.h;const pending=h.find('What should I focus on?').props.onPress();h.render();assert.equal(b.mentor().props.sending,true);assert.equal(h.composer().props.sendDisabled,true);assert.equal(h.composer().props.micDisabled,true);assert.equal(h.find('What should I focus on?').props.disabled,true);assert.match(h.text(h.render()),/Dr\. Rivera\s+is responding/);
+ fail(new Error('Connection unavailable'));await pending;await h.settle();assert.equal(b.mentor().props.messages[0].role,'user');assert.equal(b.mentor().props.sending,false);assert.equal(b.mentor().props.error,'Connection unavailable');h.composer().props.onChangeText('Try again');h.render();assert.equal(h.composer().props.sendDisabled,false);
+});
+
+test('Meet Preceptor voice toggle, microphone callback and dictated draft retain the existing speech workflow',async t=>{
+ const b=mentorHarness({voiceEnabled:true});t.after(b.h.unmount);await b.open();const h=b.h;const voice=h.find('Voice: On');assert.equal(voice.props.accessibilityRole,'switch');voice.props.onPress();h.render();assert.ok(h.find('Voice: Off'));assert.equal(h.stops.length,1);
+ await h.find('What should I focus on?').props.onPress();await h.settle();assert.equal(h.speeches.length,0);h.find('Voice: Off').props.onPress();h.render();await h.find('What is a chief complaint?').props.onPress();await h.settle();assert.equal(h.speeches.length,1);assert.equal(h.speeches[0].text,'Patient-centered mentor response');
+ h.composer().props.onMicPress();assert.equal(h.recordings.length,1);h.dictate('Dictated question');h.render();assert.equal(b.mentor().props.input,'Dictated question');assert.equal(b.calls.length,2,'dictation does not send automatically');
+ h.setSpeaking(true);assert.equal(h.nodes().find(n=>n.type==='MentorAvatar').props.isSpeaking,true);
+});
+
+test('Meet Preceptor close, Back and modal dismissal do not route; Meet Patient retains encounter parameters',async t=>{
+ for(const action of ['close','back','modal','escape']){const b=mentorHarness();t.after(b.h.unmount);await b.open();const h=b.h;if(action==='close')h.find('Close Meet Preceptor').props.onPress();if(action==='back')b.mentor().props.onBack();if(action==='modal')h.nodes().find(n=>n.type==='Modal'&&n.props.visible&&n.props.onRequestClose===b.mentor().props.onClose).props.onRequestClose();if(action==='escape')h.nodes().find(n=>n.props?.testID==='meet-preceptor').props.onKeyDown({key:'Escape',stopPropagation(){}});h.render();assert.equal(b.mentor().props.visible,false);assert.equal(h.navigation.length,0);}
+ const b=mentorHarness();t.after(b.h.unmount);await b.open();b.h.find('Meet Patient').props.onPress();b.h.render();const route=b.h.navigation.at(-1);assert.equal(route.pathname,'/(tabs)/level1');assert.equal(route.params.caseId,'clinical-case');assert.equal(route.params.patientSessionSlug,'first-patient-hpi');assert.equal(route.params.requiresHpi,'true');assert.ok(b.h.stops.length>0);
+});
+
+test('Meet Preceptor follows replies near the bottom, preserves manual reading position and keeps history across layout changes',async t=>{
+ const b=mentorHarness();t.after(b.h.unmount);await b.open();let scrolls=0;const h=b.h;b.mentor().props.dialogueRef.current={scrollToEnd:()=>scrolls++};b.mentor().props.onContentSizeChange();assert.equal(scrolls,0,'initial entry shows identity');
+ await h.find('What should I focus on?').props.onPress();await h.settle();assert.ok(scrolls>0);b.mentor().props.onScroll({nativeEvent:{contentSize:{height:2000},layoutMeasurement:{height:400},contentOffset:{y:100}}});const before=scrolls;await h.find('What is a chief complaint?').props.onPress();await h.settle();b.mentor().props.onContentSizeChange();assert.equal(scrolls,before);
+ b.mentor().props.onScroll({nativeEvent:{contentSize:{height:2000},layoutMeasurement:{height:400},contentOffset:{y:1600}}});b.mentor().props.onContentSizeChange();assert.ok(scrolls>before);
+ b.opts.width=1280;h.render();assert.equal(b.mentor().props.messages.length,4);
+});
+
+test('Meet Preceptor clears presentation at learner switch and scopes new requests to the current account',async t=>{
+ const b=mentorHarness();t.after(b.h.unmount);await b.open();await b.h.find('What should I focus on?').props.onPress();await b.h.settle();b.h.switchUser('B');await b.h.settle();assert.equal(b.mentor().props.visible,false);assert.equal(b.mentor().props.messages.length,0);await b.open();await b.h.find('What is a chief complaint?').props.onPress();await b.h.settle();assert.equal(b.calls.at(-1).headers.expectedUserId,'B');
+});
+
+test('Meet Preceptor safe-area, keyboard avoidance and footer separation are retained on narrow native screens',async t=>{
+ for(const platform of ['ios','android']){const b=mentorHarness({width:320,height:568,platform,insets:{top:47,bottom:34,left:0,right:0},transcription:{transcribing:true}});t.after(b.h.unmount);await b.open();const h=b.h,backdrop=h.nodes().find(n=>n.props?.testID==='meet-preceptor-backdrop');assert.equal(backdrop.type,'KeyboardAvoidingView');assert.equal(backdrop.props.enabled,true);assert.equal(backdrop.props.behavior,platform==='ios'?'padding':'height');assert.equal(backdrop.props.style.at(-1).paddingTop,47);assert.equal(backdrop.props.style.at(-1).paddingBottom,34);
+ const close=h.find('Close Meet Preceptor');assert.equal(close.props.style.width,44);assert.equal(close.props.style.height,44);const scroll=h.nodes().find(n=>n.props?.testID==='meet-preceptor-history');assert.equal(h.nodes(scroll).some(n=>n.props?.testID==='meet-preceptor-footer'),false);assert.equal(h.composer().props.micDisabled,true);assert.equal(h.composer().props.transcribing,true);
+ }
 });

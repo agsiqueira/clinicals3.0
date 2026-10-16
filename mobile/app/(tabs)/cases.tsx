@@ -2,11 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
-  Modal,
   Pressable,
   ScrollView,
   Text,
-  useWindowDimensions,
   View,
 } from "react-native";
 import { useFonts } from "expo-font";
@@ -25,8 +23,7 @@ import { JourneyCanvas } from "../../src/components/roadmap/JourneyConnections";
 import { isRotationMastered, previousAttemptsRoute } from "../../src/components/roadmap/journey";
 import type { Module0Summary } from "../../src/types/clinicalReadiness";
 import { captureSession } from "../../src/api/sessionToken";
-import { ClinicalsChatComposer } from "../../src/components/ClinicalsChatComposer";
-import { MentorAvatar } from "../../src/components/MentorAvatar";
+import { MeetPreceptor } from "../../src/components/MeetPreceptor";
 import { PatientBrief } from "../../src/components/PatientBrief";
 import { useEnglishSpeechTranscription } from "../../src/hooks/useEnglishSpeechTranscription";
 import { useSpeechPlayback } from "../../src/hooks/useSpeechPlayback";
@@ -189,9 +186,6 @@ function OwnedRoadmap() {
   const autoFocus = useRoadmapFocus(focusOwner, isFocused);
   const [journeyFontsReady] = useFonts({ RoadmapInter: require("../../assets/module0/Inter-Regular.ttf"), RoadmapInterBold: require("../../assets/module0/Inter-Bold.ttf") });
   const router = useRouter();
-  const { width } = useWindowDimensions();
-  const isNarrowScreen = width < 420;
-  const mentorAvatarSize = isNarrowScreen ? 196 : 226;
   const searchParams = useLocalSearchParams<{
     focusSessionSlug?: string | string[];
     focusSessionToken?: string | string[];
@@ -230,6 +224,7 @@ function OwnedRoadmap() {
   const { voiceEnabled: mentorVoiceEnabled, setVoiceEnabled: setMentorVoiceEnabled } =
     useVoicePreference();
   const preceptorDialogueRef = useRef<ScrollView | null>(null);
+  const followPreceptor = useRef(true);
   const milestoneAnimationRefs = useRef<Record<string, Animated.Value>>({});
   const preceptorTranscription = useEnglishSpeechTranscription({
     enabled: isFocused && briefingVisible,
@@ -544,10 +539,9 @@ function OwnedRoadmap() {
   const conversationMessages =
     preceptorMessages[0]?.role === "assistant" ? preceptorMessages.slice(1) : preceptorMessages;
   const scrollPreceptorDialogueToEnd = useCallback(() => {
-    setTimeout(() => {
-      preceptorDialogueRef.current?.scrollToEnd({ animated: true });
-    }, 80);
-  }, []);
+    if (briefingVisible && (conversationMessages.length > 0 || preceptorSending) && followPreceptor.current) preceptorDialogueRef.current?.scrollToEnd({ animated: true });
+  }, [briefingVisible, conversationMessages.length, preceptorSending]);
+  useEffect(() => { if (briefingVisible) followPreceptor.current = true; }, [briefingVisible]);
 
   useEffect(() => {
     if (!briefingVisible) return;
@@ -607,177 +601,15 @@ function OwnedRoadmap() {
         }}
         onClose={() => setOverviewVisible(false)} onMeetPreceptor={startSelectedSession}
       />
-      <Modal
-        visible={briefingVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setBriefingVisible(false)}
-      >
-        <View style={casesStyles.modalBackdrop}>
-          <View style={casesStyles.preceptorOverlay}>
-            {selectedOverview ? (
-              <>
-                <View
-                  pointerEvents="none"
-                  style={[
-                    casesStyles.preceptorHeroLayer,
-                    isNarrowScreen && casesStyles.preceptorHeroLayerCompact,
-                  ]}
-                >
-                  <MentorAvatar
-                    mentorName={preceptorName}
-                    mentorSlug={preceptorSlug}
-                    isSpeaking={mentorSpeech.isSpeaking}
-                    size={mentorAvatarSize}
-                    variant="breakout-circle"
-                  />
-                </View>
-
-                <View
-                  style={[
-                    casesStyles.sessionModal,
-                    casesStyles.preceptorCard,
-                    isNarrowScreen && casesStyles.preceptorCardCompact,
-                  ]}
-                >
-                  <View style={casesStyles.preceptorFixedHeader}>
-                    <View style={casesStyles.preceptorIdentityRow}>
-                      <View style={casesStyles.preceptorHeaderText}>
-                        <Text style={casesStyles.preceptorName}>{preceptorName}</Text>
-                        <Text style={casesStyles.preceptorSpecialty}>{preceptorSpecialty}</Text>
-                      </View>
-                      <View style={casesStyles.preceptorVoiceControls}>
-                        <Pressable
-                          onPress={() => {
-                            if (mentorVoiceEnabled) {
-                              void mentorSpeech.stop();
-                            }
-                            setMentorVoiceEnabled((current) => !current);
-                          }}
-                          style={({ pressed }) => [
-                            casesStyles.preceptorVoiceToggle,
-                            { opacity: pressed ? 0.75 : 1 },
-                          ]}
-                        >
-                          <Text style={casesStyles.preceptorVoiceToggleText}>
-                            {mentorVoiceEnabled ? "Voice: On" : "Voice: Off"}
-                          </Text>
-                        </Pressable>
-                      </View>
-                    </View>
-                  </View>
-
-                  <View
-                    style={[
-                      casesStyles.preceptorDialoguePanel,
-                      isNarrowScreen && casesStyles.preceptorDialoguePanelCompact,
-                    ]}
-                  >
-                    <ScrollView
-                      ref={preceptorDialogueRef}
-                      contentContainerStyle={casesStyles.preceptorDialogueContent}
-                      onContentSizeChange={scrollPreceptorDialogueToEnd}
-                    >
-                      <View style={casesStyles.preceptorChatMessageGroup}>
-                        <View
-                          style={[
-                            casesStyles.preceptorChatBubble,
-                            casesStyles.preceptorChatBubbleAssistant,
-                          ]}
-                        >
-                          <Text style={casesStyles.preceptorChatRole}>Dr. Martinez</Text>
-                          <Text style={casesStyles.preceptorChatText}>{welcomeMessage}</Text>
-                        </View>
-                      </View>
-
-                      <View style={casesStyles.preceptorQuickActions}>
-                        {PRECEPTOR_QUICK_ACTIONS.map((action) => (
-                          <Pressable
-                            key={action}
-                            onPress={() => sendPreceptorMessage(action)}
-                            disabled={preceptorSending}
-                            style={({ pressed }) => [
-                              casesStyles.preceptorQuickActionButton,
-                              { opacity: preceptorSending ? 0.45 : pressed ? 0.75 : 1 },
-                            ]}
-                          >
-                            <Text style={casesStyles.preceptorQuickActionText}>{action}</Text>
-                          </Pressable>
-                        ))}
-                      </View>
-
-                      <View style={casesStyles.preceptorChatMessages}>
-                        {conversationMessages.length > 0
-                          ? conversationMessages.map((message, index) => (
-                              <View
-                                key={`${message.role}-${index}`}
-                                style={casesStyles.preceptorChatMessageGroup}
-                              >
-                                <View
-                                  style={[
-                                    casesStyles.preceptorChatBubble,
-                                    message.role === "user"
-                                      ? casesStyles.preceptorChatBubbleUser
-                                      : casesStyles.preceptorChatBubbleAssistant,
-                                  ]}
-                                >
-                                  <Text style={casesStyles.preceptorChatRole}>
-                                    {message.role === "user" ? "You" : "Dr. Martinez"}
-                                  </Text>
-                                  <Text style={casesStyles.preceptorChatText}>{message.content}</Text>
-                                </View>
-                              </View>
-                            ))
-                          : null}
-                        {preceptorSending ? (
-                          <Text style={casesStyles.preceptorChatEmpty}>Dr. Martinez is responding...</Text>
-                        ) : null}
-                      </View>
-                    </ScrollView>
-                  </View>
-
-                  <View style={casesStyles.preceptorFixedFooter}>
-                    {preceptorError ? (
-                      <Text style={casesStyles.errorText}>{preceptorError}</Text>
-                    ) : null}
-                    <ClinicalsChatComposer
-                      value={preceptorInput}
-                      onChangeText={setPreceptorInput}
-                      editable={!preceptorSending}
-                      placeholder="Ask a question before meeting the patient..."
-                      submitLabel="Ask"
-                      onSubmit={() => sendPreceptorMessage()}
-                      sendDisabled={preceptorSending || !preceptorInput.trim()}
-                      sending={preceptorSending}
-                      onMicPress={preceptorTranscription.toggleRecording}
-                      micDisabled={
-                        preceptorSending ||
-                        preceptorTranscription.transcribing ||
-                        preceptorTranscription.recordingBusy
-                      }
-                      transcribing={preceptorTranscription.transcribing}
-                      isRecording={preceptorTranscription.isRecording}
-                      containerStyle={[
-                        casesStyles.preceptorComposer,
-                        isNarrowScreen && casesStyles.preceptorComposerCompact,
-                      ]}
-                    />
-
-                    <View style={casesStyles.modalActions}>
-                      <Pressable onPress={() => setBriefingVisible(false)} style={casesStyles.modalSecondaryButton}>
-                        <Text style={casesStyles.modalSecondaryButtonText}>Back</Text>
-                      </Pressable>
-                      <Pressable onPress={meetPatient} style={casesStyles.modalPrimaryButton}>
-                        <Text style={casesStyles.modalPrimaryButtonText}>Meet Patient</Text>
-                      </Pressable>
-                    </View>
-                  </View>
-                </View>
-              </>
-            ) : null}
-          </View>
-        </View>
-      </Modal>
+      <MeetPreceptor visible={briefingVisible && !!selectedOverview} name={preceptorName} role={preceptorSpecialty} slug={preceptorSlug}
+        speaking={mentorSpeech.isSpeaking} welcome={welcomeMessage} messages={conversationMessages} suggestions={PRECEPTOR_QUICK_ACTIONS}
+        voiceEnabled={mentorVoiceEnabled} onToggleVoice={() => { if (mentorVoiceEnabled) void mentorSpeech.stop(); setMentorVoiceEnabled(current => !current); }}
+        input={preceptorInput} onChangeInput={setPreceptorInput} sending={preceptorSending} error={preceptorError} onAsk={sendPreceptorMessage}
+        onMic={preceptorTranscription.toggleRecording} recording={preceptorTranscription.isRecording} transcribing={preceptorTranscription.transcribing} recordingBusy={preceptorTranscription.recordingBusy}
+        onClose={() => setBriefingVisible(false)} onBack={() => setBriefingVisible(false)} onMeetPatient={meetPatient}
+        dialogueRef={preceptorDialogueRef} onContentSizeChange={scrollPreceptorDialogueToEnd}
+        onScroll={event => { const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent; followPreceptor.current = contentSize.height - layoutMeasurement.height - contentOffset.y <= 48; }}
+      />
     </SafeAreaView>
   );
 }
