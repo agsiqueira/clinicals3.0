@@ -206,6 +206,12 @@ function harness(file="app/module-0.tsx", params={}, options={}) {
     if(name.includes("PatientAvatar"))return{PatientAvatar:"PatientAvatar"};
     if(name.includes("storage"))return{getItemAsync:async()=>null,setItemAsync:async()=>{}};
     if(name.includes("clinicalDisplay"))return compile("src/utils/clinicalDisplay.ts",requireFn);
+    if(name.endsWith("portfolio/presentation"))return compile("src/components/portfolio/presentation.ts",requireFn);
+    if(name.includes("ClinicalPerformance"))return compile("src/components/portfolio/ClinicalPerformance.tsx",name=>name==="react"?{...react,useState:initial=>[initial,()=>{}]}:requireFn(name));
+    if(name === "./performance" || name.endsWith("portfolio/performance"))return compile("src/components/portfolio/performance.ts",requireFn);
+    if(name.includes("CompetencyProfileTab"))return{CompetencyProfileTab:"CompetencyProfileTab"};
+    if(name.includes("Sparkline"))return{Sparkline:"Sparkline"};
+    if(name.includes("TimelineEvent"))return{TimelineEvent:"TimelineEvent"};
     if(name.includes("styles"))return{portfolioStyles:{},casesStyles:{}};
     if(name==="@expo/vector-icons")return{MaterialCommunityIcons:"Icon",Ionicons:"Icon"};
     throw new Error(`Unexpected frontend dependency ${name}`);
@@ -1323,4 +1329,22 @@ test('Meet Preceptor safe-area, keyboard avoidance and footer separation are ret
  for(const platform of ['ios','android']){const b=mentorHarness({width:320,height:568,platform,insets:{top:47,bottom:34,left:0,right:0},transcription:{transcribing:true}});t.after(b.h.unmount);await b.open();const h=b.h,backdrop=h.nodes().find(n=>n.props?.testID==='meet-preceptor-backdrop');assert.equal(backdrop.type,'KeyboardAvoidingView');assert.equal(backdrop.props.enabled,true);assert.equal(backdrop.props.behavior,platform==='ios'?'padding':'height');assert.equal(backdrop.props.style.at(-1).paddingTop,47);assert.equal(backdrop.props.style.at(-1).paddingBottom,34);
  const close=h.find('Close Meet Preceptor');assert.equal(close.props.style.width,44);assert.equal(close.props.style.height,44);const scroll=h.nodes().find(n=>n.props?.testID==='meet-preceptor-history');assert.equal(h.nodes(scroll).some(n=>n.props?.testID==='meet-preceptor-footer'),false);assert.equal(h.composer().props.micDisabled,true);assert.equal(h.composer().props.transcribing,true);
  }
+});
+
+function portfolioHarness(options={}) {
+ const records=[{sessionAttemptId:'enc-2',patientSessionTitle:'Jordan Lee: History',caseId:'uti_level1',sessionScore:91,badgeTier:'GOLD',scoredAt:'2026-10-12T12:00:00Z'},{sessionAttemptId:'enc-1',patientSessionTitle:'Taylor Reed: Introduction',caseId:'seasonal_allergies',sessionScore:62,badgeTier:'SILVER',scoredAt:'2026-10-11T12:00:00Z'}];
+ const calls=[];const h=harness('app/(tabs)/portfolio.tsx',{}, {...options,api:{getClinicalPortfolio:async headers=>{calls.push(headers);return {identity:{levelTitle:'Backend learner title',professionalLevel:3,xp:357},streak:{currentCount:8},learningPathProgress:{pathTitle:'Backend clinical path',percentComplete:42,completedSessions:5,totalSessions:12},recentPatients:options.empty?[]:records,competencies:[{slug:'history',title:'History taking',attempts:3,achievedCount:2,bestPercentScore:91,latestPercentScore:85}],milestones:[{slug:'first',title:'First encounter milestone',category:'milestone',status:'EARNED',earnedAt:'2026-10-12T12:00:00Z'}]};},getToday:async()=>({dailyBriefing:{nextGoal:{title:'Backend current goal',description:'Clarify associated symptoms',currentValue:62,targetValue:84}}})}});
+ return {h,calls};
+}
+test('Portfolio redesign preserves backend identity, history, scores, current goal and all three tabs',async()=>{
+ const {h,calls}=portfolioHarness();h.render();await h.settle();assert.equal(calls[0].expectedUserId,'A');assert.match(h.text(h.render()),/Backend learner title/);assert.match(h.text(h.render()),/Backend clinical path/);assert.match(h.text(h.render()),/5\s+of\s+12\s+encounters complete/);assert.match(h.text(h.render()),/Taylor Reed/);assert.match(h.text(h.render()),/Backend current goal/);assert.doesNotMatch(h.text(h.render()),/#1 62%|#2 91%/);assert.ok(h.nodes().find(n=>n.type==='Image'&&n.props.accessibilityLabel?.includes('1: 62%, 2: 91%')));
+ h.find('Achievements').props.onPress();h.render();assert.match(h.text(h.render()),/Growth Timeline/);assert.match(h.text(h.render()),/Professional Milestones/);h.find('Show all milestones').props.onPress();h.render();assert.match(h.text(h.render()),/First encounter milestone/);h.find('Competencies').props.onPress();h.render();assert.ok(h.nodes().find(n=>n.type==='CompetencyProfileTab'));h.find('Badges').props.onPress();h.render();assert.match(h.text(h.render()),/Clinical Performance/);
+ h.switchUser('B');await h.settle();assert.equal(calls.at(-1).expectedUserId,'B');
+});
+test('Portfolio empty state retains tabs, growth and settings without invented chart values',async()=>{
+ const {h}=portfolioHarness({empty:true,width:320});h.render();await h.settle();assert.match(h.text(h.render()),/Complete at least two scored encounters to see how your performance changes over time/);assert.equal(h.nodes().filter(n=>n.props.testID==='clinical-performance-chart').length,0);assert.ok(h.nodes().find(n=>n.type==='AccountSettingsButton'));assert.equal(h.nodes().filter(n=>n.props.accessibilityRole==='tab').length,3);
+});
+
+test('Meet Preceptor Back label is centered at mobile and desktop widths with unchanged button dimensions',async t=>{
+ for(const width of [320,390,1280,1440]){const b=mentorHarness({width});t.after(b.h.unmount);await b.open();const back=b.h.find('Back'),style=Object.assign({},...back.props.style.filter(Boolean));assert.equal(style.alignItems,'center');assert.equal(style.justifyContent,'center');assert.equal(style.minHeight,44);assert.equal(style.width,width<720?86:110);assert.equal(style.borderRadius,14);assert.equal(style.backgroundColor,'#F7F6FC');}
 });

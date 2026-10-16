@@ -1,3 +1,4 @@
+import { ClinicalDebrief } from "../../src/components/ClinicalDebrief";
 import { useIsFocused } from "@react-navigation/native";
 import { readEncounterDraft, saveEncounterDraft } from "../../src/api/encounterDraft";
 import { authenticatedFetch, captureSession } from "../../src/api/sessionToken";
@@ -24,7 +25,6 @@ import { caseStyles } from "../../assets/styles/case.styles";
 import { AnimatedPatientAvatar, AnimatedPatientAvatarState } from "../../src/components/AnimatedPatientAvatar";
 import { ClinicalsChatComposer } from "../../src/components/ClinicalsChatComposer";
 import { PatientCallScreen, type CallState } from "../../src/components/PatientCallScreen";
-import { MentorAvatar } from "../../src/components/MentorAvatar";
 import { useEnglishSpeechTranscription } from "../../src/hooks/useEnglishSpeechTranscription";
 import { useSpeechPlayback } from "../../src/hooks/useSpeechPlayback";
 import { useVoicePreference } from "../../src/hooks/useVoicePreference";
@@ -2092,284 +2092,38 @@ export default function Level1Screen() {
           </View>
         </View>
       </Modal>
-      <Modal
-        visible={debriefVisible && Boolean(visibleDebrief)}
-        transparent
-        animationType="fade"
-        onRequestClose={continueLearning}
-      >
-        <View style={caseStyles.debriefOverlay}>
-          <View style={caseStyles.debriefPreceptorOverlay}>
-            {visibleDebrief ? (
-              <>
-                <View
-                  pointerEvents="none"
-                  style={[
-                    caseStyles.debriefPreceptorHeroLayer,
-                    isNarrowScreen && caseStyles.debriefPreceptorHeroLayerCompact,
-                  ]}
-                >
-                  <MentorAvatar
-                    mentorName="Dr. Martinez"
-                    mentorSlug="dr-martinez"
-                    isSpeaking={debriefMentorSpeech.isSpeaking}
-                    size={isNarrowScreen ? 148 : 180}
-                    variant="breakout-circle"
-                  />
-                </View>
-
-                <View
-                  style={[
-                    caseStyles.debriefCard,
-                    isNarrowScreen && caseStyles.debriefCardCompact,
-                  ]}
-                >
-                  <View style={caseStyles.debriefFixedHeader}>
-                    <View style={caseStyles.debriefIdentityRow}>
-                      <View style={caseStyles.debriefHeaderText}>
-                        <Text style={caseStyles.debriefName}>Dr. Martinez</Text>
-                        <Text style={caseStyles.debriefSpecialty}>Post-session coaching</Text>
-                      </View>
-                      <View style={caseStyles.debriefVoiceControls}>
-                        <Pressable
-                          onPress={() => {
-                            if (voiceEnabled) {
-                              void debriefMentorSpeech.stop();
-                            }
-                            setVoiceEnabled((current) => !current);
-                          }}
-                          style={({ pressed }) => [
-                            caseStyles.debriefVoiceToggle,
-                            { opacity: pressed ? 0.75 : 1 },
-                          ]}
-                        >
-                          <Text style={caseStyles.debriefVoiceToggleText}>
-                            {voiceEnabled ? "Voice: On" : "Voice: Off"}
-                          </Text>
-                        </Pressable>
-                      </View>
-                    </View>
-                  </View>
-
-                  <ScrollView
-                    style={caseStyles.debriefScrollableBody}
-                    contentContainerStyle={caseStyles.debriefScrollContent}
-                  >
-                    <View style={caseStyles.debriefChatBox}>
-                      <Text style={caseStyles.debriefContextLabel}>Debrief</Text>
-                      <View style={caseStyles.debriefChatMessages}>
-                        <View
-                          style={[
-                            caseStyles.debriefChatBubble,
-                            caseStyles.debriefChatBubbleAssistant,
-                          ]}
-                        >
-                          <Text style={caseStyles.debriefMentorLabel}>Dr. Martinez</Text>
-                          <Text style={caseStyles.debriefText}>{learnerDebriefMessage}</Text>
-                        </View>
-
-                        {debriefMessages.map((message, index) => (
-                          <View
-                            key={`${message.role}-${index}`}
-                            style={[
-                              caseStyles.debriefChatBubble,
-                              message.role === "user"
-                                ? caseStyles.debriefChatBubbleUser
-                                : caseStyles.debriefChatBubbleAssistant,
-                            ]}
-                          >
-                            <Text style={caseStyles.debriefMentorLabel}>
-                              {message.role === "user" ? "You" : "Dr. Martinez"}
-                            </Text>
-                            <Text style={caseStyles.debriefText}>{message.content}</Text>
-                          </View>
-                        ))}
-                      </View>
-
-                      <Text style={caseStyles.debriefChatHint}>
-                        Choose a question or ask your own.
-                      </Text>
-                      <View style={caseStyles.debriefQuickActions}>
-                        {DEBRIEF_QUICK_ACTIONS.map((action) => (
-                          <Pressable
-                            key={action}
-                            onPress={() => sendDebriefMessage(action)}
-                            disabled={debriefSending || !conversationId}
-                            style={({ pressed }) => [
-                              caseStyles.debriefQuickActionButton,
-                              {
-                                opacity:
-                                  debriefSending || !conversationId ? 0.45 : pressed ? 0.75 : 1,
-                              },
-                            ]}
-                          >
-                            <Text style={caseStyles.debriefQuickActionText}>{action}</Text>
-                          </Pressable>
-                        ))}
-                      </View>
-
-                      {debriefSending ? (
-                        <Text style={caseStyles.debriefChatHint}>Dr. Martinez is responding...</Text>
-                      ) : null}
-                      {debriefError ? <Text style={caseStyles.errorText}>{debriefError}</Text> : null}
-
-                      <ClinicalsChatComposer
-                        value={debriefInput}
-                        onChangeText={setDebriefInput}
-                        editable={!debriefSending}
-                        placeholder="Ask Dr. Martinez about your progress..."
-                        submitLabel="Ask"
-                        onSubmit={() => sendDebriefMessage()}
-                        sendDisabled={debriefSending || !debriefInput.trim() || !conversationId}
-                        sending={debriefSending}
-                        onMicPress={debriefTranscription.toggleRecording}
-                        micDisabled={
-                          debriefSending ||
-                          debriefTranscription.transcribing ||
-                          debriefTranscription.recordingBusy
-                        }
-                        transcribing={debriefTranscription.transcribing}
-                        isRecording={debriefTranscription.isRecording}
-                      />
-                    </View>
-
-                    <View style={caseStyles.debriefReportDivider}>
-                      <View style={caseStyles.debriefReportLine} />
-                      <Text style={caseStyles.debriefReportHeading}>Your Progress</Text>
-                      <View style={caseStyles.debriefReportLine} />
-                    </View>
-
-                    <View style={caseStyles.debriefReportPanel}>
-                      <View style={caseStyles.debriefScoreRow}>
-                        <View style={caseStyles.debriefMetricBoxCompact}>
-                          <Text style={caseStyles.debriefMetricLabel}>Session Score</Text>
-                          <Text style={caseStyles.debriefMetricValue}>{visibleDebrief.sessionScore}%</Text>
-                        </View>
-                        <View style={caseStyles.debriefMetricBoxCompact}>
-                          <Text style={caseStyles.debriefMetricLabel}>Badge Earned</Text>
-                          <View style={[caseStyles.resultsBadgeInline, reviewBadgeVisual.style]}>
-                            <Text style={caseStyles.resultsBadgeInlineText}>{reviewBadgeLabel}</Text>
-                          </View>
-                        </View>
-                      </View>
-
-                      {reviewAchievementResults.length > 0 ? (
-                        <View style={caseStyles.reviewSummaryCardCompact}>
-                          <View style={caseStyles.reviewSummaryRow}>
-                            <Text style={caseStyles.reviewSummaryLabel}>Focus next</Text>
-                            <Text style={caseStyles.reviewSummaryValue}>{improvementObjectiveText}</Text>
-                          </View>
-                        </View>
-                      ) : null}
-
-                      <View style={caseStyles.learningDetailsCard}>
-                        <Text style={caseStyles.reviewSummaryTitle}>Learning Details</Text>
-
-                        <Pressable
-                          onPress={() =>
-                            setOpenLearningDetail((current) => (current === "score" ? null : "score"))
-                          }
-                          style={caseStyles.learningDetailsToggle}
-                        >
-                          <Text style={caseStyles.learningDetailsTitle}>Why did I receive this score?</Text>
-                          <Text style={caseStyles.learningDetailsChevron}>
-                            {openLearningDetail === "score" ? "Hide" : "Show"}
-                          </Text>
-                        </Pressable>
-                        {openLearningDetail === "score" ? (
-                          <Text style={caseStyles.learningDetailsText}>{scoreDetailText}</Text>
-                        ) : null}
-
-                        <View style={caseStyles.reviewSummaryDivider} />
-
-                        <Pressable
-                          onPress={() =>
-                            setOpenLearningDetail((current) => (current === "patient" ? null : "patient"))
-                          }
-                          style={caseStyles.learningDetailsToggle}
-                        >
-                          <Text style={caseStyles.learningDetailsTitle}>Patient Summary / HPI</Text>
-                          <Text style={caseStyles.learningDetailsChevron}>
-                            {openLearningDetail === "patient" ? "Hide" : "Show"}
-                          </Text>
-                        </Pressable>
-                        {openLearningDetail === "patient" ? (
-                          <Text style={caseStyles.learningDetailsText}>{patientSummaryText}</Text>
-                        ) : null}
-
-                        <View style={caseStyles.reviewSummaryDivider} />
-
-                        <Pressable
-                          onPress={() => {
-                            setShowDetailedRubric((current) => !current);
-                            setOpenLearningDetail((current) => (current === "rubric" ? null : "rubric"));
-                          }}
-                          style={caseStyles.learningDetailsToggle}
-                        >
-                          <Text style={caseStyles.learningDetailsTitle}>Show Detailed Rubric</Text>
-                          <Text style={caseStyles.learningDetailsChevron}>
-                            {openLearningDetail === "rubric" ? "Hide" : "Show"}
-                          </Text>
-                        </Pressable>
-                        {openLearningDetail === "rubric" ? (
-                          <View style={caseStyles.learningDetailsRubricList}>
-                            {submissionResult?.earned_points != null ? (
-                              <Text style={caseStyles.learningDetailsText}>
-                                Rubric points: {submissionResult.earned_points} / {submissionResult.available_points}
-                              </Text>
-                            ) : null}
-                            {detailedRubricItems.length > 0 ? (
-                              detailedRubricItems.map((item) => (
-                                <View key={item.id} style={caseStyles.learningDetailsRubricItem}>
-                                  <View style={caseStyles.criterionRow}>
-                                    <Text style={caseStyles.criterionLabel}>{item.label || item.id}</Text>
-                                    <Text style={[caseStyles.criterionStatusText, { color: statusColor(item.status) }]}>
-                                      {statusLabel(item.status)}
-                                    </Text>
-                                  </View>
-                                  <Text style={caseStyles.criterionMeta}>
-                                    {item.section} · {item.earned_points}/{item.points}
-                                  </Text>
-                                  {!!item.rationale && (
-                                    <Text style={caseStyles.criterionRationale}>{item.rationale}</Text>
-                                  )}
-                                  {Array.isArray(item.evidence) && item.evidence.length > 0 && (
-                                    <Text style={caseStyles.criterionEvidence}>
-                                      Evidence: {item.evidence.slice(0, 2).join(" | ")}
-                                    </Text>
-                                  )}
-                                  {!!item.omit_reason && (
-                                    <Text style={caseStyles.criterionOmitReason}>Reason: {item.omit_reason}</Text>
-                                  )}
-                                </View>
-                              ))
-                            ) : (
-                              <Text style={caseStyles.learningDetailsText}>
-                                No detailed rubric items were stored for this attempt.
-                              </Text>
-                            )}
-                          </View>
-                        ) : null}
-                      </View>
-                    </View>
-                  </ScrollView>
-
-                  <View style={caseStyles.debriefFixedFooter}>
-                    <View style={caseStyles.debriefActions}>
-                      <Pressable onPress={retryCase} style={caseStyles.debriefSecondaryButton}>
-                        <Text style={caseStyles.debriefSecondaryButtonText}>Retry Encounter</Text>
-                      </Pressable>
-                      <Pressable onPress={continueLearning} style={caseStyles.debriefPrimaryButton}>
-                        <Text style={caseStyles.debriefPrimaryButtonText}>Continue Learning</Text>
-                      </Pressable>
-                    </View>
-                  </View>
-                </View>
-              </>
-            ) : null}
-          </View>
-        </View>
-      </Modal>
+      {visibleDebrief ? <ClinicalDebrief
+        debriefVisible={debriefVisible}
+        continueLearning={continueLearning}
+        debriefMentorSpeech={debriefMentorSpeech}
+        voiceEnabled={voiceEnabled}
+        setVoiceEnabled={setVoiceEnabled}
+        debriefInput={debriefInput}
+        setDebriefInput={setDebriefInput}
+        debriefSending={debriefSending}
+        sendDebriefMessage={sendDebriefMessage}
+        conversationId={conversationId}
+        debriefTranscription={debriefTranscription}
+        retryCase={retryCase}
+        learnerDebriefMessage={learnerDebriefMessage}
+        debriefMessages={debriefMessages}
+        DEBRIEF_QUICK_ACTIONS={DEBRIEF_QUICK_ACTIONS}
+        debriefError={debriefError}
+        visibleDebrief={visibleDebrief}
+        reviewBadgeVisual={reviewBadgeVisual}
+        reviewBadgeLabel={reviewBadgeLabel}
+        reviewAchievementResults={reviewAchievementResults}
+        improvementObjectiveText={improvementObjectiveText}
+        setOpenLearningDetail={setOpenLearningDetail}
+        openLearningDetail={openLearningDetail}
+        scoreDetailText={scoreDetailText}
+        patientSummaryText={patientSummaryText}
+        setShowDetailedRubric={setShowDetailedRubric}
+        submissionResult={submissionResult}
+        detailedRubricItems={detailedRubricItems}
+        statusColor={statusColor}
+        statusLabel={statusLabel}
+      /> : null}
       <KeyboardAvoidingView
         style={caseStyles.keyboardView}
         behavior={Platform.OS === "ios" ? "padding" : undefined}

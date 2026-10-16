@@ -1,0 +1,12 @@
+{
+  "base": "72e57071d410f96b70ade68ebb660425a6892f37",
+  "branch": "feat/debrief-portfolio-redesign",
+  "encounterSourceOutsidePresentationAndImportsUnchanged": true,
+  "portfolioDataLoaderAndFocusLifecycleUnchanged": true,
+  "trackedDiff": [
+    "backend/test/module0Frontend.test.js",
+    "mobile/app/(tabs)/level1.tsx",
+    "mobile/app/(tabs)/portfolio.tsx",
+    "mobile/src/components/MeetPreceptor.tsx"
+  ]
+}

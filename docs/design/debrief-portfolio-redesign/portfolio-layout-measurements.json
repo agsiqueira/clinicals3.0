@@ -1,0 +1,68 @@
+[
+  {
+    "chartImageWidth": 292,
+    "contentWidth": 305,
+    "height": 568,
+    "pageWidth": 320,
+    "width": 320,
+    "svg": {
+      "points": 6,
+      "width": "292"
+    }
+  },
+  {
+    "chartImageWidth": 292,
+    "contentWidth": 375,
+    "height": 844,
+    "pageWidth": 390,
+    "width": 390,
+    "svg": {
+      "points": 6,
+      "width": "292"
+    }
+  },
+  {
+    "chartImageWidth": 292,
+    "contentWidth": 375,
+    "height": 875,
+    "pageWidth": 390,
+    "width": 390,
+    "svg": {
+      "points": 6,
+      "width": "292"
+    }
+  },
+  {
+    "chartImageWidth": 662,
+    "contentWidth": 760,
+    "height": 900,
+    "pageWidth": 1280,
+    "width": 1280,
+    "svg": {
+      "points": 6,
+      "width": "662"
+    }
+  },
+  {
+    "chartImageWidth": 662,
+    "contentWidth": 760,
+    "height": 900,
+    "pageWidth": 1440,
+    "width": 1440,
+    "svg": {
+      "points": 6,
+      "width": "662"
+    }
+  },
+  {
+    "chartImageWidth": 662,
+    "contentWidth": 760,
+    "height": 600,
+    "pageWidth": 1280,
+    "width": 1280,
+    "svg": {
+      "points": 6,
+      "width": "662"
+    }
+  }
+]

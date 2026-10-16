@@ -11,9 +11,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth, useUser } from "@clerk/clerk-expo";
 import { useFocusEffect } from "@react-navigation/native";
 import { api } from "../../src/api/client";
-import { portfolioStyles } from "../../assets/styles/portfolio.styles";
+import { portfolioStyles } from "../../src/components/portfolio/presentation";
+import { ClinicalPerformance } from "../../src/components/portfolio/ClinicalPerformance";
+import { scoredEncounters } from "../../src/components/portfolio/performance";
+import { useFonts } from "expo-font";
 import { AccountSettingsButton } from "../../src/components/AccountSettingsButton";
-import { CompactJourneyCard } from "../../src/components/CompactJourneyCard";
 import { CompetencyProfileTab } from "../../src/components/CompetencyProfileTab";
 import { PatientAvatar } from "../../src/components/PatientAvatar";
 import { Sparkline } from "../../src/components/Sparkline";
@@ -170,14 +172,6 @@ function patientNameFromTitle(title?: string | null) {
   return title.split(":")[0]?.trim() || title;
 }
 
-function chronologicalPatients(patients: RecentPatient[] = []) {
-  return [...patients].sort((a, b) => {
-    const aTime = new Date(a.scoredAt || 0).getTime();
-    const bTime = new Date(b.scoredAt || 0).getTime();
-    return aTime - bTime;
-  });
-}
-
 function categoryTitle(category: string) {
   return category
     .split("-")
@@ -295,110 +289,15 @@ function MilestoneCard({ milestone }: { milestone: PortfolioMilestone }) {
   );
 }
 
-function ClinicalJourneyChart({ patients }: { patients: RecentPatient[] }) {
-  const completedPatients = chronologicalPatients(patients).filter((patient) =>
-    Number.isFinite(Number(patient.sessionScore))
-  );
-  const chartWidth = 248;
-  const chartHeight = 118;
-  const points = completedPatients.map((patient, index) => {
-    const count = Math.max(1, completedPatients.length - 1);
-    const score = clampPercent(patient.sessionScore || 0);
-    return {
-      patient,
-      x: completedPatients.length === 1 ? chartWidth / 2 : (chartWidth / count) * index,
-      y: chartHeight - (score / 100) * chartHeight,
-      score,
-    };
-  });
-  const segments = points.slice(1).map((point, index) => {
-    const previous = points[index];
-    const dx = point.x - previous.x;
-    const dy = point.y - previous.y;
-    const length = Math.sqrt(dx * dx + dy * dy);
-    const angle = `${Math.atan2(dy, dx)}rad`;
-    return {
-      key: `${previous.patient.sessionAttemptId}-${point.patient.sessionAttemptId}`,
-      left: (previous.x + point.x) / 2 - length / 2,
-      top: (previous.y + point.y) / 2,
-      width: length,
-      angle,
-    };
-  });
-
-  if (completedPatients.length < 2) {
-    return (
-      <Text style={portfolioStyles.emptyText}>
-        Complete additional encounters to begin visualizing your clinical journey.
-      </Text>
-    );
-  }
-
-  return (
-    <View style={portfolioStyles.journeyChartWrap}>
-      <View style={portfolioStyles.journeyChartInner}>
-        <View style={portfolioStyles.journeyYAxis}>
-          <Text style={portfolioStyles.journeyAxisLabel}>100</Text>
-          <Text style={portfolioStyles.journeyAxisLabel}>50</Text>
-          <Text style={portfolioStyles.journeyAxisLabel}>0</Text>
-        </View>
-        <View style={[portfolioStyles.journeyPlot, { width: chartWidth, height: chartHeight }]}>
-          <View style={[portfolioStyles.journeyGridLine, { top: 0 }]} />
-          <View style={[portfolioStyles.journeyGridLine, { top: chartHeight / 2 }]} />
-          <View style={[portfolioStyles.journeyGridLine, { bottom: 0 }]} />
-          {segments.map((segment) => (
-            <View
-              key={segment.key}
-              style={[
-                portfolioStyles.journeyLineSegment,
-                {
-                  left: segment.left,
-                  top: segment.top,
-                  width: segment.width,
-                  transform: [{ rotate: segment.angle }],
-                },
-              ]}
-            />
-          ))}
-          {points.map((point) => (
-            <View
-              key={point.patient.sessionAttemptId}
-              style={[
-                portfolioStyles.journeyPoint,
-                point.patient.badgeTier === "GOLD" && portfolioStyles.journeyPointGold,
-                point.patient.badgeTier === "SILVER" && portfolioStyles.journeyPointSilver,
-                point.patient.badgeTier === "BRONZE" && portfolioStyles.journeyPointBronze,
-                { left: point.x - 6, top: point.y - 6 },
-              ]}
-            />
-          ))}
-        </View>
-      </View>
-      <View style={portfolioStyles.journeyAvatarRow}>
-        {completedPatients.map((patient) => (
-          <View key={patient.sessionAttemptId} style={portfolioStyles.journeyAvatarItem}>
-            <PatientAvatar
-              patientName={patientNameFromTitle(patient.patientSessionTitle)}
-              caseId={patient.caseId}
-              size={32}
-              status="completed"
-              tier={patient.badgeTier}
-            />
-          </View>
-        ))}
-      </View>
-    </View>
-  );
-}
-
 export default function ClinicalPortfolioScreen() {
+  useFonts({Module0Inter:require("../../assets/module0/Inter-Regular.ttf"),Module0InterSemiBold:require("../../assets/module0/Inter-SemiBold.ttf"),Module0InterBold:require("../../assets/module0/Inter-Bold.ttf")});
   const { userId: authUserId } = useAuth();
   const { user, isLoaded: userLoaded } = useUser();
   const [portfolio, setPortfolio] = useState<ClinicalPortfolio | null>(null);
   const [today, setToday] = useState<TodayBriefing | null>(null);
   const [showAllMilestones, setShowAllMilestones] = useState(false);
   const [showAllEncounters, setShowAllEncounters] = useState(false);
-  const [activeTab, setActiveTab] = useState<PortfolioTab>("achievements");
+  const [activeTab, setActiveTab] = useState<PortfolioTab>("badges");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -498,7 +397,7 @@ export default function ClinicalPortfolioScreen() {
 
   return (
     <SafeAreaView style={portfolioStyles.container}>
-      <ScrollView
+      <ScrollView testID="portfolio-scroll"
         contentContainerStyle={portfolioStyles.scrollContent}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={() => loadPortfolio({ asRefresh: true })} />
@@ -521,12 +420,14 @@ export default function ClinicalPortfolioScreen() {
           </View>
         ) : null}
 
-        <CompactJourneyCard
-          levelTitle={identity.levelTitle}
-          professionalLevel={identity.professionalLevel}
-          xp={identity.xp}
-          streakCount={streak.currentCount}
-        />
+        <View style={portfolioStyles.dashboardHero}>
+          <Text style={portfolioStyles.identityLabel}>YOUR CLINICAL JOURNEY</Text>
+          <Text style={portfolioStyles.identityTitle}>{identity.levelTitle || "Student Clinician"}</Text>
+          <Text style={portfolioStyles.identityDetail}>Level {toNumber(identity.professionalLevel, 1)} · {toNumber(identity.xp, 0)} XP · {toNumber(streak.currentCount, 0)}-day streak</Text>
+          {!!portfolio?.learningPathProgress?.pathTitle && <Text style={portfolioStyles.identityDetail}>{portfolio.learningPathProgress.pathTitle}</Text>}
+          {portfolio?.learningPathProgress?.percentComplete != null && <ProgressBar value={portfolio.learningPathProgress.percentComplete} />}
+          {portfolio?.learningPathProgress?.completedSessions != null && portfolio?.learningPathProgress?.totalSessions != null && <Text style={portfolioStyles.identityDetail}>{portfolio.learningPathProgress.completedSessions} of {portfolio.learningPathProgress.totalSessions} encounters complete</Text>}
+        </View>
 
         <View style={portfolioStyles.portfolioTabRow}>
           {PORTFOLIO_TABS.map((tab) => {
@@ -534,6 +435,8 @@ export default function ClinicalPortfolioScreen() {
             return (
               <Pressable
                 key={tab.id}
+                accessibilityRole="tab"
+                accessibilityState={{selected}}
                 onPress={() => setActiveTab(tab.id)}
                 style={[
                   portfolioStyles.portfolioTabButton,
@@ -556,11 +459,11 @@ export default function ClinicalPortfolioScreen() {
         {activeTab === "badges" ? (
           <>
             <View style={portfolioStyles.dashboardCard}>
-              <Text style={portfolioStyles.sectionTitle}>Clinical Journey</Text>
-              <ClinicalJourneyChart patients={allRecentPatients} />
-              {visiblePatients.length === 0 ? (
-                <Text style={portfolioStyles.emptyText}>Completed patient encounters will appear here.</Text>
-              ) : (
+              <Text style={portfolioStyles.sectionTitle}>Clinical Performance</Text>
+              {scoredEncounters(allRecentPatients).length >= 2 && <Text style={portfolioStyles.cardSubText}>How your encounter scores change over time</Text>}
+              <ClinicalPerformance patients={allRecentPatients} />
+              {visiblePatients.length > 0 && <Text style={portfolioStyles.cardTitle}>Clinical Journey</Text>}
+              {visiblePatients.length > 0 ? (
                 visiblePatients.map((patient) => (
                   <View key={patient.sessionAttemptId} style={portfolioStyles.patientCompactCard}>
                     <PatientAvatar
@@ -584,7 +487,7 @@ export default function ClinicalPortfolioScreen() {
                     </View>
                   </View>
                 ))
-              )}
+              ) : null}
               {hasMoreEncounters ? (
                 <Pressable
                   onPress={() => setShowAllEncounters((visible) => !visible)}
@@ -599,10 +502,11 @@ export default function ClinicalPortfolioScreen() {
           </>
         ) : null}
 
-        {activeTab === "achievements" ? (
+        {activeTab === "badges" || activeTab === "achievements" ? (
           <>
         <View style={portfolioStyles.dashboardCard}>
           <Text style={portfolioStyles.sectionTitle}>Clinical Growth</Text>
+          <Text style={portfolioStyles.cardSubText}>Competencies develop across encounters</Text>
           {(portfolio?.competencies || []).length === 0 ? (
             <Text style={portfolioStyles.emptyText}>
               Complete more encounters to begin tracking your growth.
@@ -652,6 +556,11 @@ export default function ClinicalPortfolioScreen() {
           </View>
         )}
 
+          </>
+        ) : null}
+
+        {activeTab === "achievements" ? (
+          <>
         <View style={portfolioStyles.dashboardCard}>
           <Text style={portfolioStyles.sectionTitle}>Competency Growth</Text>
           {(portfolio?.competencies || []).map((competency) => (
