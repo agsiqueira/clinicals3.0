@@ -177,7 +177,7 @@ function harness(file="app/module-0.tsx", params={}, options={}) {
     if(name==="react-native-safe-area-context")return{SafeAreaView:"SafeAreaView",useSafeAreaInsets:()=>({top:0,bottom:0,left:0,right:0})};
     if(name==="@clerk/clerk-expo")return{useAuth:()=>({userId,sessionId:`session-${userId}`}),useUser:()=>({isLoaded:true,user:{id:userId}}),useClerk:()=>({signOut:async()=>{}})};
     if(name==="expo-router")return{useRouter:()=>router,useLocalSearchParams:()=>params};
-    if(name==="@react-navigation/native")return{useIsFocused:()=>focused,useFocusEffect:fn=>react.useEffect(()=>fn(),[fn])};
+    if(name==="@react-navigation/native")return{useIsFocused:()=>focused,useFocusEffect:fn=>react.useEffect(()=>focused?fn():undefined,[fn,focused])};
     if(name.includes("module0View"))return view;
     if(name.includes("sessionToken"))return{captureSession:expected=>{if(!sessionValid)throw new Error("Session expired");const captured=userId;return()=>{if(!sessionValid||expected!==userId||captured!==userId)throw new Error("Account changed");};}};
     if(name.includes("api/client"))return{api};
@@ -194,6 +194,9 @@ function harness(file="app/module-0.tsx", params={}, options={}) {
     if(name.includes("today/model"))return compile("src/components/today/model.ts",requireFn);
     if(name.includes("roadmap/JourneyConnections"))return{JourneyCanvas:"JourneyCanvas"};
     if(name.includes("roadmap/RoadmapJourney"))return{RoadmapFoundation:"RoadmapFoundation",RoadmapHeader:"RoadmapHeader",RoadmapJourney:"RoadmapJourney",roadmapStyles:{}};
+    if(name.includes("roadmap/useRoadmapFocus"))return compile("src/components/roadmap/useRoadmapFocus.ts",requireFn,{requestAnimationFrame:fn=>schedule(fn,0)});
+    if(name.includes("roadmap/focus") || name === "./focus")return compile("src/components/roadmap/focus.ts",requireFn);
+    if(name === "./journey")return compile("src/components/roadmap/journey.ts",requireFn);
     if(name.includes("roadmap/journey"))return compile("src/components/roadmap/journey.ts",requireFn);
     if(name.includes("Module0Card"))return{Module0Card:"Module0Card"};
     if(name.includes("CompactJourneyCard"))return{CompactJourneyCard:"JourneyCard"};
@@ -1198,4 +1201,30 @@ test('final OLD CARTS lossless images match approved integrity, dimensions, orde
 
 test('OLD CARTS artwork integration preserves every nonvisual teaching field',()=>{
  const fields=teaching.oldCartsPanels.map(({illustration,...rest})=>rest);assert.equal(require('node:crypto').createHash('sha256').update(JSON.stringify(fields)).digest('hex'),'a5da86f4e8ab5fb7e3e899d78e88fe7638c811ff114f286751333d2baca413b2');
+});
+
+
+test('actual Roadmap waits for fresh re-entry data after an empty visit and centers the measured lesson once',async()=>{
+ let currentPaths=[],recommendation=null;const scrolls=[];
+ const h=harness('app/(tabs)/cases.tsx',{}, {api:{getLearningPaths:async()=>currentPaths,getToday:async()=>({module0:currentPaths.length?{completed:true,entryBlocked:false}:null,recommendedEncounter:recommendation})}});
+ h.render();await h.settle();assert.equal(h.nodes().some(n=>n.props?.testID==='roadmap-positioning'),false);
+ h.setFocused(false);await h.settle();
+ currentPaths=[{id:'p',title:'P',units:[{id:'u',slug:'u',title:'U',sessions:[{id:'lesson',slug:'lesson',title:'Actual lesson',status:'available'}]}]}];recommendation={patientSessionSlug:'lesson',status:'available'};
+ h.setFocused(true);await h.settle();
+ const scroll=h.nodes().find(n=>n.props?.testID==='roadmap-scroll'),canvas=h.nodes().find(n=>n.type==='JourneyCanvas');
+ scroll.props.ref.current={scrollTo:options=>scrolls.push(options)};
+ scroll.props.onLayout({nativeEvent:{layout:{height:600}}});canvas.props.onCanvasLayout({y:0,height:3000});canvas.props.onFocusMeasure('focus:p:u:lesson',{x:0,y:1000,width:350,height:200});
+ await h.advance(0);await h.advance(0);assert.equal(scrolls.length,1);assert.equal(scrolls[0].y,800);assert.equal(scrolls[0].animated,false);
+ canvas.props.onFocusMeasure('focus:p:u:lesson',{x:0,y:1800,width:350,height:200});await h.advance(0);assert.equal(scrolls.length,1);
+ assert.equal(h.nodes().some(n=>n.props?.testID==='roadmap-positioning'),false);
+});
+
+test('actual Roadmap account switch rejects old queued scrolling and waits for the new learner data',async()=>{
+ const paths=[{id:'p',title:'P',units:[{id:'u',slug:'u',title:'U',sessions:[{id:'lesson',slug:'lesson',title:'Lesson',status:'available'}]}]}];
+ let resolveB;const pendingB=new Promise(resolve=>{resolveB=resolve;});const calls=[];
+ const h=harness('app/(tabs)/cases.tsx',{}, {api:{getLearningPaths:async headers=>headers.expectedUserId==='B'?pendingB:paths,getToday:async()=>({module0:{completed:true},recommendedEncounter:{patientSessionSlug:'lesson',status:'available'}})}});
+ h.render();await h.settle();const scroll=h.nodes().find(n=>n.props?.testID==='roadmap-scroll'),canvas=h.nodes().find(n=>n.type==='JourneyCanvas');scroll.props.ref.current={scrollTo:()=>calls.push('A')};scroll.props.onLayout({nativeEvent:{layout:{height:600}}});canvas.props.onCanvasLayout({y:0,height:3000});canvas.props.onFocusMeasure('focus:p:u:lesson',{x:0,y:1000,width:350,height:200});
+ h.switchUser('B');await h.advance(0);assert.equal(calls.length,0);assert.equal(h.nodes().some(n=>n.props?.testID==='roadmap-positioning'),true);
+ canvas.props.onFocusMeasure('focus:p:u:lesson',{x:0,y:1600,width:350,height:200});await h.advance(0);assert.equal(calls.length,0);
+ resolveB(paths);await h.settle();const nextScroll=h.nodes().find(n=>n.props?.testID==='roadmap-scroll'),nextCanvas=h.nodes().find(n=>n.type==='JourneyCanvas');nextScroll.props.ref.current={scrollTo:()=>calls.push('B')};nextScroll.props.onLayout({nativeEvent:{layout:{height:600}}});nextCanvas.props.onCanvasLayout({y:0,height:3000});nextCanvas.props.onFocusMeasure('focus:p:u:lesson',{x:0,y:1800,width:350,height:200});await h.advance(0);await h.advance(0);assert.deepEqual(calls,['B']);
 });

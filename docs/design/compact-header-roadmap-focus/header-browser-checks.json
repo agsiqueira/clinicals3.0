@@ -1,0 +1,830 @@
+[
+  {
+    "width": 320,
+    "screen": "today",
+    "fixture": "incomplete",
+    "state": "initial",
+    "data": {
+      "card": {
+        "bottom": 108,
+        "height": 44,
+        "left": 20,
+        "right": 300,
+        "top": 64,
+        "width": 280,
+        "x": 20,
+        "y": 64
+      },
+      "clipped": false,
+      "gear": {
+        "bottom": 56,
+        "height": 44,
+        "left": 256,
+        "right": 300,
+        "top": 12,
+        "width": 44,
+        "x": 256,
+        "y": 12
+      },
+      "header": {
+        "bottom": 120,
+        "height": 120,
+        "left": 0,
+        "right": 320,
+        "top": 0,
+        "width": 320,
+        "x": 0,
+        "y": 0
+      },
+      "overflow": false,
+      "text": "󰈸7 days󰓎Level 2140 / 200 XP"
+    }
+  },
+  {
+    "width": 320,
+    "screen": "today",
+    "fixture": "streak-values",
+    "state": "initial",
+    "data": {
+      "card": {
+        "bottom": 108,
+        "height": 44,
+        "left": 20,
+        "right": 300,
+        "top": 64,
+        "width": 280,
+        "x": 20,
+        "y": 64
+      },
+      "clipped": false,
+      "gear": {
+        "bottom": 56,
+        "height": 44,
+        "left": 256,
+        "right": 300,
+        "top": 12,
+        "width": 44,
+        "x": 256,
+        "y": 12
+      },
+      "header": {
+        "bottom": 120,
+        "height": 120,
+        "left": 0,
+        "right": 320,
+        "top": 0,
+        "width": 320,
+        "x": 0,
+        "y": 0
+      },
+      "overflow": false,
+      "text": "󰈸365 days󰓎Level 1212345 / 20000 XP"
+    }
+  },
+  {
+    "width": 320,
+    "screen": "today",
+    "fixture": "streak-extreme",
+    "state": "initial",
+    "data": {
+      "card": {
+        "bottom": 116,
+        "height": 52,
+        "left": 20,
+        "right": 300,
+        "top": 64,
+        "width": 280,
+        "x": 20,
+        "y": 64
+      },
+      "clipped": false,
+      "gear": {
+        "bottom": 56,
+        "height": 44,
+        "left": 256,
+        "right": 300,
+        "top": 12,
+        "width": 44,
+        "x": 256,
+        "y": 12
+      },
+      "header": {
+        "bottom": 128,
+        "height": 128,
+        "left": 0,
+        "right": 320,
+        "top": 0,
+        "width": 320,
+        "x": 0,
+        "y": 0
+      },
+      "overflow": false,
+      "text": "󰈸12345 days󰓎Level 21234567 / 2000000 XP"
+    }
+  },
+  {
+    "width": 320,
+    "screen": "today",
+    "fixture": "missing-xp",
+    "state": "initial",
+    "data": {
+      "card": {
+        "bottom": 123,
+        "height": 59,
+        "left": 20,
+        "right": 300,
+        "top": 64,
+        "width": 280,
+        "x": 20,
+        "y": 64
+      },
+      "clipped": false,
+      "gear": {
+        "bottom": 56,
+        "height": 44,
+        "left": 256,
+        "right": 300,
+        "top": 12,
+        "width": 44,
+        "x": 256,
+        "y": 12
+      },
+      "header": {
+        "bottom": 135,
+        "height": 135,
+        "left": 0,
+        "right": 320,
+        "top": 0,
+        "width": 320,
+        "x": 0,
+        "y": 0
+      },
+      "overflow": false,
+      "text": "󰈸0 days󰓎Level unavailableXP unavailable"
+    }
+  },
+  {
+    "width": 320,
+    "screen": "roadmap",
+    "fixture": "incomplete",
+    "state": "initial",
+    "data": {
+      "card": {
+        "bottom": 108,
+        "height": 44,
+        "left": 20,
+        "right": 300,
+        "top": 64,
+        "width": 280,
+        "x": 20,
+        "y": 64
+      },
+      "clipped": false,
+      "gear": {
+        "bottom": 56,
+        "height": 44,
+        "left": 256,
+        "right": 300,
+        "top": 12,
+        "width": 44,
+        "x": 256,
+        "y": 12
+      },
+      "header": {
+        "bottom": 120,
+        "height": 120,
+        "left": 0,
+        "right": 320,
+        "top": 0,
+        "width": 320,
+        "x": 0,
+        "y": 0
+      },
+      "overflow": false,
+      "text": "󰈸7 days󰓎Level 2140 / 200 XP"
+    }
+  },
+  {
+    "width": 320,
+    "screen": "roadmap",
+    "fixture": "streak-values",
+    "state": "initial",
+    "data": {
+      "card": {
+        "bottom": 108,
+        "height": 44,
+        "left": 20,
+        "right": 300,
+        "top": 64,
+        "width": 280,
+        "x": 20,
+        "y": 64
+      },
+      "clipped": false,
+      "gear": {
+        "bottom": 56,
+        "height": 44,
+        "left": 256,
+        "right": 300,
+        "top": 12,
+        "width": 44,
+        "x": 256,
+        "y": 12
+      },
+      "header": {
+        "bottom": 120,
+        "height": 120,
+        "left": 0,
+        "right": 320,
+        "top": 0,
+        "width": 320,
+        "x": 0,
+        "y": 0
+      },
+      "overflow": false,
+      "text": "󰈸365 days󰓎Level 1212345 / 20000 XP"
+    }
+  },
+  {
+    "width": 320,
+    "screen": "roadmap",
+    "fixture": "streak-extreme",
+    "state": "initial",
+    "data": {
+      "card": {
+        "bottom": 116,
+        "height": 52,
+        "left": 20,
+        "right": 300,
+        "top": 64,
+        "width": 280,
+        "x": 20,
+        "y": 64
+      },
+      "clipped": false,
+      "gear": {
+        "bottom": 56,
+        "height": 44,
+        "left": 256,
+        "right": 300,
+        "top": 12,
+        "width": 44,
+        "x": 256,
+        "y": 12
+      },
+      "header": {
+        "bottom": 128,
+        "height": 128,
+        "left": 0,
+        "right": 320,
+        "top": 0,
+        "width": 320,
+        "x": 0,
+        "y": 0
+      },
+      "overflow": false,
+      "text": "󰈸12345 days󰓎Level 21234567 / 2000000 XP"
+    }
+  },
+  {
+    "width": 320,
+    "screen": "roadmap",
+    "fixture": "missing-xp",
+    "state": "initial",
+    "data": {
+      "card": {
+        "bottom": 123,
+        "height": 59,
+        "left": 20,
+        "right": 300,
+        "top": 64,
+        "width": 280,
+        "x": 20,
+        "y": 64
+      },
+      "clipped": false,
+      "gear": {
+        "bottom": 56,
+        "height": 44,
+        "left": 256,
+        "right": 300,
+        "top": 12,
+        "width": 44,
+        "x": 256,
+        "y": 12
+      },
+      "header": {
+        "bottom": 135,
+        "height": 135,
+        "left": 0,
+        "right": 320,
+        "top": 0,
+        "width": 320,
+        "x": 0,
+        "y": 0
+      },
+      "overflow": false,
+      "text": "󰈸0 days󰓎Level unavailableXP unavailable"
+    }
+  },
+  {
+    "width": 390,
+    "screen": "today",
+    "fixture": "incomplete",
+    "state": "initial",
+    "data": {
+      "card": {
+        "bottom": 108,
+        "height": 44,
+        "left": 20,
+        "right": 370,
+        "top": 64,
+        "width": 350,
+        "x": 20,
+        "y": 64
+      },
+      "clipped": false,
+      "gear": {
+        "bottom": 56,
+        "height": 44,
+        "left": 326,
+        "right": 370,
+        "top": 12,
+        "width": 44,
+        "x": 326,
+        "y": 12
+      },
+      "header": {
+        "bottom": 120,
+        "height": 120,
+        "left": 0,
+        "right": 390,
+        "top": 0,
+        "width": 390,
+        "x": 0,
+        "y": 0
+      },
+      "overflow": false,
+      "text": "󰈸7 days󰓎Level 2140 / 200 XP"
+    }
+  },
+  {
+    "width": 390,
+    "screen": "today",
+    "fixture": "streak-values",
+    "state": "initial",
+    "data": {
+      "card": {
+        "bottom": 108,
+        "height": 44,
+        "left": 20,
+        "right": 370,
+        "top": 64,
+        "width": 350,
+        "x": 20,
+        "y": 64
+      },
+      "clipped": false,
+      "gear": {
+        "bottom": 56,
+        "height": 44,
+        "left": 326,
+        "right": 370,
+        "top": 12,
+        "width": 44,
+        "x": 326,
+        "y": 12
+      },
+      "header": {
+        "bottom": 120,
+        "height": 120,
+        "left": 0,
+        "right": 390,
+        "top": 0,
+        "width": 390,
+        "x": 0,
+        "y": 0
+      },
+      "overflow": false,
+      "text": "󰈸365 days󰓎Level 1212345 / 20000 XP"
+    }
+  },
+  {
+    "width": 390,
+    "screen": "today",
+    "fixture": "streak-extreme",
+    "state": "initial",
+    "data": {
+      "card": {
+        "bottom": 108,
+        "height": 44,
+        "left": 20,
+        "right": 370,
+        "top": 64,
+        "width": 350,
+        "x": 20,
+        "y": 64
+      },
+      "clipped": false,
+      "gear": {
+        "bottom": 56,
+        "height": 44,
+        "left": 326,
+        "right": 370,
+        "top": 12,
+        "width": 44,
+        "x": 326,
+        "y": 12
+      },
+      "header": {
+        "bottom": 120,
+        "height": 120,
+        "left": 0,
+        "right": 390,
+        "top": 0,
+        "width": 390,
+        "x": 0,
+        "y": 0
+      },
+      "overflow": false,
+      "text": "󰈸12345 days󰓎Level 21234567 / 2000000 XP"
+    }
+  },
+  {
+    "width": 390,
+    "screen": "today",
+    "fixture": "missing-xp",
+    "state": "initial",
+    "data": {
+      "card": {
+        "bottom": 108,
+        "height": 44,
+        "left": 20,
+        "right": 370,
+        "top": 64,
+        "width": 350,
+        "x": 20,
+        "y": 64
+      },
+      "clipped": false,
+      "gear": {
+        "bottom": 56,
+        "height": 44,
+        "left": 326,
+        "right": 370,
+        "top": 12,
+        "width": 44,
+        "x": 326,
+        "y": 12
+      },
+      "header": {
+        "bottom": 120,
+        "height": 120,
+        "left": 0,
+        "right": 390,
+        "top": 0,
+        "width": 390,
+        "x": 0,
+        "y": 0
+      },
+      "overflow": false,
+      "text": "󰈸0 days󰓎Level unavailableXP unavailable"
+    }
+  },
+  {
+    "width": 390,
+    "screen": "roadmap",
+    "fixture": "incomplete",
+    "state": "initial",
+    "data": {
+      "card": {
+        "bottom": 108,
+        "height": 44,
+        "left": 20,
+        "right": 370,
+        "top": 64,
+        "width": 350,
+        "x": 20,
+        "y": 64
+      },
+      "clipped": false,
+      "gear": {
+        "bottom": 56,
+        "height": 44,
+        "left": 326,
+        "right": 370,
+        "top": 12,
+        "width": 44,
+        "x": 326,
+        "y": 12
+      },
+      "header": {
+        "bottom": 120,
+        "height": 120,
+        "left": 0,
+        "right": 390,
+        "top": 0,
+        "width": 390,
+        "x": 0,
+        "y": 0
+      },
+      "overflow": false,
+      "text": "󰈸7 days󰓎Level 2140 / 200 XP"
+    }
+  },
+  {
+    "width": 390,
+    "screen": "roadmap",
+    "fixture": "streak-values",
+    "state": "initial",
+    "data": {
+      "card": {
+        "bottom": 108,
+        "height": 44,
+        "left": 20,
+        "right": 370,
+        "top": 64,
+        "width": 350,
+        "x": 20,
+        "y": 64
+      },
+      "clipped": false,
+      "gear": {
+        "bottom": 56,
+        "height": 44,
+        "left": 326,
+        "right": 370,
+        "top": 12,
+        "width": 44,
+        "x": 326,
+        "y": 12
+      },
+      "header": {
+        "bottom": 120,
+        "height": 120,
+        "left": 0,
+        "right": 390,
+        "top": 0,
+        "width": 390,
+        "x": 0,
+        "y": 0
+      },
+      "overflow": false,
+      "text": "󰈸365 days󰓎Level 1212345 / 20000 XP"
+    }
+  },
+  {
+    "width": 390,
+    "screen": "roadmap",
+    "fixture": "streak-extreme",
+    "state": "initial",
+    "data": {
+      "card": {
+        "bottom": 108,
+        "height": 44,
+        "left": 20,
+        "right": 370,
+        "top": 64,
+        "width": 350,
+        "x": 20,
+        "y": 64
+      },
+      "clipped": false,
+      "gear": {
+        "bottom": 56,
+        "height": 44,
+        "left": 326,
+        "right": 370,
+        "top": 12,
+        "width": 44,
+        "x": 326,
+        "y": 12
+      },
+      "header": {
+        "bottom": 120,
+        "height": 120,
+        "left": 0,
+        "right": 390,
+        "top": 0,
+        "width": 390,
+        "x": 0,
+        "y": 0
+      },
+      "overflow": false,
+      "text": "󰈸12345 days󰓎Level 21234567 / 2000000 XP"
+    }
+  },
+  {
+    "width": 390,
+    "screen": "roadmap",
+    "fixture": "missing-xp",
+    "state": "initial",
+    "data": {
+      "card": {
+        "bottom": 108,
+        "height": 44,
+        "left": 20,
+        "right": 370,
+        "top": 64,
+        "width": 350,
+        "x": 20,
+        "y": 64
+      },
+      "clipped": false,
+      "gear": {
+        "bottom": 56,
+        "height": 44,
+        "left": 326,
+        "right": 370,
+        "top": 12,
+        "width": 44,
+        "x": 326,
+        "y": 12
+      },
+      "header": {
+        "bottom": 120,
+        "height": 120,
+        "left": 0,
+        "right": 390,
+        "top": 0,
+        "width": 390,
+        "x": 0,
+        "y": 0
+      },
+      "overflow": false,
+      "text": "󰈸0 days󰓎Level unavailableXP unavailable"
+    }
+  },
+  {
+    "width": 320,
+    "screen": "today",
+    "state": "scrolled",
+    "data": {
+      "active": {
+        "bottom": 453,
+        "height": 57,
+        "left": 20,
+        "right": 300,
+        "top": 396,
+        "width": 280,
+        "x": 20,
+        "y": 396
+      },
+      "card": {
+        "bottom": 108,
+        "height": 44,
+        "left": 20,
+        "right": 300,
+        "top": 64,
+        "width": 280,
+        "x": 20,
+        "y": 64
+      },
+      "header": {
+        "bottom": 120,
+        "height": 120,
+        "left": 0,
+        "right": 320,
+        "top": 0,
+        "width": 320,
+        "x": 0,
+        "y": 0
+      },
+      "scrolls": [
+        {
+          "offset": 109,
+          "top": 120
+        }
+      ]
+    }
+  },
+  {
+    "width": 320,
+    "screen": "roadmap",
+    "state": "scrolled",
+    "data": {
+      "active": {
+        "bottom": 377,
+        "height": 44,
+        "left": 162.796875,
+        "right": 296,
+        "top": 333,
+        "width": 133.203125,
+        "x": 162.796875,
+        "y": 333
+      },
+      "card": {
+        "bottom": 108,
+        "height": 44,
+        "left": 20,
+        "right": 300,
+        "top": 64,
+        "width": 280,
+        "x": 20,
+        "y": 64
+      },
+      "header": {
+        "bottom": 120,
+        "height": 120,
+        "left": 0,
+        "right": 320,
+        "top": 0,
+        "width": 320,
+        "x": 0,
+        "y": 0
+      },
+      "scrolls": [
+        {
+          "offset": 454,
+          "top": 120
+        }
+      ]
+    }
+  },
+  {
+    "width": 390,
+    "screen": "today",
+    "state": "scrolled",
+    "data": {
+      "active": {
+        "bottom": 454,
+        "height": 57,
+        "left": 20,
+        "right": 370,
+        "top": 397,
+        "width": 350,
+        "x": 20,
+        "y": 397
+      },
+      "card": {
+        "bottom": 108,
+        "height": 44,
+        "left": 20,
+        "right": 370,
+        "top": 64,
+        "width": 350,
+        "x": 20,
+        "y": 64
+      },
+      "header": {
+        "bottom": 120,
+        "height": 120,
+        "left": 0,
+        "right": 390,
+        "top": 0,
+        "width": 390,
+        "x": 0,
+        "y": 0
+      },
+      "scrolls": [
+        {
+          "offset": 108,
+          "top": 120
+        }
+      ]
+    }
+  },
+  {
+    "width": 390,
+    "screen": "roadmap",
+    "state": "scrolled",
+    "data": {
+      "active": {
+        "bottom": 377.625,
+        "height": 44,
+        "left": 223,
+        "right": 366,
+        "top": 333.625,
+        "width": 143,
+        "x": 223,
+        "y": 333.625
+      },
+      "card": {
+        "bottom": 108,
+        "height": 44,
+        "left": 20,
+        "right": 370,
+        "top": 64,
+        "width": 350,
+        "x": 20,
+        "y": 64
+      },
+      "header": {
+        "bottom": 120,
+        "height": 120,
+        "left": 0,
+        "right": 390,
+        "top": 0,
+        "width": 390,
+        "x": 0,
+        "y": 0
+      },
+      "scrolls": [
+        {
+          "offset": 413,
+          "top": 120
+        }
+      ]
+    }
+  }
+]

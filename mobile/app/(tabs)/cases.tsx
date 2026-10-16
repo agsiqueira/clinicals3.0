@@ -9,6 +9,9 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
+import { useFonts } from "expo-font";
+import { useRoadmapFocus } from "../../src/components/roadmap/useRoadmapFocus";
+import { roadmapFocusTarget } from "../../src/components/roadmap/focus";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth, useUser } from "@clerk/clerk-expo";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -183,8 +186,11 @@ export default function HomeScreen() {
 
 function OwnedRoadmap() {
   const isFocused = useIsFocused();
-  const { userId: authUserId } = useAuth();
+  const { userId: authUserId, sessionId } = useAuth();
   const { user, isLoaded: userLoaded } = useUser();
+  const focusOwner = `${authUserId || ""}:${sessionId || ""}`;
+  const autoFocus = useRoadmapFocus(focusOwner, isFocused);
+  const [journeyFontsReady] = useFonts({ RoadmapInter: require("../../assets/module0/Inter-Regular.ttf"), RoadmapInterBold: require("../../assets/module0/Inter-Bold.ttf") });
   const router = useRouter();
   const { width } = useWindowDimensions();
   const isNarrowScreen = width < 420;
@@ -201,9 +207,14 @@ function OwnedRoadmap() {
   const focusSessionToken = Array.isArray(rawFocusSessionToken)
     ? rawFocusSessionToken[0]
     : rawFocusSessionToken;
+  const explicitIntent = useRef({ key: "", slug: undefined as string | undefined });
+  explicitIntent.current = { key: [focusSessionSlug, focusSessionToken].join(":"), slug: focusSessionSlug };
+  const consumedExplicitIntent = useRef<string | null>(null);
+  const visitExplicitSlug = useRef<string | null>(null);
   const [module0, setModule0] = useState<Module0Summary | null>(null);
   const loadEpoch = useRef(0);
   const [loadingRoadmap, setLoadingRoadmap] = useState(true);
+  const [loadedRoadmapEpoch, setLoadedRoadmapEpoch] = useState(0);
   const [roadmapError, setRoadmapError] = useState<string | null>(null);
   const [learningPaths, setLearningPaths] = useState<LearningPath[]>([]);
   const [journeySummary, setJourneySummary] = useState<TodayResponse | null>(null);
@@ -275,7 +286,7 @@ function OwnedRoadmap() {
     const epoch = ++loadEpoch.current;
     let assertSession: () => void;
     try { assertSession = captureSession(user.id); }
-    catch { setLearningPaths([]); setModule0(null); setJourneySummary(null); setLoadingRoadmap(false); return; }
+    catch { setLearningPaths([]); setModule0(null); setJourneySummary(null); setLoadedRoadmapEpoch(epoch); setLoadingRoadmap(false); return; }
     const current = () => { try { assertSession(); return epoch === loadEpoch.current; } catch { return false; } };
     try {
       setRoadmapError(null);
@@ -303,19 +314,36 @@ function OwnedRoadmap() {
       setLearningPaths([]);
       setJourneySummary(null);
     } finally {
-      if (current()) setLoadingRoadmap(false);
+      if (current()) { setLoadedRoadmapEpoch(epoch); setLoadingRoadmap(false); }
     }
   }, [userHeaders, userLoaded]);
 
   useFocusEffect(
     useCallback(() => {
+      const intent = explicitIntent.current;
+      visitExplicitSlug.current = intent.slug && consumedExplicitIntent.current !== intent.key ? intent.slug : null;
+      if (intent.slug) consumedExplicitIntent.current = intent.key;
+      autoFocus.controller.begin(focusOwner);
       loadRoadmap();
-    }, [loadRoadmap])
+      return () => { autoFocus.controller.end(); ++loadEpoch.current; };
+    }, [loadRoadmap, focusOwner, autoFocus.controller])
   );
 
   useEffect(() => {
-    loadRoadmap();
-  }, [loadRoadmap]);
+    if (!isFocused || loadingRoadmap || loadedRoadmapEpoch !== loadEpoch.current || !userLoaded || !journeyFontsReady) return;
+    autoFocus.controller.ready(focusOwner, roadmapError ? null : roadmapFocusTarget(learningPaths, module0, recommendedSlug, visitExplicitSlug.current));
+  }, [isFocused, loadingRoadmap, loadedRoadmapEpoch, userLoaded, journeyFontsReady, learningPaths, module0, recommendedSlug, focusSessionSlug, roadmapError, focusOwner, autoFocus.controller]);
+
+  const explicitFocusKey = [focusSessionSlug, focusSessionToken].join(":");
+  const previousExplicitFocus = useRef(explicitFocusKey);
+  useEffect(() => {
+    if (previousExplicitFocus.current === explicitFocusKey) return;
+    previousExplicitFocus.current = explicitFocusKey;
+    if (!focusSessionSlug || !isFocused) return;
+    consumedExplicitIntent.current = explicitFocusKey;
+    visitExplicitSlug.current = focusSessionSlug;
+    if (!loadingRoadmap) autoFocus.controller.explicit(roadmapFocusTarget(learningPaths, module0, recommendedSlug, focusSessionSlug));
+  }, [explicitFocusKey, focusSessionSlug, isFocused, loadingRoadmap, learningPaths, module0, recommendedSlug, autoFocus.controller]);
 
   useEffect(() => {
     if (loadingRoadmap || learningPaths.length === 0) return;
@@ -404,7 +432,7 @@ function OwnedRoadmap() {
   }, [userHeaders]);
 
   useEffect(() => {
-    if (!focusSessionSlug || loadingRoadmap || overviewVisible || briefingVisible) return;
+    if (!isFocused || !focusSessionSlug || loadingRoadmap || overviewVisible || briefingVisible) return;
 
     const focusKey = `${focusSessionSlug}:${focusSessionToken || ""}`;
     if (autoOpenedSessionKey === focusKey) return;
@@ -420,6 +448,7 @@ function OwnedRoadmap() {
     openSessionOverview(session);
   }, [
     autoOpenedSessionKey,
+    isFocused,
     briefingVisible,
     focusSessionSlug,
     focusSessionToken,
@@ -533,11 +562,13 @@ function OwnedRoadmap() {
     scrollPreceptorDialogueToEnd,
   ]);
 
+  const layoutEpoch = loadEpoch.current;
   return (
     <SafeAreaView style={roadmapStyles.screen}>
       <RoadmapHeader identity={journeySummary?.identity} />
-      <ScrollView style={progressLayout.scroll} showsVerticalScrollIndicator={false} contentContainerStyle={roadmapStyles.content}>
-        <JourneyCanvas scenery={RoadmapScenery} foundation={!!module0}>
+      <View style={progressLayout.scroll}>
+      <ScrollView ref={autoFocus.scroll} testID="roadmap-scroll" style={[progressLayout.scroll, { opacity: autoFocus.visible && !loadingRoadmap ? 1 : 0 }]} onLayout={event => autoFocus.controller.viewport(event.nativeEvent.layout.height)} onScrollBeginDrag={autoFocus.controller.cancel} onTouchStart={autoFocus.controller.cancel} onWheel={autoFocus.controller.cancel} {...({ onKeyDown: (event: any) => { if (["ArrowDown", "ArrowUp", "PageDown", "PageUp", "Home", "End", " "].includes(event.key)) autoFocus.controller.cancel(); } } as any)} showsVerticalScrollIndicator={false} contentContainerStyle={roadmapStyles.content}>
+        {(!loadingRoadmap && journeyFontsReady) && <JourneyCanvas key={loadEpoch.current} scenery={RoadmapScenery} foundation={!!module0} onFocusMeasure={(id, box) => { if (layoutEpoch === loadEpoch.current) autoFocus.controller.measure(id, box); }} onCanvasLayout={box => { if (layoutEpoch === loadEpoch.current) autoFocus.controller.canvas(box); }}>
         <RoadmapFoundation summary={module0} />
 
         {loadingRoadmap ? (
@@ -554,13 +585,15 @@ function OwnedRoadmap() {
         ) : learningPaths.length === 0 ? (
           <Text style={casesStyles.emptyText}>No learning paths found.</Text>
         ) : (
-          <RoadmapJourney paths={learningPaths} onSessionPress={openSessionOverview}
+          <RoadmapJourney paths={learningPaths} onSessionPress={session => { autoFocus.controller.cancel(); openSessionOverview(session); }}
             recommendedSlug={recommendedSlug}
             milestoneScales={milestoneAnimationRefs.current} />
         )}
 
-        </JourneyCanvas>
+        </JourneyCanvas>}
       </ScrollView>
+      {(!autoFocus.visible || loadingRoadmap) && <View testID="roadmap-positioning" pointerEvents="none" style={{ position: "absolute", top: 0, bottom: 0, left: 0, right: 0, alignItems: "center", justifyContent: "center" }}><ActivityIndicator accessibilityLabel="Loading current Roadmap destination" /></View>}
+      </View>
 
       <Modal
         visible={overviewVisible}
