@@ -7,6 +7,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { api } from "../../src/api/client";
 import { captureSession } from "../../src/api/sessionToken";
 import { TodayContent, TodayHeader, todayStyles } from "../../src/components/today/TodayPresentation";
+import { progressLayout } from "../../src/components/ProgressHeader";
 import { todayFocus, type TodayResponse } from "../../src/components/today/model";
 
 export default function TodayScreen() {
@@ -77,6 +78,7 @@ export default function TodayScreen() {
   if (loading && !visibleToday) {
     return (
       <SafeAreaView style={todayStyles.screen}>
+        <TodayHeader identity={null} />
         <View style={todayStyles.centered}>
           <ActivityIndicator />
           <Text style={todayStyles.body}>Loading Today...</Text>
@@ -86,8 +88,8 @@ export default function TodayScreen() {
   }
 
   return <SafeAreaView style={todayStyles.screen}>
-    <TodayHeader />
-    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={todayStyles.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadToday({ asRefresh: true })} />}>
+    <TodayHeader identity={visibleToday?.identity} />
+    <ScrollView style={progressLayout.scroll} showsVerticalScrollIndicator={false} contentContainerStyle={todayStyles.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadToday({ asRefresh: true })} />}>
       {error && <View accessibilityRole="alert" style={todayStyles.error}><Text style={todayStyles.body}>{error}</Text><Pressable accessibilityRole="button" onPress={() => loadToday()} style={todayStyles.retry}><Text>Retry</Text></Pressable></View>}
       {visibleToday && <TodayContent data={visibleToday} onContinue={continueLearning} onRoadmap={() => router.push("/(tabs)/cases")} />}
     </ScrollView>

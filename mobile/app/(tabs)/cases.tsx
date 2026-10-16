@@ -16,7 +16,7 @@ import { useFocusEffect, useIsFocused } from "@react-navigation/native";
 import { api } from "../../src/api/client";
 import { casesStyles } from "../../assets/styles/cases.styles";
 import { RoadmapFoundation, RoadmapHeader, RoadmapJourney, RoadmapScenery, roadmapStyles } from "../../src/components/roadmap/RoadmapJourney";
-import { LearnerStatusCard } from "../../src/components/LearnerStatusCard";
+import { progressLayout } from "../../src/components/ProgressHeader";
 import type { TodayResponse } from "../../src/components/today/model";
 import { JourneyCanvas } from "../../src/components/roadmap/JourneyConnections";
 import { isRotationMastered, previousAttemptsRoute } from "../../src/components/roadmap/journey";
@@ -535,9 +535,8 @@ function OwnedRoadmap() {
 
   return (
     <SafeAreaView style={roadmapStyles.screen}>
-      <RoadmapHeader />
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={roadmapStyles.content}>
-        <View style={{ marginBottom: 16 }}><LearnerStatusCard identity={journeySummary?.identity} rotationTitle={journeySummary?.activeRotation?.title} /></View>
+      <RoadmapHeader identity={journeySummary?.identity} />
+      <ScrollView style={progressLayout.scroll} showsVerticalScrollIndicator={false} contentContainerStyle={roadmapStyles.content}>
         <JourneyCanvas scenery={RoadmapScenery} foundation={!!module0}>
         <RoadmapFoundation summary={module0} />
 

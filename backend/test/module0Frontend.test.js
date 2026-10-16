@@ -187,6 +187,7 @@ function harness(file="app/module-0.tsx", params={}, options={}) {
     if(name.includes("ClinicalsChatComposer"))return{ClinicalsChatComposer:"Composer"};
     if(name.includes("MentorAvatar"))return{MentorAvatar:"MentorAvatar"};
     if(name.includes("AccountSettingsButton"))return{AccountSettingsButton:"AccountSettingsButton"};
+    if(name.includes("ProgressHeader"))return{ProgressHeader:"ProgressHeader",progressLayout:{scroll:{}}};
     if(name.includes("LearnerStatusCard"))return{LearnerStatusCard:"LearnerStatusCard"};
     if(name.endsWith("learnerStatus"))return compile("src/components/learnerStatus.ts",requireFn);
     if(name.includes("today/TodayPresentation"))return{TodayHeader:"TodayHeader",TodayContent:"TodayContent",todayStyles:{}};

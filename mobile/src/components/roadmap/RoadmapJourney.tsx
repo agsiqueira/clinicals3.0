@@ -4,7 +4,8 @@ import { Image } from "expo-image";
 import { useFonts } from "expo-font";
 import { useRouter } from "expo-router";
 import { Module0Card } from "../Module0Card";
-import { AccountSettingsButton } from "../AccountSettingsButton";
+import { ProgressHeader } from "../ProgressHeader";
+import type { LearnerIdentity } from "../learnerStatus";
 import type { Module0Summary } from "../../types/clinicalReadiness";
 import { sessionDisplayParts } from "../../utils/clinicalDisplay";
 import { buildJourney, type JourneyPath, type JourneySession } from "./journey";
@@ -12,10 +13,8 @@ import { roadmapAssets as art } from "./assets";
 import { JourneyChain, JourneyStage } from "./JourneyConnections";
 
 const colors = { ink: "#152044", purple: "#6150ed", body: "#4c5b7b", lavender: "#f2eeff", muted: "#67748f" };
-export function RoadmapHeader() {
-  return <View style={styles.headerBlock}><View style={styles.header}>
-    <Text accessibilityRole="header" style={styles.title}>Roadmap</Text><AccountSettingsButton />
-  </View></View>;
+export function RoadmapHeader({ identity }: { identity?: LearnerIdentity | null }) {
+  return <ProgressHeader title="Roadmap" identity={identity} />;
 }
 
 /** Roadmap-only summary: preserve existing activity links and readiness policy in disclosure. */
@@ -132,7 +131,7 @@ export function RoadmapJourney<S extends JourneySession>({ paths, onSessionPress
 
 export const roadmapStyles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: "white" },
-  content: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 40, width: "100%", maxWidth: 600, alignSelf: "center" },
+  content: { paddingHorizontal: 20, paddingTop: 0, paddingBottom: 40, width: "100%", maxWidth: 600, alignSelf: "center" },
 });
 const styles = StyleSheet.create({
   headerBlock: { backgroundColor: "white", paddingHorizontal: 20, paddingVertical: 12, width: "100%", maxWidth: 600, alignSelf: "center", zIndex: 1 }, header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" },

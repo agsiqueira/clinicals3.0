@@ -1,0 +1,318 @@
+{
+  "baselineCommit": "064666f7654d6387e6c6c4e7d46f26486cc47fdb",
+  "baselineCount": 22,
+  "currentCount": 22,
+  "newDiagnostics": [],
+  "baseline": [
+    {
+      "file": "mobile/app/(auth)/signin.tsx",
+      "code": 2722,
+      "line": 60,
+      "character": 19,
+      "message": "Cannot invoke an object which is possibly 'undefined'."
+    },
+    {
+      "file": "mobile/app/(auth)/signin.tsx",
+      "code": 18048,
+      "line": 90,
+      "character": 23,
+      "message": "'signIn' is possibly 'undefined'."
+    },
+    {
+      "file": "mobile/app/(auth)/signin.tsx",
+      "code": 18048,
+      "line": 95,
+      "character": 23,
+      "message": "'signIn' is possibly 'undefined'."
+    },
+    {
+      "file": "mobile/app/(auth)/signin.tsx",
+      "code": 18048,
+      "line": 104,
+      "character": 19,
+      "message": "'signIn' is possibly 'undefined'."
+    },
+    {
+      "file": "mobile/app/(auth)/signin.tsx",
+      "code": 18048,
+      "line": 109,
+      "character": 19,
+      "message": "'signIn' is possibly 'undefined'."
+    },
+    {
+      "file": "mobile/app/(tabs)/level1 - original.tsx",
+      "code": 2339,
+      "line": 994,
+      "character": 37,
+      "message": "Property 'voiceControlsRow' does not exist on type '{ container: { flex: number; backgroundColor: string; }; header: { paddingHorizontal: number; paddingTop: number; paddingBottom: number; gap: number; alignItems: \"stretch\"; marginBottom: number; flexShrink: number; }; ... 193 more ...; debriefPrimaryButtonText: { ...; }; }'."
+    },
+    {
+      "file": "mobile/app/(tabs)/level1 - original.tsx",
+      "code": 2339,
+      "line": 1013,
+      "character": 41,
+      "message": "Property 'voiceStateText' does not exist on type '{ container: { flex: number; backgroundColor: string; }; header: { paddingHorizontal: number; paddingTop: number; paddingBottom: number; gap: number; alignItems: \"stretch\"; marginBottom: number; flexShrink: number; }; ... 193 more ...; debriefPrimaryButtonText: { ...; }; }'."
+    },
+    {
+      "file": "mobile/app/(tabs)/level1 - original.tsx",
+      "code": 2339,
+      "line": 1017,
+      "character": 41,
+      "message": "Property 'voiceStateText' does not exist on type '{ container: { flex: number; backgroundColor: string; }; header: { paddingHorizontal: number; paddingTop: number; paddingBottom: number; gap: number; alignItems: \"stretch\"; marginBottom: number; flexShrink: number; }; ... 193 more ...; debriefPrimaryButtonText: { ...; }; }'."
+    },
+    {
+      "file": "mobile/app/(tabs)/level1 - original.tsx",
+      "code": 2339,
+      "line": 1189,
+      "character": 41,
+      "message": "Property 'inputContainer' does not exist on type '{ container: { flex: number; backgroundColor: string; }; header: { paddingHorizontal: number; paddingTop: number; paddingBottom: number; gap: number; alignItems: \"stretch\"; marginBottom: number; flexShrink: number; }; ... 193 more ...; debriefPrimaryButtonText: { ...; }; }'."
+    },
+    {
+      "file": "mobile/app/(tabs)/level1 - original.tsx",
+      "code": 2339,
+      "line": 1194,
+      "character": 39,
+      "message": "Property 'textInput' does not exist on type '{ container: { flex: number; backgroundColor: string; }; header: { paddingHorizontal: number; paddingTop: number; paddingBottom: number; gap: number; alignItems: \"stretch\"; marginBottom: number; flexShrink: number; }; ... 193 more ...; debriefPrimaryButtonText: { ...; }; }'."
+    },
+    {
+      "file": "mobile/app/(tabs)/level1 - original.tsx",
+      "code": 2339,
+      "line": 1203,
+      "character": 37,
+      "message": "Property 'sendButton' does not exist on type '{ container: { flex: number; backgroundColor: string; }; header: { paddingHorizontal: number; paddingTop: number; paddingBottom: number; gap: number; alignItems: \"stretch\"; marginBottom: number; flexShrink: number; }; ... 193 more ...; debriefPrimaryButtonText: { ...; }; }'."
+    },
+    {
+      "file": "mobile/app/(tabs)/level1 - original.tsx",
+      "code": 2339,
+      "line": 1209,
+      "character": 45,
+      "message": "Property 'buttonText' does not exist on type '{ container: { flex: number; backgroundColor: string; }; header: { paddingHorizontal: number; paddingTop: number; paddingBottom: number; gap: number; alignItems: \"stretch\"; marginBottom: number; flexShrink: number; }; ... 193 more ...; debriefPrimaryButtonText: { ...; }; }'."
+    },
+    {
+      "file": "mobile/app/(tabs)/level1 - original.tsx",
+      "code": 2339,
+      "line": 1217,
+      "character": 37,
+      "message": "Property 'sendButton' does not exist on type '{ container: { flex: number; backgroundColor: string; }; header: { paddingHorizontal: number; paddingTop: number; paddingBottom: number; gap: number; alignItems: \"stretch\"; marginBottom: number; flexShrink: number; }; ... 193 more ...; debriefPrimaryButtonText: { ...; }; }'."
+    },
+    {
+      "file": "mobile/app/(tabs)/level1 - original.tsx",
+      "code": 2339,
+      "line": 1221,
+      "character": 45,
+      "message": "Property 'buttonText' does not exist on type '{ container: { flex: number; backgroundColor: string; }; header: { paddingHorizontal: number; paddingTop: number; paddingBottom: number; gap: number; alignItems: \"stretch\"; marginBottom: number; flexShrink: number; }; ... 193 more ...; debriefPrimaryButtonText: { ...; }; }'."
+    },
+    {
+      "file": "mobile/app/(tabs)/level1.tsx",
+      "code": 2367,
+      "line": 2399,
+      "character": 16,
+      "message": "This comparison appears to be unintentional because the types '\"hpi\" | \"results\"' and '\"chat\"' have no overlap."
+    },
+    {
+      "file": "mobile/future/faculty/FacultyDashboardScreen.tsx",
+      "code": 2769,
+      "line": 197,
+      "character": 44,
+      "message": "No overload matches this call.\n  Overload 1 of 2, '(props: ViewProps): View', gave the following error.\n    Type '{ width: string; }' is not assignable to type 'ViewStyle | Falsy | RegisteredStyle<ViewStyle> | RecursiveArray<ViewStyle | Falsy | RegisteredStyle<ViewStyle>> | readonly (ViewStyle | ... 1 more ... | RegisteredStyle<...>)[]'.\n      Types of property 'width' are incompatible.\n        Type 'string' is not assignable to type 'DimensionValue | undefined'.\n  Overload 2 of 2, '(props: ViewProps, context: any): View', gave the following error.\n    Type '{ width: string; }' is not assignable to type 'ViewStyle | Falsy | RegisteredStyle<ViewStyle> | RecursiveArray<ViewStyle | Falsy | RegisteredStyle<ViewStyle>> | readonly (ViewStyle | ... 1 more ... | RegisteredStyle<...>)[]'.\n      Types of property 'width' are incompatible.\n        Type 'string' is not assignable to type 'DimensionValue | undefined'."
+    },
+    {
+      "file": "mobile/future/faculty/FacultyStudentDetailScreen.tsx",
+      "code": 2769,
+      "line": 109,
+      "character": 44,
+      "message": "No overload matches this call.\n  Overload 1 of 2, '(props: ViewProps): View', gave the following error.\n    Type '{ width: string; }' is not assignable to type 'ViewStyle | Falsy | RegisteredStyle<ViewStyle> | RecursiveArray<ViewStyle | Falsy | RegisteredStyle<ViewStyle>> | readonly (ViewStyle | ... 1 more ... | RegisteredStyle<...>)[]'.\n      Types of property 'width' are incompatible.\n        Type 'string' is not assignable to type 'DimensionValue | undefined'.\n  Overload 2 of 2, '(props: ViewProps, context: any): View', gave the following error.\n    Type '{ width: string; }' is not assignable to type 'ViewStyle | Falsy | RegisteredStyle<ViewStyle> | RecursiveArray<ViewStyle | Falsy | RegisteredStyle<ViewStyle>> | readonly (ViewStyle | ... 1 more ... | RegisteredStyle<...>)[]'.\n      Types of property 'width' are incompatible.\n        Type 'string' is not assignable to type 'DimensionValue | undefined'."
+    },
+    {
+      "file": "mobile/future/faculty/FacultyStudentDetailScreen.tsx",
+      "code": 2339,
+      "line": 252,
+      "character": 56,
+      "message": "Property 'displayName' does not exist on type '{}'."
+    },
+    {
+      "file": "mobile/future/faculty/FacultyStudentDetailScreen.tsx",
+      "code": 2339,
+      "line": 252,
+      "character": 79,
+      "message": "Property 'name' does not exist on type '{}'."
+    },
+    {
+      "file": "mobile/future/faculty/FacultyStudentDetailScreen.tsx",
+      "code": 2339,
+      "line": 253,
+      "character": 22,
+      "message": "Property 'email' does not exist on type '{}'."
+    },
+    {
+      "file": "mobile/future/faculty/FacultyStudentDetailScreen.tsx",
+      "code": 2339,
+      "line": 253,
+      "character": 76,
+      "message": "Property 'email' does not exist on type '{}'."
+    },
+    {
+      "file": "mobile/src/components/AnimatedPatientAvatar.tsx",
+      "code": 2769,
+      "line": 155,
+      "character": 11,
+      "message": "No overload matches this call.\n  Overload 1 of 2, '(props: ImageProps): Image', gave the following error.\n    Type 'ImageSourcePropType | null' is not assignable to type 'ImageSourcePropType | undefined'.\n      Type 'null' is not assignable to type 'ImageSourcePropType | undefined'.\n  Overload 2 of 2, '(props: ImageProps, context: any): Image', gave the following error.\n    Type 'ImageSourcePropType | null' is not assignable to type 'ImageSourcePropType | undefined'.\n      Type 'null' is not assignable to type 'ImageSourcePropType | undefined'."
+    }
+  ],
+  "current": [
+    {
+      "file": "mobile/app/(auth)/signin.tsx",
+      "code": 2722,
+      "line": 60,
+      "character": 19,
+      "message": "Cannot invoke an object which is possibly 'undefined'."
+    },
+    {
+      "file": "mobile/app/(auth)/signin.tsx",
+      "code": 18048,
+      "line": 90,
+      "character": 23,
+      "message": "'signIn' is possibly 'undefined'."
+    },
+    {
+      "file": "mobile/app/(auth)/signin.tsx",
+      "code": 18048,
+      "line": 95,
+      "character": 23,
+      "message": "'signIn' is possibly 'undefined'."
+    },
+    {
+      "file": "mobile/app/(auth)/signin.tsx",
+      "code": 18048,
+      "line": 104,
+      "character": 19,
+      "message": "'signIn' is possibly 'undefined'."
+    },
+    {
+      "file": "mobile/app/(auth)/signin.tsx",
+      "code": 18048,
+      "line": 109,
+      "character": 19,
+      "message": "'signIn' is possibly 'undefined'."
+    },
+    {
+      "file": "mobile/app/(tabs)/level1 - original.tsx",
+      "code": 2339,
+      "line": 994,
+      "character": 37,
+      "message": "Property 'voiceControlsRow' does not exist on type '{ container: { flex: number; backgroundColor: string; }; header: { paddingHorizontal: number; paddingTop: number; paddingBottom: number; gap: number; alignItems: \"stretch\"; marginBottom: number; flexShrink: number; }; ... 193 more ...; debriefPrimaryButtonText: { ...; }; }'."
+    },
+    {
+      "file": "mobile/app/(tabs)/level1 - original.tsx",
+      "code": 2339,
+      "line": 1013,
+      "character": 41,
+      "message": "Property 'voiceStateText' does not exist on type '{ container: { flex: number; backgroundColor: string; }; header: { paddingHorizontal: number; paddingTop: number; paddingBottom: number; gap: number; alignItems: \"stretch\"; marginBottom: number; flexShrink: number; }; ... 193 more ...; debriefPrimaryButtonText: { ...; }; }'."
+    },
+    {
+      "file": "mobile/app/(tabs)/level1 - original.tsx",
+      "code": 2339,
+      "line": 1017,
+      "character": 41,
+      "message": "Property 'voiceStateText' does not exist on type '{ container: { flex: number; backgroundColor: string; }; header: { paddingHorizontal: number; paddingTop: number; paddingBottom: number; gap: number; alignItems: \"stretch\"; marginBottom: number; flexShrink: number; }; ... 193 more ...; debriefPrimaryButtonText: { ...; }; }'."
+    },
+    {
+      "file": "mobile/app/(tabs)/level1 - original.tsx",
+      "code": 2339,
+      "line": 1189,
+      "character": 41,
+      "message": "Property 'inputContainer' does not exist on type '{ container: { flex: number; backgroundColor: string; }; header: { paddingHorizontal: number; paddingTop: number; paddingBottom: number; gap: number; alignItems: \"stretch\"; marginBottom: number; flexShrink: number; }; ... 193 more ...; debriefPrimaryButtonText: { ...; }; }'."
+    },
+    {
+      "file": "mobile/app/(tabs)/level1 - original.tsx",
+      "code": 2339,
+      "line": 1194,
+      "character": 39,
+      "message": "Property 'textInput' does not exist on type '{ container: { flex: number; backgroundColor: string; }; header: { paddingHorizontal: number; paddingTop: number; paddingBottom: number; gap: number; alignItems: \"stretch\"; marginBottom: number; flexShrink: number; }; ... 193 more ...; debriefPrimaryButtonText: { ...; }; }'."
+    },
+    {
+      "file": "mobile/app/(tabs)/level1 - original.tsx",
+      "code": 2339,
+      "line": 1203,
+      "character": 37,
+      "message": "Property 'sendButton' does not exist on type '{ container: { flex: number; backgroundColor: string; }; header: { paddingHorizontal: number; paddingTop: number; paddingBottom: number; gap: number; alignItems: \"stretch\"; marginBottom: number; flexShrink: number; }; ... 193 more ...; debriefPrimaryButtonText: { ...; }; }'."
+    },
+    {
+      "file": "mobile/app/(tabs)/level1 - original.tsx",
+      "code": 2339,
+      "line": 1209,
+      "character": 45,
+      "message": "Property 'buttonText' does not exist on type '{ container: { flex: number; backgroundColor: string; }; header: { paddingHorizontal: number; paddingTop: number; paddingBottom: number; gap: number; alignItems: \"stretch\"; marginBottom: number; flexShrink: number; }; ... 193 more ...; debriefPrimaryButtonText: { ...; }; }'."
+    },
+    {
+      "file": "mobile/app/(tabs)/level1 - original.tsx",
+      "code": 2339,
+      "line": 1217,
+      "character": 37,
+      "message": "Property 'sendButton' does not exist on type '{ container: { flex: number; backgroundColor: string; }; header: { paddingHorizontal: number; paddingTop: number; paddingBottom: number; gap: number; alignItems: \"stretch\"; marginBottom: number; flexShrink: number; }; ... 193 more ...; debriefPrimaryButtonText: { ...; }; }'."
+    },
+    {
+      "file": "mobile/app/(tabs)/level1 - original.tsx",
+      "code": 2339,
+      "line": 1221,
+      "character": 45,
+      "message": "Property 'buttonText' does not exist on type '{ container: { flex: number; backgroundColor: string; }; header: { paddingHorizontal: number; paddingTop: number; paddingBottom: number; gap: number; alignItems: \"stretch\"; marginBottom: number; flexShrink: number; }; ... 193 more ...; debriefPrimaryButtonText: { ...; }; }'."
+    },
+    {
+      "file": "mobile/app/(tabs)/level1.tsx",
+      "code": 2367,
+      "line": 2399,
+      "character": 16,
+      "message": "This comparison appears to be unintentional because the types '\"hpi\" | \"results\"' and '\"chat\"' have no overlap."
+    },
+    {
+      "file": "mobile/future/faculty/FacultyDashboardScreen.tsx",
+      "code": 2769,
+      "line": 197,
+      "character": 44,
+      "message": "No overload matches this call.\n  Overload 1 of 2, '(props: ViewProps): View', gave the following error.\n    Type '{ width: string; }' is not assignable to type 'ViewStyle | Falsy | RegisteredStyle<ViewStyle> | RecursiveArray<ViewStyle | Falsy | RegisteredStyle<ViewStyle>> | readonly (ViewStyle | ... 1 more ... | RegisteredStyle<...>)[]'.\n      Types of property 'width' are incompatible.\n        Type 'string' is not assignable to type 'DimensionValue | undefined'.\n  Overload 2 of 2, '(props: ViewProps, context: any): View', gave the following error.\n    Type '{ width: string; }' is not assignable to type 'ViewStyle | Falsy | RegisteredStyle<ViewStyle> | RecursiveArray<ViewStyle | Falsy | RegisteredStyle<ViewStyle>> | readonly (ViewStyle | ... 1 more ... | RegisteredStyle<...>)[]'.\n      Types of property 'width' are incompatible.\n        Type 'string' is not assignable to type 'DimensionValue | undefined'."
+    },
+    {
+      "file": "mobile/future/faculty/FacultyStudentDetailScreen.tsx",
+      "code": 2769,
+      "line": 109,
+      "character": 44,
+      "message": "No overload matches this call.\n  Overload 1 of 2, '(props: ViewProps): View', gave the following error.\n    Type '{ width: string; }' is not assignable to type 'ViewStyle | Falsy | RegisteredStyle<ViewStyle> | RecursiveArray<ViewStyle | Falsy | RegisteredStyle<ViewStyle>> | readonly (ViewStyle | ... 1 more ... | RegisteredStyle<...>)[]'.\n      Types of property 'width' are incompatible.\n        Type 'string' is not assignable to type 'DimensionValue | undefined'.\n  Overload 2 of 2, '(props: ViewProps, context: any): View', gave the following error.\n    Type '{ width: string; }' is not assignable to type 'ViewStyle | Falsy | RegisteredStyle<ViewStyle> | RecursiveArray<ViewStyle | Falsy | RegisteredStyle<ViewStyle>> | readonly (ViewStyle | ... 1 more ... | RegisteredStyle<...>)[]'.\n      Types of property 'width' are incompatible.\n        Type 'string' is not assignable to type 'DimensionValue | undefined'."
+    },
+    {
+      "file": "mobile/future/faculty/FacultyStudentDetailScreen.tsx",
+      "code": 2339,
+      "line": 252,
+      "character": 56,
+      "message": "Property 'displayName' does not exist on type '{}'."
+    },
+    {
+      "file": "mobile/future/faculty/FacultyStudentDetailScreen.tsx",
+      "code": 2339,
+      "line": 252,
+      "character": 79,
+      "message": "Property 'name' does not exist on type '{}'."
+    },
+    {
+      "file": "mobile/future/faculty/FacultyStudentDetailScreen.tsx",
+      "code": 2339,
+      "line": 253,
+      "character": 22,
+      "message": "Property 'email' does not exist on type '{}'."
+    },
+    {
+      "file": "mobile/future/faculty/FacultyStudentDetailScreen.tsx",
+      "code": 2339,
+      "line": 253,
+      "character": 76,
+      "message": "Property 'email' does not exist on type '{}'."
+    },
+    {
+      "file": "mobile/src/components/AnimatedPatientAvatar.tsx",
+      "code": 2769,
+      "line": 155,
+      "character": 11,
+      "message": "No overload matches this call.\n  Overload 1 of 2, '(props: ImageProps): Image', gave the following error.\n    Type 'ImageSourcePropType | null' is not assignable to type 'ImageSourcePropType | undefined'.\n      Type 'null' is not assignable to type 'ImageSourcePropType | undefined'.\n  Overload 2 of 2, '(props: ImageProps, context: any): Image', gave the following error.\n    Type 'ImageSourcePropType | null' is not assignable to type 'ImageSourcePropType | undefined'.\n      Type 'null' is not assignable to type 'ImageSourcePropType | undefined'."
+    }
+  ]
+}

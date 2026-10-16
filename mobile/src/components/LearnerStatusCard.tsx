@@ -5,12 +5,10 @@ import { useFonts } from "expo-font";
 import { learnerStatus, type LearnerIdentity } from "./learnerStatus";
 
 /** Informational progress only. Account controls belong exclusively to the gear. */
-export function LearnerStatusCard({ identity, rotationTitle }: { identity?: LearnerIdentity | null; rotationTitle?: string | null }) {
+export function LearnerStatusCard({ identity }: { identity?: LearnerIdentity | null }) {
   useFonts({ RoadmapInter: require("../../assets/module0/Inter-Regular.ttf"), RoadmapInterBold: require("../../assets/module0/Inter-Bold.ttf") });
-  const status = learnerStatus(identity, rotationTitle);
+  const status = learnerStatus(identity);
   return <View style={styles.card} testID="learner-status-card">
-    <Text style={styles.caption}>CURRENT ROTATION</Text>
-    <Text style={styles.rotation}>{status.rotation}</Text>
     <View style={styles.indicators}>
       <View style={styles.indicator}><MaterialCommunityIcons name="fire" size={18} color="#F05D30" accessible={false} /><Text accessibilityLabel={`Streak: ${status.streak}`} style={styles.value}>{status.streak}</Text></View>
       <View style={styles.indicator}><MaterialCommunityIcons name="star" size={17} color="#6150ED" accessible={false} /><Text style={styles.value}>{status.level === null ? "Level unavailable" : `Level ${status.level}`}</Text></View>
@@ -24,10 +22,8 @@ export function LearnerStatusCard({ identity, rotationTitle }: { identity?: Lear
   </View>;
 }
 const styles = StyleSheet.create({
-  card: { backgroundColor: "#F2EEFF", borderRadius: 22, paddingHorizontal: 16, paddingVertical: 12, gap: 3 },
-  caption: { color: "#727EA1", fontSize: 10, lineHeight: 12, fontFamily: "RoadmapInterBold" },
-  rotation: { color: "#152044", fontSize: 14, lineHeight: 18, fontFamily: "RoadmapInterBold" },
-  indicators: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", columnGap: 12, rowGap: 8, marginTop: 5 },
+  card: { minHeight: 56, justifyContent: "center", backgroundColor: "#F2EEFF", borderRadius: 22, paddingHorizontal: 16, paddingVertical: 12 },
+  indicators: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", columnGap: 12, rowGap: 8 },
   indicator: { flexDirection: "row", alignItems: "center", gap: 3, flexShrink: 1 },
   value: { color: "#152044", fontSize: 12, lineHeight: 18, fontFamily: "RoadmapInter", flexShrink: 1 },
   xp: { flexGrow: 1, flexBasis: 80, gap: 4 },
