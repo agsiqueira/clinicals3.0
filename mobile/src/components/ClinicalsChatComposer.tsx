@@ -38,6 +38,7 @@ type ClinicalsChatComposerProps = {
   showSendControl?: boolean;
   lesson?: boolean;
   practice?: boolean;
+  preceptor?: boolean;
 };
 
 export function ClinicalsChatComposer({
@@ -65,6 +66,7 @@ export function ClinicalsChatComposer({
   showSendControl = true,
   lesson = false,
   practice = false,
+  preceptor = false,
 }: ClinicalsChatComposerProps) {
   if (practice) return <PracticeComposer value={value} onChangeText={onChangeText} onSubmit={onSubmit || onSend} onMicPress={onMicPress}
     editable={editable} sendDisabled={sendDisabled} micDisabled={micDisabled} sending={sending} transcribing={transcribing} isRecording={isRecording}
@@ -73,14 +75,14 @@ export function ClinicalsChatComposer({
   const safelySubmit = () => { if (!sendDisabled && editable && !sending && !transcribing && !isRecording && value.trim()) submit(); };
 
   const field = (
-    <View style={[styles.container, compact && styles.compactContainer, lesson && styles.lessonContainer, containerStyle]}>
+    <View style={[styles.container, compact && styles.compactContainer, lesson && styles.lessonContainer, preceptor && styles.preceptorContainer, containerStyle]}>
       <TextInput
         accessibilityLabel={inputAccessibilityLabel}
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
         placeholderTextColor={placeholderTextColor}
-        style={[styles.input, compact && styles.compactInput, lesson && styles.lessonInput, inputStyle]}
+        style={[styles.input, compact && styles.compactInput, lesson && styles.lessonInput, preceptor && styles.preceptorInput, inputStyle]}
         editable={editable}
         returnKeyType="send"
         onSubmitEditing={lesson ? safelySubmit : submit}
@@ -95,11 +97,12 @@ export function ClinicalsChatComposer({
         disabled={micDisabled}
         style={({ pressed }) => [
           styles.iconButton,
+          preceptor && styles.preceptorMic,
           micDisabled && styles.disabled,
           pressed && !micDisabled && styles.pressed,
         ]}
       >
-        <Text style={styles.buttonText}>{transcribing ? "..." : isRecording ? "⏹️" : "🎤"}</Text>
+        {preceptor ? <MaterialCommunityIcons name={transcribing ? "progress-clock" : isRecording ? "stop" : "microphone-outline"} size={22} color={c.primary} /> : <Text style={styles.buttonText}>{transcribing ? "..." : isRecording ? "⏹️" : "🎤"}</Text>}
       </Pressable> : null}
       {showSendControl && <Pressable
         accessibilityRole="button"
@@ -109,12 +112,13 @@ export function ClinicalsChatComposer({
         disabled={sendDisabled || lesson && (isRecording || transcribing)}
         style={({ pressed }) => [
           styles.sendButton,
+          preceptor && styles.preceptorSend,
           lesson && styles.lessonSend,
           (sendDisabled || lesson && (isRecording || transcribing)) && styles.disabled,
           pressed && !sendDisabled && styles.pressed,
         ]}
       >
-        <Text style={[styles.sendButtonText,lesson && styles.lessonSendText]}>{sending ? "..." : submitLabel}</Text>
+        <Text style={[styles.sendButtonText,lesson && styles.lessonSendText, preceptor && styles.preceptorSendText]}>{sending ? "..." : submitLabel}</Text>
       </Pressable>}
     </View>
   );
@@ -175,6 +179,11 @@ const practiceStyles = StyleSheet.create({
 });
 
 const styles = StyleSheet.create({
+  preceptorContainer: { marginHorizontal: 0, marginTop: 0, padding: 7, gap: 4, borderWidth: 0, borderRadius: 16, backgroundColor: "#F7F6FC" },
+  preceptorInput: { minHeight: 44, borderWidth: 0, borderRadius: 12, fontFamily: f.regular, fontWeight: "normal", fontSize: 13, color: c.ink },
+  preceptorMic: { minHeight: 44, width: 44, minWidth: 44, paddingHorizontal: 0, paddingVertical: 0, borderWidth: 0, borderRadius: 14, justifyContent: "center" },
+  preceptorSend: { minHeight: 44, minWidth: 52, paddingHorizontal: 10, paddingVertical: 0, borderWidth: 0, borderRadius: 14, backgroundColor: "#F2EEFF", justifyContent: "center" },
+  preceptorSendText: { fontFamily: f.bold, fontWeight: "normal", fontSize: 12, color: c.primary },
   lessonWrapper:{width:"100%",paddingTop:4},
   lessonMic:{alignSelf:"center",width:44,height:44,alignItems:"center",justifyContent:"center",borderRadius:22,backgroundColor:"#f3f1ff",marginBottom:8},
   lessonContainer:{marginHorizontal:0,marginTop:0,padding:6,borderRadius:16,backgroundColor:"#ffffff",minHeight:64},

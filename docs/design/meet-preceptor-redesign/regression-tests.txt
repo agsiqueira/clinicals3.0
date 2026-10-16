@@ -1,0 +1,666 @@
+
+> clinicals-backend@1.0.0 test
+> node --test test/*.test.js
+
+✔ First Patient achievements score from existing uti_level1 criteria_results (37.0903ms)
+✔ determineBadgeTier follows Clinicals 2.0 thresholds (0.3979ms)
+✔ First Patient Complete HPI achievement maps reporter_hpi_summary_oldcarts (0.3415ms)
+✔ evaluateSessionPass passes only when all required achievements are at least 84 (0.5413ms)
+✔ buildSessionDebriefPayload returns concise Dr. Martinez debrief data (0.825ms)
+✔ buildSessionDebriefPayload derives greeting focus from weakest achievement (0.3697ms)
+✔ resolvePatientSessionForAttempt uses patientSessionSlug with case id (0.2789ms)
+✔ buildAttemptSummaries numbers previous attempts from oldest to newest while returning newest first (2.037ms)
+✔ buildAttemptSummaries tolerates missing submission details (0.2425ms)
+✔ learner case allowlist excludes internal diagnoses, histories, rubrics and model instructions (7.2704ms)
+✔ case and rubric loaders reject filesystem traversal and invalid identifiers (0.5449ms)
+✔ caseLoader lists and loads the active UTI case and rubric (48.4557ms)
+✔ caseLoader lists and loads the Seasonal Allergies case and rubric (6.9793ms)
+✔ cases route returns Seasonal Allergies case even without generated patient image (125.4191ms)
+✔ sanitizeCase removes hidden answer material before prompt building (55.6319ms)
+✔ expandCriteriaWithCommon merges reusable rubric criteria and case-specific overrides (3.7898ms)
+✔ clinical portfolio returns response shape with empty/new user state (19.9703ms)
+✔ clinical portfolio milestones include locked definitions when no progress exists (0.6308ms)
+✔ clinical portfolio earned and in-progress motivational achievements appear correctly (0.3951ms)
+✔ clinical portfolio learningPathProgress counts sessions completed with best score >= 84 (0.5755ms)
+✔ clinical portfolio competencies aggregate AchievementResult scores (0.6224ms)
+✔ clinical portfolio recentPatients returns latest scored attempts (0.4376ms)
+✔ clinical portfolio returns empty professional qualities and mentor commendations for v1 (0.2867ms)
+✔ clinical portfolio route is mounted at /api/clinical-portfolio (0.5956ms)
+✔ explicit feedback without evidence persists completion, ownership and idempotency (16.0892ms)
+✔ catalog preserves nine source-referenced steps and a 14–18 minute target (0.4861ms)
+✔ new progress is read-only, private criteria stay server-side, and source facts remain visible (1.6002ms)
+✔ every step persists and precisely resumes; weak feedback completes without scores (8.9016ms)
+✔ activities are independently resumable but steps cannot be skipped (2.5409ms)
+✔ forged identity, completion, tutor history, empty and obvious non-attempts are rejected before writes/AI (1.558ms)
+✔ request replay is idempotent and changed answers/revisions cannot overwrite progress (2.2571ms)
+✔ clarifications and targeted practice persist without adding required completions (3.1516ms)
+✔ failed provider retains the accepted answer for safe retry without advancing (1.4478ms)
+✔ concurrent tabs reserve only one evaluation and reject other steps while pending (18.7321ms)
+✔ expired lease replacement prevents old AI output from overwriting the newer result (2.2891ms)
+✔ evidence must quote the learner, unsupported model fields cannot authorize completion (0.9598ms)
+✔ content version changes fail explicitly without overwriting saved work (0.8902ms)
+✔ missing migration yields controlled storage-unavailable status without a database bypass (0.7374ms)
+[2026-10-16T05:18:12.755Z] GET
+[2026-10-16T05:18:12.774Z] GET
+[2026-10-16T05:18:12.799Z] GET
+[2026-10-16T05:18:12.843Z] POST
+[2026-10-16T05:18:12.869Z] GET
+[2026-10-16T05:18:12.883Z] GET
+[2026-10-16T05:18:12.891Z] POST
+[2026-10-16T05:18:12.899Z] POST
+✔ authenticated HTTP lesson API uses real Clerk verification and isolates two synthetic learners (661.2173ms)
+✔ two simultaneous first submissions cannot skip a step or pay twice (0.882ms)
+✔ optional practice after full completion retains original completion and required count (4.0014ms)
+✔ malformed AI feedback stays pending and never completes a checkpoint (1.3352ms)
+✔ lesson evaluation reuses NaviGator with isolated mentor instructions and one bounded call (1.7762ms)
+✔ supplementary requests are bounded without consuming required checkpoints (47.1997ms)
+✔ exact live answer survives invalid model JSON and succeeds on safe same-ID retry with fenced feedback (2.9813ms)
+✔ both formative labels accept valid feedback without quotations and never manufacture evidence (4.0414ms)
+✔ unsupported JSON shapes and envelopes report only a safe shape category (0.9224ms)
+✔ unsupported first shape repairs to explicit feedback without evidence in two calls (2.3057ms)
+✔ exact reported answer accepts whole fenced JSON, BOM/whitespace and projects only allowed fields (0.6475ms)
+✔ malformed JSON, extra commentary, invalid labels and response evidence have distinct failure codes (0.6609ms)
+✔ lesson transport uses configured text model, 512 tokens, deterministic sampling and no patient stop sequences (1.189ms)
+✔ one malformed result receives one bounded repair and then grounded feedback (1.1613ms)
+✔ invalid label or malformed/ungrounded optional evidence never becomes fabricated fallback feedback (3.9997ms)
+✔ upstream HTTP errors are classified without reading or exposing the body and without automatic retry (0.9193ms)
+✔ network, provider envelope, empty output and truncation failures are distinguishable (1.6454ms)
+✔ request timeout and delayed-body timeout are classified and do not cause automatic paid retries (23.6661ms)
+✔ repair respects the entire 40-second deadline even when the first generation consumed most of it (1.1614ms)
+✔ diagnostics are development-only, opt-in, allowlisted and contain no learner/provider/key/error text (0.7788ms)
+✔ required SOAP grading assesses classifications only while optional SOAP still asks for reasoning (0.9529ms)
+✔ competency definitions expose active data-driven configuration records (1.4201ms)
+✔ objective competency mappings are separate weighted configuration (1.423ms)
+✔ session metadata helpers tolerate sessions without competency fields (0.2887ms)
+✔ buildCompetencyEvidence maps evaluated objectives without calculating scores (4.2831ms)
+✔ evaluateCompetencyEvidence returns a future-facing non-persistent object (28.6368ms)
+✔ summarizeCompetencyEvidence aggregates achieved and possible weight (0.4115ms)
+✔ session attempt finalization hooks the competency engine without persistence (0.6979ms)
+✔ conversation detail response includes patientSessionSlug from linked session attempt (1.784ms)
+✔ conversation submit response exposes motivational achievements without replaying saved unlocks (0.5719ms)
+✔ buildDebriefChatSystemPrompt uses completed session context and avoids regrading (2.0687ms)
+✔ normalizeDebriefChatMessages keeps only recent user and assistant messages (31.4235ms)
+✔ conversations router registers debrief chat before generic conversation lookup (0.6761ms)
+✔ buildResultsEmailContent includes results summary and transcript lines (1.5676ms)
+✔ buildResultsEmailContent omits empty optional sections cleanly (0.3308ms)
+✔ production startup loads only student routers without importing faculty services (8.732ms)
+[2026-10-16T05:18:12.692Z] GET
+[2026-10-16T05:18:12.722Z] GET
+[2026-10-16T05:18:12.726Z] GET
+[2026-10-16T05:18:12.730Z] GET
+[2026-10-16T05:18:12.733Z] GET
+[2026-10-16T05:18:12.740Z] GET
+[2026-10-16T05:18:12.752Z] GET
+[2026-10-16T05:18:12.755Z] GET
+[2026-10-16T05:18:12.759Z] GET
+[2026-10-16T05:18:12.763Z] HEAD
+[2026-10-16T05:18:12.771Z] HEAD
+[2026-10-16T05:18:12.776Z] HEAD
+[2026-10-16T05:18:12.784Z] HEAD
+[2026-10-16T05:18:12.789Z] HEAD
+[2026-10-16T05:18:12.794Z] HEAD
+[2026-10-16T05:18:12.798Z] HEAD
+[2026-10-16T05:18:12.803Z] HEAD
+[2026-10-16T05:18:12.807Z] HEAD
+[2026-10-16T05:18:12.811Z] GET
+[2026-10-16T05:18:12.822Z] GET
+[2026-10-16T05:18:12.829Z] GET
+[2026-10-16T05:18:12.834Z] GET
+[2026-10-16T05:18:12.839Z] GET
+[2026-10-16T05:18:12.843Z] GET
+[2026-10-16T05:18:12.847Z] GET
+[2026-10-16T05:18:12.852Z] GET
+[2026-10-16T05:18:12.856Z] GET
+[2026-10-16T05:18:12.861Z] HEAD
+[2026-10-16T05:18:12.865Z] HEAD
+[2026-10-16T05:18:12.868Z] HEAD
+[2026-10-16T05:18:12.872Z] HEAD
+[2026-10-16T05:18:12.877Z] HEAD
+[2026-10-16T05:18:12.882Z] HEAD
+[2026-10-16T05:18:12.891Z] HEAD
+[2026-10-16T05:18:12.898Z] HEAD
+[2026-10-16T05:18:12.902Z] HEAD
+✔ faculty namespace and every former endpoint return 404 for GET and HEAD (298.2962ms)
+[2026-10-16T05:18:12.918Z] POST
+[2026-10-16T05:18:12.923Z] PUT
+[2026-10-16T05:18:12.925Z] PATCH
+[2026-10-16T05:18:12.928Z] DELETE
+[2026-10-16T05:18:12.932Z] OPTIONS
+[2026-10-16T05:18:12.950Z] POST
+✔ faculty denial precedes CORS preflight and parsing malformed or oversized bodies (50.7358ms)
+[2026-10-16T05:18:12.964Z] GET
+[2026-10-16T05:18:12.972Z] GET
+[2026-10-16T05:18:13.017Z] GET
+[2026-10-16T05:18:13.033Z] POST
+[2026-10-16T05:18:13.035Z] POST
+[2026-10-16T05:18:13.037Z] POST
+[2026-10-16T05:18:13.038Z] POST
+[2026-10-16T05:18:13.043Z] GET
+[2026-10-16T05:18:13.045Z] GET
+[2026-10-16T05:18:13.046Z] GET
+[2026-10-16T05:18:13.047Z] GET
+[2026-10-16T05:18:13.048Z] GET
+[2026-10-16T05:18:13.049Z] OPTIONS
+✔ public health/catalog and CORS remain available; student routes require authentication (95.3131ms)
+✔ gradeConversation offline still passes the ideal fixture (23.5571ms)
+✔ gradeConversation offline still fails the weak fixture and triggers critical fails (12.7446ms)
+✔ grading only awards user-sourced criteria based on user messages, not patient statements (3.1987ms)
+✔ llm_or_rule uses LLM met result without fallback (7.1389ms)
+✔ llm_or_rule uses LLM partial result without fallback (0.7018ms)
+✔ llm_or_rule runs fallback when LLM result is missing (0.7845ms)
+✔ llm_or_rule fallback can override LLM not_met when rule matches (0.4869ms)
+✔ llm_or_rule remains missed when LLM returns not_met and fallback does not match (0.5078ms)
+✔ reporter_hpi_summary_oldcarts earns full points when LLM returns not_met but HPI fallback keywords match (38.4154ms)
+✔ all 74 audited assets retain approved dimensions and encoded integrity, including canonical aliases (700.8821ms)
+✔ every literal image/font/video require and Expo image configuration resolves, including lookup tables (817.6601ms)
+✔ deduplicated patient stills preserve every state, slug fallback and video loop; unknown patients still use initials (108.5806ms)
+(node:21300) Warning: Accessing non-existent property 'createLessonReply' of module exports inside circular dependency
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:21300) Warning: Accessing non-existent property 'createRubricEval' of module exports inside circular dependency
+[2026-10-16T05:18:12.873Z] GET
+[2026-10-16T05:18:12.903Z] GET
+[2026-10-16T05:18:12.930Z] GET
+[2026-10-16T05:18:12.965Z] POST
+[2026-10-16T05:18:12.969Z] POST
+[2026-10-16T05:18:12.977Z] POST
+[2026-10-16T05:18:12.982Z] POST
+[2026-10-16T05:18:12.984Z] POST
+[2026-10-16T05:18:12.989Z] POST
+[2026-10-16T05:18:12.999Z] POST
+[2026-10-16T05:18:13.002Z] POST
+[2026-10-16T05:18:13.012Z] POST
+[2026-10-16T05:18:13.016Z] POST
+[2026-10-16T05:18:13.019Z] POST
+[2026-10-16T05:18:13.026Z] POST
+[2026-10-16T05:18:13.030Z] POST
+[2026-10-16T05:18:13.032Z] POST
+[2026-10-16T05:18:13.036Z] POST
+[2026-10-16T05:18:13.040Z] GET
+[2026-10-16T05:18:13.043Z] GET
+[2026-10-16T05:18:13.065Z] GET
+[2026-10-16T05:18:13.077Z] GET
+[2026-10-16T05:18:13.079Z] GET
+[2026-10-16T05:18:13.083Z] GET
+[2026-10-16T05:18:13.087Z] POST
+[2026-10-16T05:18:13.089Z] POST
+[2026-10-16T05:18:13.093Z] POST
+[2026-10-16T05:18:13.100Z] POST
+[2026-10-16T05:18:13.101Z] POST
+[2026-10-16T05:18:13.113Z] POST
+[2026-10-16T05:18:13.119Z] POST
+[2026-10-16T05:18:13.120Z] POST
+[2026-10-16T05:18:13.128Z] POST
+[2026-10-16T05:18:13.143Z] GET
+[2026-10-16T05:18:13.151Z] GET
+[2026-10-16T05:18:13.164Z] GET
+[2026-10-16T05:18:13.192Z] GET
+[2026-10-16T05:18:13.195Z] GET
+[2026-10-16T05:18:13.207Z] GET
+[2026-10-16T05:18:13.217Z] GET
+[2026-10-16T05:18:13.223Z] GET
+[2026-10-16T05:18:13.241Z] GET
+[2026-10-16T05:18:13.245Z] GET
+[2026-10-16T05:18:13.247Z] GET
+[2026-10-16T05:18:13.270Z] GET
+[2026-10-16T05:18:13.287Z] GET
+[2026-10-16T05:18:13.289Z] GET
+[2026-10-16T05:18:13.299Z] GET
+[2026-10-16T05:18:13.311Z] GET
+[2026-10-16T05:18:13.313Z] GET
+[2026-10-16T05:18:13.323Z] GET
+[2026-10-16T05:18:13.327Z] POST
+[2026-10-16T05:18:13.329Z] POST
+[2026-10-16T05:18:13.337Z] POST
+✔ all personal and paid routes reject anonymous/header impersonation and expired tokens before data access (702.9322ms)
+[2026-10-16T05:18:13.371Z] GET
+[2026-10-16T05:18:13.420Z] POST
+[2026-10-16T05:18:13.442Z] GET
+[2026-10-16T05:18:13.446Z] POST
+[2026-10-16T05:18:13.451Z] POST
+[2026-10-16T05:18:13.456Z] POST
+[2026-10-16T05:18:13.493Z] POST
+Request failed { status: 404 }
+[2026-10-16T05:18:13.509Z] GET
+[2026-10-16T05:18:13.524Z] POST
+[2026-10-16T05:18:13.533Z] GET
+[2026-10-16T05:18:13.545Z] POST
+[2026-10-16T05:18:13.568Z] POST
+[2026-10-16T05:18:13.593Z] POST
+[2026-10-16T05:18:13.604Z] POST
+Request failed { status: 404 }
+✔ two synthetic learners can read and append only their own conversations/transcripts (262.4242ms)
+[2026-10-16T05:18:13.624Z] GET
+[2026-10-16T05:18:13.641Z] GET
+[2026-10-16T05:18:13.649Z] GET
+[2026-10-16T05:18:13.654Z] GET
+[2026-10-16T05:18:13.662Z] GET
+[2026-10-16T05:18:13.668Z] GET
+[2026-10-16T05:18:13.681Z] GET
+✔ authorized learner dashboards, portfolio, competencies and case metadata remain available (108.9547ms)
+[2026-10-16T05:18:13.729Z] POST
+[2026-10-16T05:18:13.768Z] POST
+[2026-10-16T05:18:13.790Z] POST
+[VOICE SPEAK] request body
+[VOICE SPEAK] selected config
+[VOICE SPEAK] response payload
+[2026-10-16T05:18:13.818Z] POST
+[VOICE TRANSCRIBE] request
+[VOICE TRANSCRIBE] response
+[2026-10-16T05:18:13.826Z] POST
+✔ authorized paid AI workflows retain chat, coaching, grading, transcription and playback contracts (132.7665ms)
+[2026-10-16T05:18:13.869Z] POST
+[2026-10-16T05:18:13.908Z] GET
+[2026-10-16T05:18:13.915Z] GET
+[2026-10-16T05:18:13.923Z] POST
+[2026-10-16T05:18:13.947Z] GET
+[2026-10-16T05:18:13.952Z] GET
+✔ submission persists grades for each owner and cross-user grade retrieval remains denied (103.5338ms)
+✔ attempt debriefs, achievement finalization and evidence reject mismatched owners before writes (1.921ms)
+[2026-10-16T05:18:13.978Z] POST
+✔ conversation creation uses the verified learner despite body/header impersonation (56.9306ms)
+✔ owned attempt finalization still writes achievement, badge and feedback evidence for its verified owner (26.9622ms)
+✔ validateAndNormalizeRubricLlmOutput normalizes statuses, clamps points, and ignores unknown ids (2.3612ms)
+✔ validateAndNormalizeRubricLlmOutput rejects malformed payloads (0.2781ms)
+(node:22248) Warning: Accessing non-existent property 'createLessonReply' of module exports inside circular dependency
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:22248) Warning: Accessing non-existent property 'createRubricEval' of module exports inside circular dependency
+[2026-10-16T05:18:12.955Z] POST
+Request failed { status: 403 }
+[2026-10-16T05:18:13.036Z] POST
+Request failed { status: 403 }
+[2026-10-16T05:18:13.049Z] POST
+Request failed { status: 403 }
+[2026-10-16T05:18:13.070Z] POST
+Request failed { status: 403 }
+[2026-10-16T05:18:13.079Z] POST
+Request failed { status: 403 }
+[2026-10-16T05:18:13.086Z] POST
+Request failed { status: 403 }
+[2026-10-16T05:18:13.099Z] POST
+Request failed { status: 403 }
+[2026-10-16T05:18:13.113Z] POST
+Request failed { status: 403 }
+[2026-10-16T05:18:13.143Z] POST
+Request failed { status: 403 }
+[2026-10-16T05:18:13.166Z] POST
+Request failed { status: 403 }
+✔ enforced mode blocks every clinical-entry route before writes or paid calls, including identifier-free bypasses (452.7102ms)
+[2026-10-16T05:18:13.235Z] POST
+[2026-10-16T05:18:13.242Z] POST
+[2026-10-16T05:18:13.249Z] POST
+[2026-10-16T05:18:13.252Z] POST
+[2026-10-16T05:18:13.258Z] POST
+[2026-10-16T05:18:13.261Z] POST
+[2026-10-16T05:18:13.283Z] POST
+[2026-10-16T05:18:13.285Z] POST
+[2026-10-16T05:18:13.288Z] POST
+[2026-10-16T05:18:13.298Z] POST
+✔ header impersonation and anonymous requests cannot reach the gate's data store (89.1298ms)
+[2026-10-16T05:18:13.309Z] GET
+[2026-10-16T05:18:13.326Z] GET
+[2026-10-16T05:18:13.341Z] GET
+[2026-10-16T05:18:13.354Z] GET
+[2026-10-16T05:18:13.363Z] GET
+[2026-10-16T05:18:13.384Z] GET
+[2026-10-16T05:18:13.394Z] GET
+[2026-10-16T05:18:13.401Z] POST
+[2026-10-16T05:18:13.415Z] GET
+✔ historical records, saved-result replay, portfolio, roadmap and metadata remain readable without Module 0 (121.3036ms)
+[2026-10-16T05:18:13.440Z] POST
+[2026-10-16T05:18:13.495Z] POST
+[2026-10-16T05:18:13.555Z] POST
+[2026-10-16T05:18:13.606Z] POST
+[2026-10-16T05:18:13.629Z] POST
+[2026-10-16T05:18:13.654Z] POST
+[2026-10-16T05:18:13.685Z] POST
+[2026-10-16T05:18:13.697Z] POST
+[2026-10-16T05:18:13.704Z] POST
+[2026-10-16T05:18:13.732Z] POST
+[2026-10-16T05:18:13.767Z] POST
+Request failed { status: 403 }
+[2026-10-16T05:18:13.781Z] POST
+Request failed { status: 404 }
+✔ completion with weak feedback authorizes only its learner and never trusts another learner's record (367.3095ms)
+[2026-10-16T05:18:13.797Z] POST
+Request failed { status: 500 }
+[2026-10-16T05:18:13.806Z] POST
+[2026-10-16T05:18:13.839Z] POST
+✔ enforced missing storage fails closed while default preview needs no storage and preserves clinical workflows (77.0358ms)
+[2026-10-16T05:18:13.875Z] POST
+[VOICE SPEAK] request body
+[VOICE SPEAK] selected config
+[VOICE SPEAK] response payload
+[2026-10-16T05:18:13.883Z] POST
+[VOICE TRANSCRIBE] request
+[VOICE TRANSCRIBE] response
+✔ generic mentor speech/transcription remain authenticated and available for the prerequisite itself (35.401ms)
+✔ roadmap entry gate retains historical grades and completion and releases after module completion (0.8657ms)
+[2026-10-16T05:18:13.915Z] POST
+Request failed { status: 403 }
+✔ bare completion timestamps and partial records cannot spoof completion (24.6652ms)
+✔ approved required/optional scripts are exact, neutral, and cover all 49 teaching panels (3.8257ms)
+✔ approved illustrations retain mappings and provenance with pixel-identical optimized assets (62.1992ms)
+✔ response narration is the exact current feedback/reply and rejects mismatched identities (0.6026ms)
+✔ returned-response audio eligibility uses transformed, trimmed backend character length (0.4698ms)
+✔ complete teaching sequences have individual framework components and distinct companion narration (6.6177ms)
+✔ frontend resume selection follows server next/pending state and completed work remains reviewable (0.4341ms)
+✔ activity, navigation and account boundaries reject delayed work (0.3212ms)
+✔ Roadmap retains overview, evaluation, case-wide history, preceptor chat and encounter launch (593.6889ms)
+✔ Roadmap direct links and refreshed entry respect backend locked and Module 0 blocked status (742.7826ms)
+✔ Roadmap overview errors are visible; account changes cannot reuse an old Roadmap (103.9125ms)
+✔ Roadmap rejects delayed data after switching accounts and preserves loading and empty states (267.4947ms)
+✔ Today keeps Module 0 as primary focus; Roadmap preserves foundation ordering (175.1755ms)
+✔ Today recommendation keeps overview navigation and isolates late account responses (47.4807ms)
+✔ Module 0 opens the exact unfinished step, saves weak feedback, advances, and permits completed review (182.5095ms)
+✔ independent activity navigation cancels delayed replies and their audio without losing server progress (169.7796ms)
+✔ leaving and reopening resumes durable progress; account switching cannot display a previous learner response (157.9331ms)
+✔ storage setup failure is visible and never masquerades as completion (140.8362ms)
+✔ completed Module 0 opens review and optional practice never resets completion (161.382ms)
+✔ completed-step clarification retains completion and returns to the same exercise (165.5199ms)
+✔ Module 0 card navigates to start, independent activities, and completed review (4.9913ms)
+✔ actual composer input unlocks after leaving during submission and returning without server pending (154.8769ms)
+✔ real composer button dispatches once, displays processing and weak feedback, then unlocks the next input (156.4574ms)
+✔ failed evaluation restores its saved answer, explains retry delay and completes safely on retry (190.693ms)
+✔ transport timeout refreshes authoritative pending state and polling recovers completed feedback (195.6223ms)
+✔ failed submission without a persisted answer has an actionable error and editable input (167.0629ms)
+✔ leaving and returning during evaluation resumes the next unfinished step after the server completes (192.3301ms)
+✔ leaving and returning while evaluation remains pending shows recovery rather than an unexplained lock (201.938ms)
+✔ missing local session on submit is visible and cannot silently swallow the answer (166.0763ms)
+✔ expired API session reports an actionable error and preserves the draft (240.1022ms)
+✔ completed-step review offers a direct return to the active exercise (199.2241ms)
+✔ polling cannot replace newer saved progress with an older read (171.3976ms)
+✔ leaving before submission and reopening keeps the unanswered input editable without creating progress (158.9301ms)
+✔ account switching during submission discards old UI feedback and audio while preserving only the original learner's answer (152.4697ms)
+✔ a completed activity has an obvious continue action and reopening does not trap the learner in review (198.7652ms)
+✔ known failed feedback stops GET polling but its local timer enables same-answer retry (165.416ms)
+✔ expired evaluating lease stops automatic GET checks and exposes retry without resetting progress (170.8238ms)
+✔ approved flow submits provisional text through unchanged grading and holds feedback before advancing (198.793ms)
+✔ approved choices preserve drafts when returning to free text without saving presentation navigation (161.852ms)
+✔ approved choice evaluation failure returns to durable recovery without losing the answer (139.3434ms)
+✔ Feedback stays on the submitted exercise through focus refresh with companion narration (161.1722ms)
+✔ Clarify uses the submitted question and server reply, retains draft, and never advances required progress (146.1519ms)
+✔ Resume shows actual server count and next exercise without creating progress (158.3321ms)
+✔ all nine required submissions show feedback before activity and module completion; completion remains reviewable (224.8326ms)
+✔ completed landing uses server completion and routes to the existing roadmap (148.1401ms)
+✔ a reply for another request cannot become Feedback; recovery uses the exact saved submission (169.2432ms)
+✔ free-text exercises and saved review use the approved presentation instead of the legacy page (186.3964ms)
+✔ failed-answer recovery uses approved styling while preserving request identity and disabled input (208.9707ms)
+✔ manual corrections preserve transition, captions, mute, Back draft and pending evaluation (149.794ms)
+✔ refined controls have accessible states and captions use only companion narration (199.615ms)
+✔ Close exits to Today and preserves completed work (179.7359ms)
+✔ Close during pending feedback exits while preserving the same recoverable request (157.3562ms)
+✔ exercise numbering follows curriculum order across activity boundaries (0.2974ms)
+✔ Back from the first teaching panel returns to its exercise transition (149.3372ms)
+✔ Close while submission is evaluating discards stale UI replies without repeating the answer (129.1402ms)
+✔ introduction omits duplicate mentor portrait; OLD CARTS switches from teaching to saved exercise progress (140.8174ms)
+✔ Ask from a teaching panel sends its context and returns to the exact panel with draft and navigation intact (167.009ms)
+✔ Ask from Practice preserves its response draft and does not mix narration controls with clarification (143.3804ms)
+✔ Ask from Feedback returns to the same saved submission even though server next has advanced (145.5625ms)
+✔ history teaching panels keep all curriculum domains and navigate without progress writes (143.6378ms)
+✔ clinical example italics distinguish patient and clinical text without restyling quoted feedback (147.6689ms)
+✔ failed clarification keeps its context through durable retry and restores the source draft (157.0411ms)
+✔ Module 0 speech changes only the exact OLD CARTS and SBAR phrases and leaves captions and clinical acronyms intact (0.3114ms)
+✔ shared lesson composer gives microphone and submission separate accessible actions and guards recording (18.2683ms)
+✔ dictated mentor question stays editable before Send and OLD CARTS response uses unchanged grading request (154.6572ms)
+✔ Needs More Practice presentation preserves exact server paragraphs and uses readable left aligned feedback (135.3311ms)
+✔ all four activity introductions and nine teaching mappings follow authoritative curriculum IDs (559.6159ms)
+✔ Activity 1 completion enters Activity 2 introduction and SOAP teaching with matching requests and feedback (181.8443ms)
+✔ completed OLD CARTS review restores only its teaching and leaves authoritative progress unchanged (140.6574ms)
+✔ every Practice entry selects its required or targeted optional task narration (208.0899ms)
+✔ new Feedback narrates once and Clarify remains manual, retain controls, captions, identity and drafts (447.0915ms)
+✔ oversized returned text remains complete with disabled Play and no Replay and an accessible limit explanation (562.9979ms)
+✔ every concept preserves Back, mentor origin, and completed records (328.8927ms)
+✔ Review & Practice opens from both completed entry points and keeps all nine exercises selectable (420.6945ms)
+✔ Review & Practice review traverses existing teaching and saved feedback without any submission (204.1587ms)
+✔ Review & Practice supplementary attempts preserve required answers, completion and every earlier attempt (167.4729ms)
+✔ Review & Practice Back returns to selection and normal partial Resume remains unchanged (304.1709ms)
+✔ required Practice has correct disclosure defaults, complete facts and one helper per editable field (1363.2085ms)
+✔ optional disclosure toggles and Ask return preserve every exercise's draft, origin and local state (179.5374ms)
+✔ optional Feedback Back returns to optional Practice then selection without new attempts (159.7514ms)
+✔ returned mentor reply restores expanded optional facts and draft without altering required records (142.8046ms)
+✔ Review & Practice pending supplementary feedback resumes the same request without overwriting completion (135.0512ms)
+✔ Review & Practice can return a partially completed learner to normal progression without blocking required submission (136.2393ms)
+✔ Practice 2 composer preserves multiline drafts across expansion and blocks unsafe submission (10.2824ms)
+✔ Practice 2 task disclosure preserves every canonical question, concept and helper (10.0437ms)
+✔ Practice refinements keep unfinished drafts through mentor, audio and local navigation at all target widths (432.6372ms)
+✔ Module Back follows curriculum after direct entry and remount without browser history (943.3387ms)
+✔ Back keeps an unsent draft across previous exercise and subsequent return (162.695ms)
+✔ Close always replaces with Today and cancel protects unsent work at every width (430.529ms)
+✔ First teaching page backs to its introduction; first module page exits predictably (252.8771ms)
+✔ Back crosses activity boundaries using saved curriculum order after direct links and refresh (142.974ms)
+✔ Back from optional Practice retains its draft when reopening through Review (139.039ms)
+✔ corrected OLD CARTS teaches O L D C A R T S in ten distinct pages and keeps facts (1.6418ms)
+✔ SOAP dropdowns require four selections, preserve drafts, and submit the original request contract (434.6887ms)
+✔ old SOAP prose and feedback remain unchanged in Review; optional SOAP remains free text (144.9675ms)
+✔ feedback uses neutral revision artwork only for Needs More Practice and omits body counters (610.3357ms)
+✔ new feedback narrates exactly once and never automatically repeats on Back, Review or remount (286.6183ms)
+✔ activity completion narrates aligned text once after new completion and stops old audio (150.4346ms)
+✔ muted returned feedback is not automatically replayed by enabling audio (141.7157ms)
+✔ Module Complete header and 100 percent progress are independent of the selected exercise (129.4094ms)
+✔ Welcome confines artwork to clipped hero and opaque rounded content at all widths (386.6407ms)
+✔ non-OLD teaching words, facts and narration remain identical to released baseline (0.5032ms)
+✔ SOAP pending and retry preserve request identity for new dropdowns and legacy prose (279.2512ms)
+✔ native SOAP category sheet exposes selection and cancellation without a composer (10.8813ms)
+✔ final OLD CARTS lossless images match approved integrity, dimensions, order and preserve introduction (19.5544ms)
+✔ OLD CARTS artwork integration preserves every nonvisual teaching field (0.3042ms)
+✔ actual Roadmap waits for fresh re-entry data after an empty visit and centers the measured lesson once (81.0108ms)
+✔ actual Roadmap account switch rejects old queued scrolling and waits for the new learner data (109.6661ms)
+✔ Patient Brief uses authenticated overview data, existing portrait assets, disclosure and history without starting an encounter (88.234ms)
+✔ Patient Brief close control and Android/modal back only dismiss; primary still hands off before encounter routing (280.2031ms)
+✔ Patient Brief keeps long text intact with safe-area padding, scrollable body and separate accessible footer at 320px (90.2587ms)
+✔ Patient Brief clears old presentation across authenticated account ownership changes (99.3951ms)
+✔ Patient Brief portrait component uses the real patient image and falls back to initials only for unavailable artwork (8.5717ms)
+✔ Meet Preceptor renders existing identity, welcome, suggestions and real mentor portrait props (86.6169ms)
+✔ Meet Preceptor suggested and typed questions preserve backend payload, history and controlled draft (95.9316ms)
+✔ Meet Preceptor loading disables suggestions and composer; failure preserves conversation and allows another question (89.4892ms)
+✔ Meet Preceptor voice toggle, microphone callback and dictated draft retain the existing speech workflow (98.1678ms)
+✔ Meet Preceptor close, Back and modal dismissal do not route; Meet Patient retains encounter parameters (468.7198ms)
+✔ Meet Preceptor follows replies near the bottom, preserves manual reading position and keeps history across layout changes (97.2224ms)
+✔ Meet Preceptor clears presentation at learner switch and scopes new requests to the current account (76.6163ms)
+✔ Meet Preceptor safe-area, keyboard avoidance and footer separation are retained on narrow native screens (180.2002ms)
+✔ late microphone permission after activity change or unmount releases stream and cannot start recording (369.2109ms)
+✔ web microphone and transcription work normally with the authenticated learner context (79.0846ms)
+✔ transcription arriving after activity/navigation/account transition never enters another answer (244.8794ms)
+✔ native recording/transcription remain functional and activity cancellation unloads captured recording (51.6437ms)
+✔ Module 0 uses its 45-second override, other APIs retain their existing timeouts and authenticated transport (225.8699ms)
+✔ Module 0 timeout is distinguishable from navigation cancellation and never retries the POST automatically (72.7163ms)
+✔ submission timeout stays active through a delayed response body (63.7123ms)
+✔ Module 0 refreshes an expired token once, keeps the same request ID and fails visibly for a missing session (28.5108ms)
+✔ account switching aborts Module 0 transport and rejects a delayed previous-account response (46.9364ms)
+Attention: Clerk collects telemetry data from its SDKs when connected to development instances.
+The data collected is used to inform Clerk's product roadmap.
+To learn more, including how to opt-out from the telemetry program, visit: https://clerk.com/docs/telemetry.
+
+✔ real frontend client POST reaches Clerk-verified lesson route, persists feedback and isolates learners (783.0621ms)
+✔ motivational achievement definitions seed idempotently with upsert (17.8627ms)
+✔ BadgeAward remains dedicated to session performance badges (42.6287ms)
+✔ first-gold-badge earns when user has a gold attempt (2.7714ms)
+✔ first-gold-badge remains earned on repeat evaluation (1.4506ms)
+✔ comeback earns when current score improves by 20+ (2.7577ms)
+✔ comeback does not earn below 20 improvement (0.7492ms)
+✔ hpi-builder counts achieved hpi-summary results (0.6722ms)
+✔ gold-streak-3 counts consecutive gold attempts (1.0975ms)
+✔ unit-complete requires all sessions in current unit best score >= 84 (1.0655ms)
+✔ clinical-foundations-complete requires all path sessions best score >= 84 (0.7145ms)
+✔ evaluator preserves earnedAt for already earned achievement (0.5801ms)
+✔ evaluator does not create or modify BadgeAward (0.4588ms)
+✔ finalizeSessionAttemptFromSubmission calls evaluator after scoring finalization (0.3829ms)
+[NaviGator TTS] request
+[NaviGator TTS] response
+[NaviGator TTS] audio received
+[NaviGator TTS] request
+[NaviGator TTS] response
+[NaviGator TTS] audio received
+[NaviGator TTS] request
+[NaviGator TTS] response
+[NaviGator TTS] audio received
+[NaviGator STT] request
+[NaviGator STT] response
+✔ real NaviGator TTS adapter preserves backend defaults and the explicit mentor override (95.0812ms)
+✔ Whisper adapter preserves English transcription and audio upload (89.0663ms)
+✔ patient chat adapter consumes only the message content, never separate model reasoning fields (1.5889ms)
+✔ broad questions reveal only one non-sensitive clinical fact (57.454ms)
+✔ transcript replay advances broad disclosure to the next undisclosed fact (6.1304ms)
+✔ broad questions do not expose negatives or red flags alongside the one allowed fact (3.3319ms)
+✔ specific questions reveal only matching facts (2.5567ms)
+✔ compound specific questions reveal each specifically requested fact (2.2712ms)
+✔ sensitive facts are available only when directly asked (3.6788ms)
+✔ persisted disclosed fact IDs advance broad disclosure without transcript replay (2.8385ms)
+✔ persisted disclosed fact IDs are the source of truth when provided (10.2712ms)
+✔ patient prompt hides implementation provenance and establishes an explicit role boundary (1.4808ms)
+✔ patient reply safety retries once for leakage across representative learner prompts (10.1463ms)
+✔ patient reply safety returns a safe fallback after one failed regeneration (13.6647ms)
+✔ patient safety rejects commentary even when appended to legitimate dialogue (1.2517ms)
+✔ both rejected drafts and empty model output produce only the safe fallback (0.3448ms)
+✔ natural symptom dialogue is preserved without an extra model call (0.208ms)
+✔ speech approvals bind approved text, learner, encounter, turn and exact speech settings (7.1472ms)
+✔ altered, expired, malformed, cross-learner and cross-encounter approvals are rejected (1.4348ms)
+✔ internal text cannot receive a patient speech approval (0.2846ms)
+✔ both patient encounters snapshot the existing backend defaults without voice reassignment (1.8308ms)
+✔ speech requires an owned active encounter (0.5328ms)
+(node:13440) Warning: Accessing non-existent property 'createLessonReply' of module exports inside circular dependency
+(Use `node --trace-warnings ...` to show where the warning was created)
+[2026-10-16T05:18:13.312Z] POST
+[2026-10-16T05:18:13.450Z] POST
+✔ chat rejects mixed commentary before display and sends only approved text and defaults to TTS (289.6678ms)
+[2026-10-16T05:18:13.523Z] POST
+[2026-10-16T05:18:13.539Z] POST
+[2026-10-16T05:18:13.545Z] POST
+[2026-10-16T05:18:13.566Z] POST
+[2026-10-16T05:18:13.574Z] POST
+[2026-10-16T05:18:13.580Z] POST
+Request failed { status: 403 }
+[2026-10-16T05:18:13.588Z] POST
+Request failed { status: 403 }
+[2026-10-16T05:18:13.596Z] POST
+Request failed { status: 403 }
+[2026-10-16T05:18:13.613Z] POST
+[2026-10-16T05:18:13.618Z] POST
+[2026-10-16T05:18:13.640Z] POST
+Request failed { status: 403 }
+✔ greeting remains Hello and speech cannot substitute text, voices, learners or encounters (172.8058ms)
+[2026-10-16T05:18:13.663Z] POST
+[2026-10-16T05:18:13.685Z] POST
+[2026-10-16T05:18:13.701Z] POST
+[2026-10-16T05:18:13.714Z] POST
+[2026-10-16T05:18:13.725Z] POST
+[VOICE SPEAK] request body
+[VOICE SPEAK] selected config
+[VOICE SPEAK] response payload
+[2026-10-16T05:18:13.735Z] POST
+[VOICE TRANSCRIBE] request
+[VOICE TRANSCRIBE] response
+✔ both patient encounters retain the same existing defaults; mentor voice and transcription stay independent (98.3103ms)
+[2026-10-16T05:18:13.762Z] POST
+[2026-10-16T05:18:13.794Z] POST
+✔ failed regeneration displays and synthesizes only the safe fallback (49.5114ms)
+✔ buildPreceptorChatSystemPrompt scopes Dr. Martinez to visible coaching topics (2.2909ms)
+✔ normalizePreceptorChatMessages keeps only recent user and assistant content (18.9873ms)
+✔ learning paths router registers preceptor chat before session overview (0.5329ms)
+✔ calculateCasePointsAwarded multiplies case level by earned rubric points (2.7277ms)
+✔ getSubmissionEarnedPoints falls back to score percent when earned points are missing (0.4238ms)
+✔ summarizeUserProgressFromConversations keeps only the highest scoring retry for each case (2.471ms)
+✔ summarizeUserProgressFromConversations sums best results across multiple cases and derives user level (21.6946ms)
+✔ buildLearningPathRoadmap returns nested path data with user session status (28.9501ms)
+✔ buildSessionOverview returns First Patient overview and preceptor briefing (2.1709ms)
+✔ first-patient-hpi remains locked until first-patient best score is at least 84 (1.8269ms)
+✔ first session in the first unit is available by default (0.7447ms)
+✔ first session in Unit 2 unlocks only after Unit 1 final session score is at least 84 (2.9681ms)
+✔ focus selects Module 0 before encounters when incomplete, but explicit destination wins (9.6283ms)
+✔ focus reuses backend recommendation across later rotations and never auto-selects locked encounter (0.6902ms)
+✔ complete and unavailable journeys fall back safely to final completed destination or Module 0 (0.5178ms)
+✔ waits for data and measurements in any order, uses actual visible viewport, positions once (2.1107ms)
+✔ offset clamps foundation/final milestones and accounts for header/tab-reduced scroll heights (0.3325ms)
+✔ manual interaction before or after readiness cancels automatic focus without snapping (0.3056ms)
+✔ re-entering after completion starts a fresh visit with fresh data and clears old measurements (0.2973ms)
+✔ account/session changes and blur reject queued work and stale readiness (0.304ms)
+✔ new explicit destination replaces queued/finished auto focus; absent target reveals safe top (0.3936ms)
+✔ mastery uses unrounded 84% boundary, never vacuous empty completion (1.599ms)
+✔ backend unlocks survive destination mastery disagreement; input and ordering preserved (1.0875ms)
+✔ tiers come from badgeTier, NONE and missing scores never invent awards (0.3441ms)
+✔ locked and Module 0 blocked encounters cannot launch, retain historical medal (0.3834ms)
+✔ retry crosses rotations; fully completed paths preserve repeat practice (0.3094ms)
+✔ previous attempts route is explicitly case-wide and unavailable without a linked case (0.2498ms)
+✔ backend recommendation drives current encounter but never bypasses a lock (0.486ms)
+✔ multiple paths retain API order and encounter numbers restart independently of rotation markers (0.2838ms)
+✔ artwork follows the actual task and workflow, not the mockup encounter ordinal (0.3068ms)
+✔ Roadmap imported artwork matches original dimensions and SHA-256; SVGs retain intrinsic geometry (33.5046ms)
+✔ iOS and Android presentation exposes no launch action on locked nodes and preserves available callbacks (294.4629ms)
+✔ Roadmap fixed header precedes status in scroll flow and keeps the measured canvas separate (1.3873ms)
+✔ Roadmap header uses only the shared settings gear with no streak disclosure (7.5477ms)
+✔ measured connectors join every adjacent milestone without bridging independent paths or missing stages (1.9302ms)
+✔ curves remeasure long content and resizing without stretching stroke or dash dimensions (0.5194ms)
+✔ native connection layer remeasures layout changes and removes unmounted milestones (80.5547ms)
+✔ broad background curves alternate with two arcs and smooth stage tangents (0.8403ms)
+✔ long measured gaps keep two broad arcs without obstacle tracking or oscillation (1.1249ms)
+✔ diagnostics do not serialize transcripts, tokens, profile metadata or vendor error bodies (2.2627ms)
+✔ current Clerk token replaces stored or caller-supplied identity and authorization (45.5367ms)
+✔ expiration refreshes once after 401 and does not retry non-authentication failures (2.467ms)
+✔ missing or expired sessions reject visibly without issuing an anonymous request (3.8691ms)
+✔ account switching aborts delayed requests and discards delayed body reads (8.7565ms)
+✔ same-learner token refresh retains drafts; reauthentication recovers them; account switching clears them (0.8554ms)
+✔ delayed local work from a previous account cannot start a request using the new account token (0.6826ms)
+✔ shared learner status uses real rotation, singular/plural streak, level and supplied XP threshold (1.7934ms)
+✔ shared status handles partial data without invented achievements or thresholds (0.4321ms)
+✔ Today and Roadmap reuse the same informational status card (92.3883ms)
+✔ all three tabs share one account gear; no settings action is attached to progress (3.4015ms)
+✔ gear opens actual account menu and web focus returns after Escape/outside dismissal (64.3394ms)
+✔ native Back closes shared account menu on both platforms (58.1217ms)
+✔ Sign Out closes menu and uses established Clerk session and redirect (18.8741ms)
+✔ account switch or tab blur hides previous menu immediately (20.9429ms)
+✔ failed sign-out permits a safe retry instead of leaving a stuck menu (26.6312ms)
+✔ account menu falls back to verified current-user email and hides mismatched profile data (17.8471ms)
+✔ old menu callback cannot sign out a newly switched account (19.2598ms)
+✔ both headers share compact fixed layout and receive only current learner data (19.4873ms)
+✔ signup has no username field and sends only email and password (177.5658ms)
+✔ email code verification precedes session activation (121.0098ms)
+✔ invalid verification code leaves signup pending without activating a session (38.6287ms)
+✔ missing credentials and incomplete signup never activate a session (30.8066ms)
+✔ patient TTS sends only approval context; duplicate turns play at most once (288.0327ms)
+✔ out-of-order responses and old callbacks cannot play or stop a newer turn (109.2973ms)
+✔ stop, mute, encounter change, unmount and account switch invalidate pending speech (285.2708ms)
+✔ mentor retains its explicit voice and cannot overlap patient audio in either direction (70.4149ms)
+✔ native playback uses the approved turn once and stop invalidates pending native speech (29.1763ms)
+✔ a patient reply arriving after mute/unmute or stop cannot start a new speech request (33.9465ms)
+✔ native audio created after a stop is unloaded without ever playing (32.5223ms)
+✔ patient speech without approval or with a mismatched returned turn never plays (24.4194ms)
+✔ replacement native playback waits until previous native audio stops (23.3819ms)
+✔ a briefing response received after entering and leaving an encounter remains stale (42.2445ms)
+✔ mentor mute preserves playback, pause resumes same audio, and replay restarts on web and native (64.0502ms)
+✔ blocked browser autoplay reports an error and explicit Play can retry (27.9417ms)
+✔ leaving after blocked autoplay releases prepared audio and prevents late resume (26.3873ms)
+✔ TTS failures distinguish authentication, provider access, and timeout without exposing upstream details (120.1755ms)
+✔ real Clerk verification rejects missing, forged, expired, future and wrong-origin sessions (177.5211ms)
+[2026-10-16T05:18:14.190Z] GET
+[2026-10-16T05:18:14.200Z] GET
+✔ default-deny app boundary protects newly mounted API routes (43.8421ms)
+✔ weightedAverageScore normalizes objective evidence to 0-100 (1.9894ms)
+✔ computeCompetencyTrend uses simple first-to-latest heuristics (17.193ms)
+✔ buildCompetencyProfiles aggregates mapped evidence across attempts (0.7193ms)
+✔ buildGrowthSummary highlights strongest and weakest competencies (0.3385ms)
+✔ today returns a new learner briefing (95.9479ms)
+✔ today recommends the first available forward encounter (1.4632ms)
+✔ today recommends a blocked retry when no forward session is available (1.2718ms)
+✔ today reinforces recent Gold motivation (1.2544ms)
+✔ today selects the closest in-progress achievement as next goal (0.988ms)
+✔ today returns completion briefing when all encounters are complete (2.5622ms)
+✔ today route is mounted at /api/today (1.2032ms)
+✔ Today prioritizes incomplete Module 0 with actual activity completion (1.4089ms)
+✔ Today uses backend recommended encounter and exact retry slug without changing selection (0.3384ms)
+✔ Today completed, locked and missing recommendation states have valid roadmap actions (0.2375ms)
+✔ Today missing XP does not invent progress or thresholds (0.3793ms)
+✔ Today retains long real module titles without truncation or new endpoints (1.4998ms)
+✔ Today exact Figma assets retain downloaded bytes and hashes (9.0598ms)
+✔ existing Clerk-to-Neon mapping and progress identity are preserved without updating client profile metadata (1.336ms)
+✔ new learners use verified subject and server-sourced profile metadata (1.2669ms)
+✔ transcript email uses verified Clerk contact rather than historical client-writable Neon email (1.1457ms)
+✔ voice TTS detects key_model_access_denied from upstream response body (2.1808ms)
+✔ voice TTS ignores unrelated upstream errors (13.4959ms)
+ℹ tests 376
+ℹ suites 0
+ℹ pass 376
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 24083.8501

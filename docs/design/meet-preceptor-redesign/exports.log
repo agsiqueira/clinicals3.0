@@ -1,0 +1,49 @@
+React Compiler enabled
+Starting Metro Bundler
+iOS ..\..\clinicals3.0-approved-ui\mobile\node_modules\expo-router\entry.js ▓▓▓▓▓▓░░░░░░░░░░ 41.9% (592/915)
+Android ..\..\clinicals3.0-approved-ui\mobile\node_modules\expo-router\entry.js ▓▓▓▓░░░░░░░░░░░░ 28.9% (310/577)
+iOS ..\..\clinicals3.0-approved-ui\mobile\node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.6% (1667/1670)
+Android ..\..\clinicals3.0-approved-ui\mobile\node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.9% (1668/1668)
+iOS Bundled 10479ms ..\..\clinicals3.0-approved-ui\mobile\node_modules\expo-router\entry.js (1670 modules)
+iOS ..\..\clinicals3.0-approved-ui\mobile\node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.6% (1667/1670)
+Android ..\..\clinicals3.0-approved-ui\mobile\node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.9% (1668/1668)
+Android ..\..\clinicals3.0-approved-ui\mobile\node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.9% (1668/1668)
+Android Bundled 16586ms ..\..\clinicals3.0-approved-ui\mobile\node_modules\expo-router\entry.js (1668 modules)
+Android ..\..\clinicals3.0-approved-ui\mobile\node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.9% (1668/1668)
+Static rendering is enabled. Learn more: https://docs.expo.dev/router/reference/static-rendering/
+λ Bundled 1778ms ..\..\clinicals3.0-approved-ui\mobile\node_modules\expo-router\node\render.js (1347 modules)
+Web Bundled 2598ms ..\..\clinicals3.0-approved-ui\mobile\node_modules\expo-router\entry.js (1433 modules)
+
+› ios bundles (1):
+_expo/static/js/ios/entry-aa943cc02625b026e38f6efe371fe37c.hbc (5.68 MB)
+
+› android bundles (1):
+_expo/static/js/android/entry-ca4c84a96e78572f13a16fec218cc54e.hbc (5.67 MB)
+
+› web bundles (1):
+_expo/static/js/web/entry-ae3fc63c96bfa5020cce2cdd8d5a00cf.js (3.1 MB)
+
+› Static routes (21):
+/modal (17.4 kB)
+/cases (17.4 kB)
+/ (index) (17.4 kB)
+/signin (17.4 kB)
+/signup (17.4 kB)
+/level1 (17.4 kB)
+/attempts (17.4 kB)
+/module-0 (17.4 kB)
+/_sitemap (17.4 kB)
+/portfolio (17.4 kB)
+/+not-found (17.4 kB)
+/(tabs)/cases (17.4 kB)
+/(tabs) (17.4 kB)
+/(auth)/signin (17.4 kB)
+/(auth)/signup (17.4 kB)
+/(tabs)/level1 (17.4 kB)
+/attempt-result (17.4 kB)
+/(tabs)/portfolio (17.4 kB)
+/level1 - original (17.4 kB)
+/clinical-portfolio (17.4 kB)
+/(tabs)/level1 - original (17.4 kB)
+
+Exported: ../docs/design/meet-preceptor-redesign/exports
