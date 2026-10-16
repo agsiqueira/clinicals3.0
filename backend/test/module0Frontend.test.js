@@ -206,6 +206,8 @@ function harness(file="app/module-0.tsx", params={}, options={}) {
     if(name.includes("PatientAvatar"))return{PatientAvatar:"PatientAvatar"};
     if(name.includes("storage"))return{getItemAsync:async()=>null,setItemAsync:async()=>{}};
     if(name.includes("clinicalDisplay"))return compile("src/utils/clinicalDisplay.ts",requireFn);
+    if(name.includes("portfolio/IllustratedPortfolio"))return compile("src/components/portfolio/IllustratedPortfolio.tsx",name=>name==="react"?{...react,useState:initial=>[initial,()=>{}]}:requireFn(name));
+    if(name === "./gallery" || name.endsWith("portfolio/gallery"))return compile("src/components/portfolio/gallery.ts",requireFn);
     if(name.endsWith("portfolio/presentation"))return compile("src/components/portfolio/presentation.ts",requireFn);
     if(name.includes("ClinicalPerformance"))return compile("src/components/portfolio/ClinicalPerformance.tsx",name=>name==="react"?{...react,useState:initial=>[initial,()=>{}]}:requireFn(name));
     if(name === "./performance" || name.endsWith("portfolio/performance"))return compile("src/components/portfolio/performance.ts",requireFn);
@@ -1337,7 +1339,7 @@ function portfolioHarness(options={}) {
  return {h,calls};
 }
 test('Portfolio redesign preserves backend identity, history, scores, current goal and all three tabs',async()=>{
- const {h,calls}=portfolioHarness();h.render();await h.settle();assert.equal(calls[0].expectedUserId,'A');assert.match(h.text(h.render()),/Backend learner title/);assert.match(h.text(h.render()),/Backend clinical path/);assert.match(h.text(h.render()),/5\s+of\s+12\s+encounters complete/);assert.match(h.text(h.render()),/Taylor Reed/);assert.match(h.text(h.render()),/Backend current goal/);assert.doesNotMatch(h.text(h.render()),/#1 62%|#2 91%/);assert.ok(h.nodes().find(n=>n.type==='Image'&&n.props.accessibilityLabel?.includes('1: 62%, 2: 91%')));
+ const {h,calls}=portfolioHarness();h.render();await h.settle();assert.equal(calls[0].expectedUserId,'A');assert.match(h.text(h.render()),/Backend learner title/);assert.match(h.text(h.render()),/Backend clinical path/);assert.match(h.text(h.render()),/5\s+of\s+12\s+encounters complete/);h.find("View all completed encounters").props.onPress();h.render();assert.match(h.text(h.render()),/Taylor Reed/);assert.match(h.text(h.render()),/Backend current goal/);assert.doesNotMatch(h.text(h.render()),/#1 62%|#2 91%/);assert.ok(h.nodes().find(n=>n.type==='Image'&&n.props.accessibilityLabel?.includes('1: 62%, 2: 91%')));
  h.find('Achievements').props.onPress();h.render();assert.match(h.text(h.render()),/Growth Timeline/);assert.match(h.text(h.render()),/Professional Milestones/);h.find('Show all milestones').props.onPress();h.render();assert.match(h.text(h.render()),/First encounter milestone/);h.find('Competencies').props.onPress();h.render();assert.ok(h.nodes().find(n=>n.type==='CompetencyProfileTab'));h.find('Badges').props.onPress();h.render();assert.match(h.text(h.render()),/Clinical Performance/);
  h.switchUser('B');await h.settle();assert.equal(calls.at(-1).expectedUserId,'B');
 });

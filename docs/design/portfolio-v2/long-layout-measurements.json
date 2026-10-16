@@ -1,0 +1,95 @@
+[
+  {
+    "artLeft": 172,
+    "cardBounds": [
+      {
+        "height": 218,
+        "scrollHeight": 218,
+        "scrollWidth": 127,
+        "width": 127
+      },
+      {
+        "height": 218,
+        "scrollHeight": 218,
+        "scrollWidth": 127,
+        "width": 127
+      },
+      {
+        "height": 162,
+        "scrollHeight": 162,
+        "scrollWidth": 127,
+        "width": 127
+      }
+    ],
+    "copyRight": 165,
+    "heroHeight": 388,
+    "heroScrollWidth": 265,
+    "heroWidth": 265,
+    "overlap": false,
+    "pageWidth": 320,
+    "visibleText": "YOUR CLINICAL STORY\nAdvanced Professional Clinical Communication and Patient Partnership\nLevel 12 · 1234567 XP\nComprehensive Clinical Foundations and Multidisciplinary Encounter Experience\n1234 of 5678 encounters completed\n\n12345 days",
+    "width": 320
+  },
+  {
+    "artLeft": 206,
+    "cardBounds": [
+      {
+        "height": 232,
+        "scrollHeight": 232,
+        "scrollWidth": 104,
+        "width": 104
+      },
+      {
+        "height": 232,
+        "scrollHeight": 232,
+        "scrollWidth": 104,
+        "width": 104
+      },
+      {
+        "height": 232,
+        "scrollHeight": 232,
+        "scrollWidth": 104,
+        "width": 104
+      }
+    ],
+    "copyRight": 199,
+    "heroHeight": 367,
+    "heroScrollWidth": 335,
+    "heroWidth": 335,
+    "overlap": false,
+    "pageWidth": 390,
+    "visibleText": "YOUR CLINICAL STORY\nAdvanced Professional Clinical Communication and Patient Partnership\nLevel 12 · 1234567 XP\nComprehensive Clinical Foundations and Multidisciplinary Encounter Experience\n1234 of 5678 encounters completed\n\n12345 days",
+    "width": 390
+  },
+  {
+    "artLeft": 923.5,
+    "cardBounds": [
+      {
+        "height": 190,
+        "scrollHeight": 190,
+        "scrollWidth": 171,
+        "width": 171
+      },
+      {
+        "height": 190,
+        "scrollHeight": 190,
+        "scrollWidth": 171,
+        "width": 171
+      },
+      {
+        "height": 190,
+        "scrollHeight": 190,
+        "scrollWidth": 171,
+        "width": 171
+      }
+    ],
+    "copyRight": 916.5,
+    "heroHeight": 264,
+    "heroScrollWidth": 720,
+    "heroWidth": 720,
+    "overlap": false,
+    "pageWidth": 1440,
+    "visibleText": "YOUR CLINICAL STORY\nAdvanced Professional Clinical Communication and Patient Partnership\nLevel 12 · 1234567 XP\nComprehensive Clinical Foundations and Multidisciplinary Encounter Experience\n1234 of 5678 encounters completed\n\n12345 days",
+    "width": 1440
+  }
+]

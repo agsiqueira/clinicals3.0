@@ -1,0 +1,51 @@
+React Compiler enabled
+Starting Metro Bundler
+iOS ..\..\clinicals3.0-approved-ui\mobile\node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓░░░░░░░ 60.7% ( 950/1219)
+Android ..\..\clinicals3.0-approved-ui\mobile\node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓░░░░░░░ 58.4% ( 848/1164)
+| (node:34188) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+iOS ..\..\clinicals3.0-approved-ui\mobile\node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.9% (1685/1685)
+Android ..\..\clinicals3.0-approved-ui\mobile\node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░ 91.2% (1470/1551)
+Android Bundled 9249ms ..\..\clinicals3.0-approved-ui\mobile\node_modules\expo-router\entry.js (1551 modules)
+iOS ..\..\clinicals3.0-approved-ui\mobile\node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.9% (1685/1685)
+Android ..\..\clinicals3.0-approved-ui\mobile\node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░ 91.2% (1470/1551)
+iOS ..\..\clinicals3.0-approved-ui\mobile\node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.9% (1685/1685)
+iOS Bundled 14497ms ..\..\clinicals3.0-approved-ui\mobile\node_modules\expo-router\entry.js (1685 modules)
+iOS ..\..\clinicals3.0-approved-ui\mobile\node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.9% (1685/1685)
+Static rendering is enabled. Learn more: https://docs.expo.dev/router/reference/static-rendering/
+λ Bundled 1580ms ..\..\clinicals3.0-approved-ui\mobile\node_modules\expo-router\node\render.js (1332 modules)
+Web Bundled 2382ms ..\..\clinicals3.0-approved-ui\mobile\node_modules\expo-router\entry.js (1441 modules)
+
+› android bundles (1):
+_expo/static/js/android/entry-09de4526a5343cf32cf32f4b30844189.hbc (5.7 MB)
+
+› ios bundles (1):
+_expo/static/js/ios/entry-74577a3f2174ac5c7021ef779dbf4909.hbc (5.71 MB)
+
+› web bundles (1):
+_expo/static/js/web/entry-7efab0eafb80422be04adc8a84bf5393.js (3.13 MB)
+
+› Static routes (21):
+/modal (17.4 kB)
+/cases (17.4 kB)
+/ (index) (17.4 kB)
+/signin (17.4 kB)
+/signup (17.4 kB)
+/level1 (17.4 kB)
+/attempts (17.4 kB)
+/module-0 (17.4 kB)
+/_sitemap (17.4 kB)
+/portfolio (17.4 kB)
+/+not-found (17.4 kB)
+/(tabs)/cases (17.4 kB)
+/(tabs) (17.4 kB)
+/(auth)/signin (17.4 kB)
+/(auth)/signup (17.4 kB)
+/(tabs)/level1 (17.4 kB)
+/attempt-result (17.4 kB)
+/(tabs)/portfolio (17.4 kB)
+/level1 - original (17.4 kB)
+/clinical-portfolio (17.4 kB)
+/(tabs)/level1 - original (17.4 kB)
+
+Exported: ../docs/design/portfolio-v2/exports
