@@ -174,7 +174,7 @@ function harness(file="app/module-0.tsx", params={}, options={}) {
     if(name==="react")return react;
     if(name==="react/jsx-runtime")return{jsx,jsxs:jsx,Fragment:"Fragment"};
     if(name==="react-native")return{View:"View",Text:"Text",TextInput:"TextInput",Pressable:"Pressable",ScrollView:"ScrollView",ActivityIndicator:"ActivityIndicator",RefreshControl:"RefreshControl",Modal:"Modal",Platform:{OS:"web"},StyleSheet:{create:x=>x},Animated:{Value:class{setValue(){}},sequence:()=>({start(){}}),timing:()=>({})},useWindowDimensions:()=>({width:options.width || 390,height:options.height || 844})};
-    if(name==="react-native-safe-area-context")return{SafeAreaView:"SafeAreaView",useSafeAreaInsets:()=>({top:0,bottom:0,left:0,right:0})};
+    if(name==="react-native-safe-area-context")return{SafeAreaView:"SafeAreaView",useSafeAreaInsets:()=>options.insets || ({top:0,bottom:0,left:0,right:0})};
     if(name==="@clerk/clerk-expo")return{useAuth:()=>({userId,sessionId:`session-${userId}`}),useUser:()=>({isLoaded:true,user:{id:userId}}),useClerk:()=>({signOut:async()=>{}})};
     if(name==="expo-router")return{useRouter:()=>router,useLocalSearchParams:()=>params};
     if(name==="@react-navigation/native")return{useIsFocused:()=>focused,useFocusEffect:fn=>react.useEffect(()=>focused?fn():undefined,[fn,focused])};
@@ -201,11 +201,12 @@ function harness(file="app/module-0.tsx", params={}, options={}) {
     if(name.includes("Module0Card"))return{Module0Card:"Module0Card"};
     if(name.includes("CompactJourneyCard"))return{CompactJourneyCard:"JourneyCard"};
     if(name.includes("RotationCard"))return{RotationCard:"RotationCard",rotationComplete:()=>false};
+    if(name.includes("PatientBrief"))return compile("src/components/PatientBrief.tsx",requireFn);
     if(name.includes("PatientAvatar"))return{PatientAvatar:"PatientAvatar"};
     if(name.includes("storage"))return{getItemAsync:async()=>null,setItemAsync:async()=>{}};
     if(name.includes("clinicalDisplay"))return compile("src/utils/clinicalDisplay.ts",requireFn);
     if(name.includes("styles"))return{portfolioStyles:{},casesStyles:{}};
-    if(name==="@expo/vector-icons")return{MaterialCommunityIcons:"Icon"};
+    if(name==="@expo/vector-icons")return{MaterialCommunityIcons:"Icon",Ionicons:"Icon"};
     throw new Error(`Unexpected frontend dependency ${name}`);
   }
   const composerComponent=compile("src/components/ClinicalsChatComposer.tsx",requireFn).ClinicalsChatComposer;
@@ -276,7 +277,7 @@ test("Roadmap retains overview, evaluation, case-wide history, preceptor chat an
     sendPreceptorChatMessage:async(slug,payload,headers)=>{calls.push({slug,payload,headers});return{reply:"Synthetic mentor answer"};},
   }});t.after(h.unmount);h.render();await h.settle();
   await h.nodes().find(n=>n.type==="RoadmapJourney").props.onSessionPress(session);await h.settle();
-  assert.match(h.text(h.render()),/Your Mission/);
+  assert.match(h.text(h.render()),/YOUR MISSION/);
   h.find("Show evaluation details").props.onPress();h.render();assert.match(h.text(h.render()),/Performance Levels/);
   h.find("View Previous Attempts").props.onPress();h.render();assert.equal(JSON.stringify(h.navigation.at(-1).params),JSON.stringify({caseId:"shared-case"}));
   await h.nodes().find(n=>n.type==="RoadmapJourney").props.onSessionPress(session);await h.settle();
@@ -1227,4 +1228,46 @@ test('actual Roadmap account switch rejects old queued scrolling and waits for t
  h.switchUser('B');await h.advance(0);assert.equal(calls.length,0);assert.equal(h.nodes().some(n=>n.props?.testID==='roadmap-positioning'),true);
  canvas.props.onFocusMeasure('focus:p:u:lesson',{x:0,y:1600,width:350,height:200});await h.advance(0);assert.equal(calls.length,0);
  resolveB(paths);await h.settle();const nextScroll=h.nodes().find(n=>n.props?.testID==='roadmap-scroll'),nextCanvas=h.nodes().find(n=>n.type==='JourneyCanvas');nextScroll.props.ref.current={scrollTo:()=>calls.push('B')};nextScroll.props.onLayout({nativeEvent:{layout:{height:600}}});nextCanvas.props.onCanvasLayout({y:0,height:3000});nextCanvas.props.onFocusMeasure('focus:p:u:lesson',{x:0,y:1800,width:350,height:200});await h.advance(0);await h.advance(0);assert.deepEqual(calls,['B']);
+});
+
+const briefSession={id:'brief',slug:'seasonal-allergies-complete-hpi',title:'Seasonal Allergies: Complete HPI',status:'available'};
+function briefHarness(options={}){const calls=[];const h=harness('app/(tabs)/cases.tsx',{}, {...options,api:{getLearningPaths:async()=>[{id:'p',title:'Path',units:[{id:'u',title:'U',slug:'u',sessions:[briefSession]}]}],getPatientSessionOverview:async(slug,headers)=>{calls.push({slug,headers});return{...briefSession,description:options.description||'Clinical mission from the overview',achievements:[{id:'a',title:options.objective||'Explore the presenting symptoms',weightPercent:100}],badgeThresholds:{gold:84,silver:50,bronze:1},estimatedTime:{min:8,max:12},preceptorPersona:{name:'Dr. Rivera'},linkedCase:{caseId:'seasonal_allergies',title:'Seasonal Allergies'}};}}});return{h,calls,async open(){h.render();await h.settle();await h.nodes().find(n=>n.type==='RoadmapJourney').props.onSessionPress(briefSession);await h.settle();},brief(){return h.nodes().find(n=>typeof n.type==='function'&&n.props.onMeetPreceptor);}};}
+
+test('Patient Brief uses authenticated overview data, existing portrait assets, disclosure and history without starting an encounter',async t=>{
+ const b=briefHarness();t.after(b.h.unmount);await b.open();const h=b.h,text=h.text(h.render());
+ for(const value of ['Sarah Johnson','Complete Clinical Encounter','Seasonal Allergies','Clinical mission from the overview','Explore the presenting symptoms','8','12','Dr. Rivera'])assert.ok(text.includes(value),value);
+ assert.equal(b.calls[0].headers.expectedUserId,'A');assert.equal(b.calls[0].slug,briefSession.slug);
+ const avatar=h.nodes().find(n=>n.type==='PatientAvatar');assert.equal(avatar.props.patientSessionSlug,briefSession.slug);assert.equal(avatar.props.caseId,'seasonal_allergies');assert.equal(avatar.props.size,54);
+ assert.equal(b.brief().props.evaluationExpanded,false);h.find('Show evaluation details').props.onPress();h.render();assert.match(h.text(h.render()),/Worth\s+100%\s+of your session score/);assert.match(h.text(h.render()),/84%\+/);
+ h.find('Hide evaluation details').props.onPress();h.render();assert.equal(b.brief().props.evaluationExpanded,false);assert.equal(h.navigation.length,0);
+ h.find('View Previous Attempts').props.onPress();h.render();assert.equal(b.brief().props.visible,false);assert.equal(h.navigation.at(-1).pathname,'/attempts');assert.equal(h.navigation.at(-1).params.caseId,'seasonal_allergies');
+});
+
+test('Patient Brief close control and Android/modal back only dismiss; primary still hands off before encounter routing',async t=>{
+ for(const dismissal of ['close','request','keyboard']){const b=briefHarness();t.after(b.h.unmount);await b.open();const h=b.h;
+ if(dismissal==='close')h.find('Close Patient Brief').props.onPress();else if(dismissal==='keyboard')h.nodes().find(n=>n.props?.testID==='patient-brief').props.onKeyDown({key:'Escape',stopPropagation(){}});else h.nodes().find(n=>n.type==='Modal'&&n.props.visible).props.onRequestClose();h.render();assert.equal(b.brief().props.visible,false);assert.equal(h.navigation.length,0);assert.equal(h.find('Meet Patient')?.props.onPress!==undefined,true);
+ await h.nodes().find(n=>n.type==='RoadmapJourney').props.onSessionPress(briefSession);await h.settle();h.find('Meet Preceptor').props.onPress();h.render();assert.equal(b.brief().props.visible,false);assert.equal(h.navigation.length,0,'handoff creates no route or attempt');
+ h.find('Back').props.onPress();h.render();assert.equal(h.navigation.length,0);
+ }
+});
+
+test('Patient Brief keeps long text intact with safe-area padding, scrollable body and separate accessible footer at 320px',async t=>{
+ const long='Detailed clinical context and learning objective '.repeat(35);const b=briefHarness({width:320,height:568,insets:{top:47,bottom:34,left:0,right:0},description:long,objective:long});t.after(b.h.unmount);await b.open();const h=b.h;
+ assert.ok(h.text(h.render()).includes(long));const nodes=h.nodes(),backdrop=nodes.find(n=>n.props?.testID==='patient-brief-backdrop');assert.equal(backdrop.props.style.at(-1).paddingTop,61);assert.equal(backdrop.props.style.at(-1).paddingBottom,48);
+ const close=nodes.find(n=>n.props?.testID==='patient-brief-close');assert.equal(close.props.accessibilityLabel,'Close Patient Brief');assert.equal(close.props.style.width,44);assert.equal(close.props.style.height,44);
+ const card=nodes.find(n=>n.props?.testID==='patient-brief');const children=h.nodes(card);assert.ok(children.some(n=>n.props?.testID==='patient-brief-scroll'));assert.ok(children.some(n=>n.props?.testID==='patient-brief-footer'));assert.equal(h.nodes(nodes.find(n=>n.props?.testID==='patient-brief-scroll')).some(n=>n.props?.testID==='patient-brief-footer'),false);
+ h.find('Show evaluation details').props.onPress();h.render();assert.ok(h.find('Meet Preceptor'));assert.equal(b.brief().props.evaluationExpanded,true);
+});
+
+test('Patient Brief clears old presentation across authenticated account ownership changes',async t=>{
+ const b=briefHarness();t.after(b.h.unmount);await b.open();b.h.switchUser('B');await b.h.settle();assert.equal(b.brief().props.visible,false);assert.equal(b.brief().props.overview,null);
+ await b.h.nodes().find(n=>n.type==='RoadmapJourney').props.onSessionPress(briefSession);await b.h.settle();assert.equal(b.calls.at(-1).headers.expectedUserId,'B');assert.equal(b.brief().props.visible,true);
+});
+
+test('Patient Brief portrait component uses the real patient image and falls back to initials only for unavailable artwork',()=>{
+ const assets=compile('src/utils/patientAssets.ts',ref=>ref);
+ const jsx=(type,props)=>({type,props:props||{}});
+ const avatar=compile('src/components/PatientAvatar.tsx',name=>name==='react/jsx-runtime'?{jsx,jsxs:jsx}:name==='react-native'?{Image:'Image',View:'View',Text:'Text',StyleSheet:{create:x=>x}}:assets,{__DEV__:false}).PatientAvatar;
+ const known=avatar({patientName:'Taylor Reed',patientSessionSlug:'first-patient',caseId:'uti_level1',size:54,showRing:false});assert.equal(known.props.children.type,'Image');assert.ok(known.props.children.props.source);
+ const missing=avatar({patientName:'Unknown Learner Fixture',patientSessionSlug:'unmapped',caseId:'unmapped',size:54,showRing:false});assert.equal(missing.props.children.type,'Text');assert.equal(missing.props.children.props.children,assets.getPatientInitials('Unknown Learner Fixture','PT'));
 });
