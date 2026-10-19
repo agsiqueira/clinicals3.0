@@ -21,7 +21,7 @@ export function AccountSettingsButton() {
   const trigger = useRef<any>(null), firstAction = useRef<any>(null);
   const currentOwner = useRef(owner);
   currentOwner.current = owner;
-  const visible = focused && !!userId && openedFor === owner;
+  const visible = focused && openedFor === owner;
   const account = isLoaded && !!user && user.id === userId
     ? user.fullName || user.firstName || user.username || user.primaryEmailAddress?.emailAddress || user.emailAddresses?.[0]?.emailAddress || "Account"
     : "Account unavailable";
@@ -38,8 +38,11 @@ export function AccountSettingsButton() {
   }, [visible]);
   const open = () => {
     if (visible) return dismiss();
-    if (!userId) return;
+    if (!userId) { router.replace("/signin"); return; }
     const requestedOwner = owner;
+    const panelWidth = Math.min(280, width - 32);
+    setAnchor({ x: Math.max(16, width - panelWidth - 16), y: 60, width: panelWidth });
+    setError(null); setOpenedFor(owner);
     trigger.current?.measureInWindow?.((x: number, y: number, w: number, h: number) => {
       if (currentOwner.current !== requestedOwner) return;
       const panelWidth = Math.min(280, width - 32);

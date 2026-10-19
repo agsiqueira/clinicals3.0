@@ -143,7 +143,7 @@ function normalizeLearningPathsResponse(data: any): LearningPath[] {
   if (Array.isArray(data)) return data;
   if (Array.isArray(data?.learningPaths)) return data.learningPaths;
   if (data && typeof data === "object" && Array.isArray(data.units)) return [data];
-  return [];
+  throw new Error("Learning paths are unavailable: the server returned an invalid response.");
 }
 
 function achievementWeightLabels(achievements: AchievementSummary[]) {
@@ -268,6 +268,7 @@ function OwnedRoadmap() {
     }
 
     if (!user?.id) {
+      setRoadmapError("Your session is unavailable. Sign in again to load your Roadmap.");
       setRecommendedSlug(null);
       setLearningPaths([]);
       setJourneySummary(null);
@@ -278,7 +279,7 @@ function OwnedRoadmap() {
     const epoch = ++loadEpoch.current;
     let assertSession: () => void;
     try { assertSession = captureSession(user.id); }
-    catch { setLearningPaths([]); setModule0(null); setJourneySummary(null); setLoadedRoadmapEpoch(epoch); setLoadingRoadmap(false); return; }
+    catch { setRoadmapError("Your session is unavailable. Sign in again to load your Roadmap."); setLearningPaths([]); setModule0(null); setJourneySummary(null); setLoadedRoadmapEpoch(epoch); setLoadingRoadmap(false); return; }
     const current = () => { try { assertSession(); return epoch === loadEpoch.current; } catch { return false; } };
     try {
       setRoadmapError(null);
@@ -293,18 +294,17 @@ function OwnedRoadmap() {
         setJourneySummary(todayData || null);
         setRecommendedSlug(todayData?.recommendedEncounter?.patientSessionSlug || null);
         setModule0(todayData?.module0 || null);
-      } catch {
+      } catch (err: any) {
         if (!current()) return;
-        setRecommendedSlug(null);
-        setJourneySummary(null);
-        setModule0(null);
+        throw err;
       }
     } catch (err: any) {
       if (!current()) return;
       setRecommendedSlug(null);
-      setRoadmapError(err?.message || "Failed to load learning roadmap.");
+      setRoadmapError(err?.status === 403 ? "You are not authorized to view this Roadmap. Use account settings to sign out or contact support." : err?.status === 401 ? "Your session is unavailable. Sign in again to continue." : err?.status >= 500 ? "The learning service is unavailable. Please retry shortly." : err?.message?.includes("invalid response") ? "The learning service returned an invalid response. Please retry." : "Could not load your Roadmap. Check your connection and retry.");
       setLearningPaths([]);
       setJourneySummary(null);
+      setModule0(null);
     } finally {
       if (current()) { setLoadedRoadmapEpoch(epoch); setLoadingRoadmap(false); }
     }

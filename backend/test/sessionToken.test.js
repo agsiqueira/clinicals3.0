@@ -83,3 +83,32 @@ test("delayed local work from a previous account cannot start a request using th
   await assert.rejects(session.authenticatedFetch("https://api.example.test", { expectedUserId: "A" }), /discarded/);
   assert.equal(calls, 0);
 });
+
+test("session recovery fires only after failed refresh or a missing token, never for network/403/503 failures", async t => {
+  const original = global.fetch; t.after(() => { global.fetch = original; });
+  let recoveries = 0;
+  const unsubscribe = session.onSessionExpired(() => { recoveries++; });
+  t.after(unsubscribe);
+  session.bindSession("A", "session_A", async () => "token");
+  for (const status of [403, 503]) {
+    global.fetch = async () => new Response("{}", { status });
+    const response = await session.authenticatedFetch("https://api.example.test");
+    assert.equal(response.status, status); await response.text();
+  }
+  global.fetch = async () => { throw new TypeError("Failed to fetch"); };
+  await assert.rejects(session.authenticatedFetch("https://api.example.test"), /Failed to fetch/);
+  assert.equal(recoveries, 0);
+  let calls = 0;
+  global.fetch = async () => new Response("{}", { status: ++calls === 1 ? 401 : 200 });
+  await (await session.authenticatedFetch("https://api.example.test")).text();
+  assert.equal(recoveries, 0);
+  global.fetch = async () => new Response("{}", { status: 401 });
+  await assert.rejects(session.authenticatedFetch("https://api.example.test"), /session expired/);
+  assert.equal(recoveries, 1);
+  session.bindSession("A", "session_A", async () => null);
+  await assert.rejects(session.authenticatedFetch("https://api.example.test"), /session expired/);
+  assert.equal(recoveries, 2);
+  unsubscribe();
+  await assert.rejects(session.authenticatedFetch("https://api.example.test"), /session expired/);
+  assert.equal(recoveries, 2);
+});

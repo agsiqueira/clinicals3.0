@@ -2,6 +2,16 @@ import { selectDraftLearner } from "./encounterDraft.js";
 let binding = null;
 let generation = 0;
 const pending = new Set();
+const expiredListeners = new Set();
+export function onSessionExpired(listener) {
+  expiredListeners.add(listener);
+  return () => { expiredListeners.delete(listener); };
+}
+function expireSession(assertCurrent) {
+  assertCurrent();
+  for (const listener of expiredListeners) listener();
+  return sessionError();
+}
 export function bindSession(userId, sessionId, getToken) {
   selectDraftLearner(userId);
   if (binding?.userId !== userId || binding?.sessionId !== sessionId) {
@@ -46,7 +56,7 @@ export async function authenticatedFetch(url, options = {}) {
     for (let attempt = 0; attempt < 2; attempt += 1) {
       const token = await snapshot.getToken(attempt ? { skipCache: true } : {});
       assertCurrent();
-      if (!token) throw sessionError();
+      if (!token) throw expireSession(assertCurrent);
       const headers = new Headers(options.headers);
       for (const key of Array.from(headers.keys())) {
         if (key === "x-clerk-user-id" || key.startsWith("x-user-")) headers.delete(key);
@@ -58,7 +68,7 @@ export async function authenticatedFetch(url, options = {}) {
       await response.text();
     }
     if (!response) throw sessionError();
-    if (response.status === 401) throw sessionError();
+    if (response.status === 401) throw expireSession(assertCurrent);
     for (const method of ["text", "json", "arrayBuffer", "blob"]) {
       const read = response[method].bind(response);
       response[method] = async () => {
