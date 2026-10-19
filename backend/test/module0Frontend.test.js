@@ -312,7 +312,7 @@ test("Roadmap direct links and refreshed entry respect backend locked and Module
 
 test("Roadmap overview errors are visible; account changes cannot reuse an old Roadmap",async t=>{
   const h=harness("app/(tabs)/cases.tsx",{}, {api:{getLearningPaths:async()=>{throw new Error("Synthetic roadmap failure");}}});
-  t.after(h.unmount);h.render();await h.settle();assert.match(h.text(h.render()),/Synthetic roadmap failure/);assert.ok(h.find("Retry"));
+  t.after(h.unmount);h.render();await h.settle();assert.match(h.text(h.render()),/Check your connection and retry/);assert.ok(h.find("Retry"));
   h.switchUser("B");await h.settle();assert.equal(h.nodes().some(n=>n.type==="RoadmapJourney"),false);
 });
 
@@ -323,6 +323,18 @@ test("Roadmap rejects delayed data after switching accounts and preserves loadin
   h.switchUser("B");await h.settle();finish([{id:"A",title:"A-private path",units:[]}]);await h.settle();
   const journey=h.nodes().find(n=>n.type==="RoadmapJourney");assert.equal(journey.props.paths[0].id,"B");
   const empty=harness("app/(tabs)/cases.tsx",{}, {api:{getLearningPaths:async()=>[]}});t.after(empty.unmount);empty.render();await empty.settle();assert.match(empty.text(empty.render()),/No learning paths found/);
+});
+
+test("Roadmap distinguishes authorization, service outage, invalid payload and failed learner summary from empty data", async t => {
+  for (const [error, message] of [[Object.assign(new Error("denied"), {status:403}), /not authorized/], [Object.assign(new Error("down"), {status:503}), /service is unavailable/]]) {
+    const h = harness("app/(tabs)/cases.tsx", {}, {api:{getLearningPaths:async()=>{throw error;}}});
+    t.after(h.unmount); h.render(); await h.settle();
+    assert.match(h.text(h.render()), message); assert.doesNotMatch(h.text(h.render()), /No learning paths found/); assert.ok(h.find("Retry"));
+  }
+  for (const overrides of [{getLearningPaths:async()=>({error:"bad shape"})}, {getLearningPaths:async()=>[],getToday:async()=>{throw Object.assign(new Error("down"),{status:503});}}]) {
+    const h = harness("app/(tabs)/cases.tsx", {}, {api:overrides}); t.after(h.unmount); h.render(); await h.settle();
+    assert.doesNotMatch(h.text(h.render()), /No learning paths found/); assert.ok(h.find("Retry"));
+  }
 });
 
 test("Today keeps Module 0 as primary focus; Roadmap preserves foundation ordering",async t=>{
